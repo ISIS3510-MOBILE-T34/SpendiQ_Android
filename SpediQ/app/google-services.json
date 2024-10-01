@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "245591328431",
+    "project_id": "spendiq-8ffdc",
+    "storage_bucket": "spendiq-8ffdc.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:245591328431:android:79c048f2b90b9ea500f65a",
+        "android_client_info": {
+          "package_name": "com.isis3510.spendiq"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD36BvMq4ygONdNnl92BttLbK6KpFHTyXs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
