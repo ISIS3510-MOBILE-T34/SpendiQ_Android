@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
@@ -18,6 +19,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,28 +27,38 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.isis3510.spendiq.R
+import com.isis3510.spendiq.viewmodel.login.LogInViewModel
 
 @Composable
-fun UserLogin(modifier: Modifier = Modifier) {
+fun LogInScreen(
+//    openAndPopUp: (String, String) -> Unit,
+      modifier: Modifier = Modifier
+//    viewModel: LogInViewModel = hiltViewModel()
+) {
+//    val email = viewModel.email.collectAsState()
+//    val password = viewModel.password.collectAsState()
     Box(
-        modifier = modifier
-            .requiredWidth(width = 393.dp)
-            .requiredHeight(height = 852.dp)
-            .background(color = Color.White)
+//        modifier = modifier
+//            .requiredWidth(width = 393.dp)
+//            .requiredHeight(height = 852.dp)
+//            .background(color = Color.White)
+        modifier = modifier.fillMaxSize()
     ) {
         Image(
             painter = painterResource(id = R.drawable.logo_log_in),
-            contentDescription = "Group 1000000876",
+            contentDescription = "logo log in",
             modifier = Modifier
-                .align(alignment = Alignment.TopStart)
-                .offset(x = (-161.00006103515625).dp,
-                    y = 303.dp)
+                .fillMaxSize()
+                .align(alignment = Alignment.Center)
                 .requiredWidth(width = 708.dp)
                 .requiredHeight(height = 357.dp))
         Text(
@@ -54,13 +66,16 @@ fun UserLogin(modifier: Modifier = Modifier) {
             color = Color.Black,
             textAlign = TextAlign.Center,
             style = TextStyle(
-                fontSize = 73.sp),
+                fontSize = 73.sp,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.Bold
+            ),
             modifier = Modifier
+                .fillMaxWidth()
                 .align(alignment = Alignment.TopStart)
-                .offset(x = 11.dp,
-                    y = 93.dp)
-                .requiredWidth(width = 361.dp)
-                .requiredHeight(height = 72.dp))
+                .offset(y = 93.dp)
+                .requiredHeight(72.dp)
+        )
         Text(
             text = "Forgot your ID or password?",
             color = Color(0xff5875dd),
@@ -173,5 +188,5 @@ fun DarkThemeTrue(modifier: Modifier = Modifier) {
 @Preview(widthDp = 393, heightDp = 852)
 @Composable
 private fun UserLoginPreview() {
-    UserLogin(Modifier)
+    LogInScreen(Modifier)
 }
