@@ -12,6 +12,9 @@ class AuthenticationViewModel(private val authRepository: AuthRepository = AuthR
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState
 
+    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
+    val registerState: StateFlow<RegisterState> = _registerState
+
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user
 
@@ -35,10 +38,31 @@ class AuthenticationViewModel(private val authRepository: AuthRepository = AuthR
         }
     }
 
+    fun register(email: String, password: String, confirmPassword: String) {
+        if (password != confirmPassword) {
+            _registerState.value = RegisterState.Error("Passwords do not match")
+            return
+        }
+        viewModelScope.launch {
+            _registerState.value = RegisterState.Loading
+            authRepository.register(email, password).collect { result ->
+                _registerState.value = when {
+                    result.isSuccess -> {
+                        _user.value = result.getOrNull()
+                        RegisterState.Success
+                    }
+                    result.isFailure -> RegisterState.Error(result.exceptionOrNull()?.message ?: "Registration failed")
+                    else -> RegisterState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
     fun logout() {
         authRepository.logout()
         _user.value = null
         _loginState.value = LoginState.Idle
+        _registerState.value = RegisterState.Idle
     }
 }
 
@@ -47,4 +71,11 @@ sealed class LoginState {
     object Loading : LoginState()
     object Success : LoginState()
     data class Error(val message: String) : LoginState()
+}
+
+sealed class RegisterState {
+    object Idle : RegisterState()
+    object Loading : RegisterState()
+    object Success : RegisterState()
+    data class Error(val message: String) : RegisterState()
 }

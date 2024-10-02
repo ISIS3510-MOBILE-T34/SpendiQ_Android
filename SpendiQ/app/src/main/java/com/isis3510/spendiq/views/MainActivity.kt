@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.isis3510.spendiq.views.login.LoginScreen
+import com.isis3510.spendiq.views.register.RegisterScreen
 import com.isis3510.spendiq.views.theme.SpendiQTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,6 +37,7 @@ fun MainScreen() {
     NavHost(navController = navController, startDestination = "authentication") {
         composable("authentication") { AuthenticationScreen(navController) }
         composable("login") { LoginScreen(navController) }
+        composable("register") { RegisterScreen(navController) }
         composable("main") { /* Add your main screen content here */ }
     }
 }

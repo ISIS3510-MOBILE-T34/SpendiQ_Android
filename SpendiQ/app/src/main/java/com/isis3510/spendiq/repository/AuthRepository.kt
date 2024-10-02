@@ -20,6 +20,17 @@ class AuthRepository {
         }
     }
 
+    fun register(email: String, password: String): Flow<Result<User>> = flow {
+        try {
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            result.user?.let {
+                emit(Result.success(User(it.uid, it.email ?: "")))
+            } ?: emit(Result.failure(Exception("Registration failed")))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }
+
     fun getCurrentUser(): User? {
         return auth.currentUser?.let { User(it.uid, it.email ?: "") }
     }
