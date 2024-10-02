@@ -19,5 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SpendiQ"
+rootProject.name = "Tests"
 include(":app")
+ 

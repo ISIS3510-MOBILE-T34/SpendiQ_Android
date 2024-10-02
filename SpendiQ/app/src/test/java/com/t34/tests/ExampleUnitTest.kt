@@ -1,4 +1,4 @@
-package com.isis3510.spendiq
+package com.t34.tests
 
 import org.junit.Test
 
