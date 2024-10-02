@@ -24,6 +24,13 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        Text(
+            text = "SpendiQ",
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 30.dp)
+        )
+
+        // Email TextField
         TextField(
             value = email,
             onValueChange = { email = it },
@@ -31,6 +38,8 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
+
+        // Password TextField
         TextField(
             value = password,
             onValueChange = { password = it },
@@ -39,6 +48,8 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Log In Button
         Button(
             onClick = { viewModel.login(email, password) },
             modifier = Modifier.fillMaxWidth()
@@ -48,13 +59,21 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
 
         when (authState) {
             is AuthState.Loading -> CircularProgressIndicator()
-            is AuthState.Error -> Text((authState as AuthState.Error).message, color = MaterialTheme.colorScheme.error)
+            is AuthState.Error -> Text(
+                (authState as AuthState.Error).message,
+                color = MaterialTheme.colorScheme.error
+            )
             is AuthState.Authenticated -> LaunchedEffect(Unit) {
                 navController.navigate("main") {
                     popUpTo("authentication") { inclusive = true }
                 }
             }
             else -> {}
+        }
+
+        // Forgot Password Link
+        TextButton(onClick = { /* TODO: Forgot Password */ }) {
+            Text("Forgot your ID or password?", color = MaterialTheme.colorScheme.primary)
         }
     }
 }
