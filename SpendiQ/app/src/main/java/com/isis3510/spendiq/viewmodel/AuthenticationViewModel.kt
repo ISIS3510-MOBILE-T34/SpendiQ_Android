@@ -1,6 +1,7 @@
 package com.isis3510.spendiq.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.isis3510.spendiq.model.User
 import com.isis3510.spendiq.repository.AuthRepository
@@ -8,51 +9,52 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class AuthenticationViewModel(private val authRepository: AuthRepository = AuthRepository()) : ViewModel() {
-    private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
-    val loginState: StateFlow<LoginState> = _loginState
+class AuthenticationViewModel(application: Application) : AndroidViewModel(application) {
+    private val authRepository = AuthRepository(application)
 
-    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
-    val registerState: StateFlow<RegisterState> = _registerState
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
+    val authState: StateFlow<AuthState> = _authState
 
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user
 
     init {
         _user.value = authRepository.getCurrentUser()
+        if (_user.value != null) {
+            _authState.value = AuthState.Authenticated
+        }
     }
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
-            _loginState.value = LoginState.Loading
+            _authState.value = AuthState.Loading
             authRepository.login(email, password).collect { result ->
-                _loginState.value = when {
+                _authState.value = when {
                     result.isSuccess -> {
                         _user.value = result.getOrNull()
-                        LoginState.Success
+                        AuthState.Authenticated
                     }
-                    result.isFailure -> LoginState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
-                    else -> LoginState.Error("Unexpected error")
+                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
+                    else -> AuthState.Error("Unexpected error")
                 }
             }
         }
     }
 
-    fun register(email: String, password: String, confirmPassword: String) {
-        if (password != confirmPassword) {
-            _registerState.value = RegisterState.Error("Passwords do not match")
-            return
-        }
+    fun register(email: String, password: String) {
         viewModelScope.launch {
-            _registerState.value = RegisterState.Loading
+            _authState.value = AuthState.Loading
             authRepository.register(email, password).collect { result ->
-                _registerState.value = when {
+                _authState.value = when {
                     result.isSuccess -> {
                         _user.value = result.getOrNull()
-                        RegisterState.Success
+                        AuthState.Authenticated
                     }
-                    result.isFailure -> RegisterState.Error(result.exceptionOrNull()?.message ?: "Registration failed")
-                    else -> RegisterState.Error("Unexpected error")
+                    result.isFailure -> {
+                        val error = result.exceptionOrNull()
+                        AuthState.Error(error?.message ?: "Registration failed")
+                    }
+                    else -> AuthState.Error("Unexpected error during registration")
                 }
             }
         }
@@ -61,21 +63,43 @@ class AuthenticationViewModel(private val authRepository: AuthRepository = AuthR
     fun logout() {
         authRepository.logout()
         _user.value = null
-        _loginState.value = LoginState.Idle
-        _registerState.value = RegisterState.Idle
+        _authState.value = AuthState.Idle
+    }
+
+    fun saveUserData(data: Map<String, Any>) {
+        viewModelScope.launch {
+            _user.value?.let { user ->
+                authRepository.saveUserData(user.id, data).collect { result ->
+                    if (result.isFailure) {
+                        // Handle error (you might want to add a state for this)
+                        _authState.value = AuthState.Error("Failed to save user data")
+                    }
+                }
+            }
+        }
+    }
+
+    fun getUserData() {
+        viewModelScope.launch {
+            _user.value?.let { user ->
+                authRepository.getUserData(user.id).collect { result ->
+                    if (result.isSuccess) {
+                        // Handle successful data retrieval (you might want to add a state for this)
+                        val userData = result.getOrNull()
+                        // Update UI or state with userData
+                    } else {
+                        // Handle error
+                        _authState.value = AuthState.Error("Failed to get user data")
+                    }
+                }
+            }
+        }
     }
 }
 
-sealed class LoginState {
-    object Idle : LoginState()
-    object Loading : LoginState()
-    object Success : LoginState()
-    data class Error(val message: String) : LoginState()
-}
-
-sealed class RegisterState {
-    object Idle : RegisterState()
-    object Loading : RegisterState()
-    object Success : RegisterState()
-    data class Error(val message: String) : RegisterState()
+sealed class AuthState {
+    object Idle : AuthState()
+    object Loading : AuthState()
+    object Authenticated : AuthState()
+    data class Error(val message: String) : AuthState()
 }

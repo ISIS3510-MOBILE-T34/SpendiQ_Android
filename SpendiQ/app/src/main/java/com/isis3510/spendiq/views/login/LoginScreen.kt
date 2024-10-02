@@ -7,16 +7,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
-import com.isis3510.spendiq.viewmodel.LoginState
+import com.isis3510.spendiq.viewmodel.AuthState
 
 @Composable
-fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel = viewModel()) {
+fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val loginState by viewModel.loginState.collectAsState()
+    val authState by viewModel.authState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -47,10 +46,14 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
             Text("Log In")
         }
 
-        when (loginState) {
-            is LoginState.Loading -> CircularProgressIndicator()
-            is LoginState.Error -> Text((loginState as LoginState.Error).message, color = MaterialTheme.colorScheme.error)
-            is LoginState.Success -> LaunchedEffect(Unit) { navController.navigate("main") }
+        when (authState) {
+            is AuthState.Loading -> CircularProgressIndicator()
+            is AuthState.Error -> Text((authState as AuthState.Error).message, color = MaterialTheme.colorScheme.error)
+            is AuthState.Authenticated -> LaunchedEffect(Unit) {
+                navController.navigate("main") {
+                    popUpTo("authentication") { inclusive = true }
+                }
+            }
             else -> {}
         }
     }

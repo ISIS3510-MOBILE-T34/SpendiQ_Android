@@ -3,13 +3,17 @@ package com.isis3510.spendiq.views
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
 
 @Composable
-fun AuthenticationScreen(navController: NavController) {
+fun MainContent(navController: NavController, viewModel: AuthenticationViewModel) {
+    val user = viewModel.user.collectAsState().value
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -18,22 +22,20 @@ fun AuthenticationScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "SpendiQ",
-            style = MaterialTheme.typography.headlineLarge
+            text = "Welcome, ${user?.email ?: "User"}!",
+            style = MaterialTheme.typography.headlineMedium
         )
         Spacer(modifier = Modifier.height(32.dp))
         Button(
-            onClick = { navController.navigate("login") },
+            onClick = {
+                viewModel.logout()
+                navController.navigate("authentication") {
+                    popUpTo("main") { inclusive = true }
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Log In")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { navController.navigate("register") },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Register")
+            Text("Logout")
         }
     }
 }

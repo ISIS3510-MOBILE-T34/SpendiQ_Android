@@ -7,17 +7,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
-import com.isis3510.spendiq.viewmodel.RegisterState
+import com.isis3510.spendiq.viewmodel.AuthState
 
 @Composable
-fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewModel = viewModel()) {
+fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    val registerState by viewModel.registerState.collectAsState()
+    val authState by viewModel.authState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -50,16 +49,20 @@ fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewMo
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = { viewModel.register(email, password, confirmPassword) },
+            onClick = { viewModel.register(email, password) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Register")
         }
 
-        when (registerState) {
-            is RegisterState.Loading -> CircularProgressIndicator()
-            is RegisterState.Error -> Text((registerState as RegisterState.Error).message, color = MaterialTheme.colorScheme.error)
-            is RegisterState.Success -> LaunchedEffect(Unit) { navController.navigate("main") }
+        when (authState) {
+            is AuthState.Loading -> CircularProgressIndicator()
+            is AuthState.Error -> Text((authState as AuthState.Error).message, color = MaterialTheme.colorScheme.error)
+            is AuthState.Authenticated -> LaunchedEffect(Unit) {
+                navController.navigate("main") {
+                    popUpTo("authentication") { inclusive = true }
+                }
+            }
             else -> {}
         }
     }
