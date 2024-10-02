@@ -37,15 +37,16 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.login.LogInViewModel
+import com.isis3510.spendiq.views.theme.SpendiQTheme
 
 @Composable
 fun LogInScreen(
-//    openAndPopUp: (String, String) -> Unit,
-      modifier: Modifier = Modifier
-//    viewModel: LogInViewModel = hiltViewModel()
+    openAndPopUp: (String, String) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: LogInViewModel = hiltViewModel()
 ) {
-//    val email = viewModel.email.collectAsState()
-//    val password = viewModel.password.collectAsState()
+    val email = viewModel.email.collectAsState()
+    val password = viewModel.password.collectAsState()
     Box(
 //        modifier = modifier
 //            .requiredWidth(width = 393.dp)
@@ -188,5 +189,7 @@ fun DarkThemeTrue(modifier: Modifier = Modifier) {
 @Preview(widthDp = 393, heightDp = 852)
 @Composable
 private fun UserLoginPreview() {
-    LogInScreen(Modifier)
+    SpendiQTheme {
+        LogInScreen({_, _ ->})
+    }
 }

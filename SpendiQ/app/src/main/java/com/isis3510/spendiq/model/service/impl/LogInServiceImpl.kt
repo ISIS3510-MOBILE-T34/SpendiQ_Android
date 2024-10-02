@@ -3,7 +3,7 @@ package com.isis3510.spendiq.model.service.impl
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import com.isis3510.spendiq.model.User
-import com.isis3510.spendiq.model.service.module.AccountService
+import com.isis3510.spendiq.model.service.AccountService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject

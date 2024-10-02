@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.model.service.module
+package com.isis3510.spendiq.model.service
 
 import com.isis3510.spendiq.model.User
 import kotlinx.coroutines.flow.Flow

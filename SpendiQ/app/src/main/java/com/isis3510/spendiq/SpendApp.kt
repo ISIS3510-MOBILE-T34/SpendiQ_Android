@@ -50,7 +50,7 @@ fun NavGraphBuilder.spendGraph(appState: SpendAppState){
     }
 
     composable(LOG_IN_SCREEN){
-        LogInScreen()
+        LogInScreen(openAndPopUp = {route, popUp->appState.navigateAndPopUp(route, popUp)})
     }
 
     composable(SIGN_UP_SCREEN){
