@@ -74,7 +74,7 @@ fun LogInScreen(
                 .fillMaxWidth()
                 .align(alignment = Alignment.TopStart)
                 .offset(y = 93.dp)
-                .requiredHeight(72.dp)
+                .requiredHeight(77.dp)
         )
         Text(
             text = "Forgot your ID or password?",

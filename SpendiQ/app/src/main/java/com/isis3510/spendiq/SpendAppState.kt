@@ -1,10 +1,9 @@
-package com.isis3510.spendiq.views
+package com.isis3510.spendiq
 
-import androidx.compose.runtime.Stable
 import androidx.navigation.NavHostController
 
 
-class AppState (val navController: NavHostController) {
+class SpendAppState (val navController: NavHostController) {
     fun popUp() {
         navController.popBackStack()
     }
