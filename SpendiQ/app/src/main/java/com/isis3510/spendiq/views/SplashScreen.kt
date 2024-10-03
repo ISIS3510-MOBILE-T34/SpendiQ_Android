@@ -25,7 +25,11 @@ fun SplashScreen(navController: NavController, viewModel: AuthenticationViewMode
             is AuthState.Authenticated -> navController.navigate("main") {
                 popUpTo("splash") { inclusive = true }
             }
-            is AuthState.Error, AuthState.Idle -> navController.navigate("authentication") {
+            is AuthState.Error,
+            AuthState.Idle,
+            is AuthState.EmailNotVerified,
+            is AuthState.EmailVerificationSent,
+            is AuthState.EmailVerified -> navController.navigate("authentication") {
                 popUpTo("splash") { inclusive = true }
             }
             AuthState.Loading -> {} // Do nothing, wait for the state to change
