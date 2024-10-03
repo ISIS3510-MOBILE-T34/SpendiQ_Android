@@ -1,13 +1,14 @@
 {
   "project_info": {
-    "project_number": "245591328431",
-    "project_id": "spendiq-8ffdc",
-    "storage_bucket": "spendiq-8ffdc.appspot.com"
+    "project_number": "684669295151",
+    "firebase_url": "https://spendiq-e31f0-default-rtdb.firebaseio.com",
+    "project_id": "spendiq-e31f0",
+    "storage_bucket": "spendiq-e31f0.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:245591328431:android:79c048f2b90b9ea500f65a",
+        "mobilesdk_app_id": "1:684669295151:android:a71dd269e2bffd470d84da",
         "android_client_info": {
           "package_name": "com.isis3510.spendiq"
         }
@@ -15,7 +16,45 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyD36BvMq4ygONdNnl92BttLbK6KpFHTyXs"
+          "current_key": "AIzaSyDioSCFcZivQpHJUXb-GNAdE8Spm-bOSPM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:684669295151:android:72976c99dbc376780d84da",
+        "android_client_info": {
+          "package_name": "s.s.s"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDioSCFcZivQpHJUXb-GNAdE8Spm-bOSPM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:684669295151:android:d89eda12c69a8c740d84da",
+        "android_client_info": {
+          "package_name": "sdf.sdf.sdf"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDioSCFcZivQpHJUXb-GNAdE8Spm-bOSPM"
         }
       ],
       "services": {
