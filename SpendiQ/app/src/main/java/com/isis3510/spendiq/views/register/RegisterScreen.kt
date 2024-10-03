@@ -49,7 +49,13 @@ fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewMo
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(
-            onClick = { viewModel.register(email, password) },
+            onClick = {
+                if (password == confirmPassword) {
+                    viewModel.register(email, password)
+                } else {
+                    // Show error message
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Register")
@@ -58,9 +64,22 @@ fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewMo
         when (authState) {
             is AuthState.Loading -> CircularProgressIndicator()
             is AuthState.Error -> Text((authState as AuthState.Error).message, color = MaterialTheme.colorScheme.error)
-            is AuthState.Authenticated -> LaunchedEffect(Unit) {
-                navController.navigate("main") {
-                    popUpTo("authentication") { inclusive = true }
+            is AuthState.Authenticated -> {
+                LaunchedEffect(Unit) {
+                    viewModel.sendEmailVerification()
+                }
+            }
+            is AuthState.EmailVerificationSent -> {
+                Text("Verification email sent. Please check your inbox.")
+                Button(onClick = { viewModel.checkEmailVerification() }) {
+                    Text("I've verified my email")
+                }
+            }
+            is AuthState.EmailVerified -> {
+                LaunchedEffect(Unit) {
+                    navController.navigate("main") {
+                        popUpTo("authentication") { inclusive = true }
+                    }
                 }
             }
             else -> {}

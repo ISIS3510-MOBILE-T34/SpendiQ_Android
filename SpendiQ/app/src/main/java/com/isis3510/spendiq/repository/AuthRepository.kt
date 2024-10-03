@@ -32,7 +32,6 @@ class AuthRepository(context: Context) {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             result.user?.let { firebaseUser ->
                 val user = User(firebaseUser.uid, email)
-                // Add user to Firestore
                 firestore.collection("users").document(user.id)
                     .set(mapOf("email" to user.email))
                     .await()
@@ -57,6 +56,28 @@ class AuthRepository(context: Context) {
     fun logout() {
         auth.signOut()
         clearUserSession()
+    }
+
+    fun sendEmailVerification(): Flow<Result<Unit>> = flow {
+        try {
+            auth.currentUser?.sendEmailVerification()?.await()
+            emit(Result.success(Unit))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }
+
+    fun isEmailVerified(): Boolean {
+        return auth.currentUser?.isEmailVerified ?: false
+    }
+
+    fun reloadUser(): Flow<Result<Unit>> = flow {
+        try {
+            auth.currentUser?.reload()?.await()
+            emit(Result.success(Unit))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
     }
 
     private fun saveUserSession(user: User) {

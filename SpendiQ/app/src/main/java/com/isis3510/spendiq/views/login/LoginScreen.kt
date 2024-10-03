@@ -30,7 +30,6 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
             modifier = Modifier.padding(bottom = 30.dp)
         )
 
-        // Email TextField
         TextField(
             value = email,
             onValueChange = { email = it },
@@ -39,7 +38,6 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Password TextField
         TextField(
             value = password,
             onValueChange = { password = it },
@@ -49,7 +47,6 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Log In Button
         Button(
             onClick = { viewModel.login(email, password) },
             modifier = Modifier.fillMaxWidth()
@@ -63,16 +60,28 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
                 (authState as AuthState.Error).message,
                 color = MaterialTheme.colorScheme.error
             )
-            is AuthState.Authenticated -> LaunchedEffect(Unit) {
-                navController.navigate("main") {
-                    popUpTo("authentication") { inclusive = true }
+            is AuthState.Authenticated -> {
+                LaunchedEffect(Unit) {
+                    viewModel.checkEmailVerification()
+                }
+            }
+            is AuthState.EmailNotVerified -> {
+                Text("Please verify your email to continue.")
+                Button(onClick = { viewModel.sendEmailVerification() }) {
+                    Text("Resend verification email")
+                }
+            }
+            is AuthState.EmailVerified -> {
+                LaunchedEffect(Unit) {
+                    navController.navigate("main") {
+                        popUpTo("authentication") { inclusive = true }
+                    }
                 }
             }
             else -> {}
         }
 
-        // Forgot Password Link
-        TextButton(onClick = { /* TODO: Forgot Password */ }) {
+        TextButton(onClick = { /* TODO: Implement Forgot Password functionality */ }) {
             Text("Forgot your ID or password?", color = MaterialTheme.colorScheme.primary)
         }
     }

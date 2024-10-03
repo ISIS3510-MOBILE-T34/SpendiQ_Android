@@ -66,12 +66,39 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         _authState.value = AuthState.Idle
     }
 
+    fun sendEmailVerification() {
+        viewModelScope.launch {
+            authRepository.sendEmailVerification().collect { result ->
+                _authState.value = when {
+                    result.isSuccess -> AuthState.EmailVerificationSent
+                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Failed to send verification email")
+                    else -> AuthState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    fun checkEmailVerification() {
+        viewModelScope.launch {
+            authRepository.reloadUser().collect { result ->
+                if (result.isSuccess) {
+                    if (authRepository.isEmailVerified()) {
+                        _authState.value = AuthState.EmailVerified
+                    } else {
+                        _authState.value = AuthState.EmailNotVerified
+                    }
+                } else {
+                    _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Failed to check email verification")
+                }
+            }
+        }
+    }
+
     fun saveUserData(data: Map<String, Any>) {
         viewModelScope.launch {
             _user.value?.let { user ->
                 authRepository.saveUserData(user.id, data).collect { result ->
                     if (result.isFailure) {
-                        // Handle error (you might want to add a state for this)
                         _authState.value = AuthState.Error("Failed to save user data")
                     }
                 }
@@ -84,11 +111,10 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
             _user.value?.let { user ->
                 authRepository.getUserData(user.id).collect { result ->
                     if (result.isSuccess) {
-                        // Handle successful data retrieval (you might want to add a state for this)
+                        // Handle successful data retrieval
                         val userData = result.getOrNull()
                         // Update UI or state with userData
                     } else {
-                        // Handle error
                         _authState.value = AuthState.Error("Failed to get user data")
                     }
                 }
@@ -101,5 +127,8 @@ sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
     object Authenticated : AuthState()
+    object EmailVerificationSent : AuthState()
+    object EmailVerified : AuthState()
+    object EmailNotVerified : AuthState()
     data class Error(val message: String) : AuthState()
 }
