@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -77,6 +78,29 @@ fun LogInScreen(
                 .offset(y = 93.dp)
                 .requiredHeight(77.dp)
         )
+
+        TextField(
+            value = email.value,
+            onValueChange = { viewModel.updateEmail(it) },
+            label = { Text(text = "Correo") },
+            modifier = Modifier
+                .align(alignment = Alignment.Center)
+                .fillMaxWidth(0.8f)
+                .requiredHeight(50.dp)
+        )
+
+        // Password TextField
+        TextField(
+            value = password.value,
+            onValueChange = { viewModel.updatePassword(it) },
+            label = { Text(text = "Contraseña") },
+            modifier = Modifier
+                .align(alignment = Alignment.Center)
+                .fillMaxWidth(0.8f)
+                .requiredHeight(50.dp)
+                .offset(y = 93.dp)
+        )
+
         Text(
             text = "Forgot your ID or password?",
             color = Color(0xff5875dd),
@@ -84,9 +108,8 @@ fun LogInScreen(
             style = TextStyle(
                 fontSize = 16.sp),
             modifier = Modifier
-                .align(alignment = Alignment.TopStart)
-                .offset(x = 88.dp,
-                    y = 552.dp)
+                .align(alignment = Alignment.Center)
+                .offset(y = 220.dp)
                 .requiredWidth(width = 208.dp)
                 .requiredHeight(height = 28.dp))
         Text(
@@ -97,9 +120,9 @@ fun LogInScreen(
                 fontSize = 16.sp),
             modifier = Modifier
                 .align(alignment = Alignment.TopStart)
-                .offset(x = 121.dp,
+                .offset(x = 90.dp,
                     y = 591.dp)
-                .requiredWidth(width = 67.dp)
+                .requiredWidth(width = 80.dp)
                 .requiredHeight(height = 19.dp))
         Text(
             text = "Ayuda",
@@ -109,9 +132,9 @@ fun LogInScreen(
                 fontSize = 16.sp),
             modifier = Modifier
                 .align(alignment = Alignment.TopStart)
-                .offset(x = 206.dp,
+                .offset(x = 190.dp,
                     y = 591.dp)
-                .requiredWidth(width = 39.dp)
+                .requiredWidth(width = 50.dp)
                 .requiredHeight(height = 19.dp))
         DarkThemeTrue(
             modifier = Modifier
@@ -119,14 +142,13 @@ fun LogInScreen(
                 .offset(x = 0.dp,
                     y = 818.dp))
         Button(
-            onClick = { },
+            onClick = { viewModel.onLogInClick(openAndPopUp) },
             shape = RoundedCornerShape(7.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp),
             modifier = Modifier
-                .align(alignment = Alignment.TopStart)
-                .offset(x = 58.dp,
-                    y = 494.dp)
+                .align(alignment = Alignment.Center)
+                .offset(y = 170.dp)
                 .requiredWidth(width = 268.dp)
                 .requiredHeight(height = 42.dp)
         ) {
@@ -158,9 +180,8 @@ fun LogInScreen(
         Divider(
             color = Color(0xff5875dd).copy(alpha = 0.53f),
             modifier = Modifier
-                .align(alignment = Alignment.TopStart)
-                .offset(x = 197.dp,
-                    y = 589.dp)
+                .align(alignment = Alignment.Center)
+                .offset(y = 250.dp)
                 .requiredWidth(width = 20.dp)
                 .rotate(degrees = 90f))
     }
