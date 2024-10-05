@@ -1,11 +1,10 @@
-package com.isis3510.spendiq.ui.main
+package com.isis3510.spendiq.views.main
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -16,12 +15,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.isis3510.spendiq.R
+import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
 
 @Composable
 fun MainContent(navController: NavController, viewModel: AuthenticationViewModel) {
+    var showAddTransactionModal by remember { mutableStateOf(false) }
+
     Scaffold(
-        bottomBar = { BottomNavigation(navController) }
+        bottomBar = { BottomNavigation(navController, onAddTransactionClick = { showAddTransactionModal = true }) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -47,11 +49,21 @@ fun MainContent(navController: NavController, viewModel: AuthenticationViewModel
                 Text("Logout")
             }
         }
+
+        if (showAddTransactionModal) {
+            AddTransactionModal(
+                onDismiss = { showAddTransactionModal = false },
+                onTransactionAdded = {
+                    // Handle successful transaction addition (e.g., show a snackbar)
+                    showAddTransactionModal = false
+                }
+            )
+        }
     }
 }
 
 @Composable
-fun BottomNavigation(navController: NavController) {
+fun BottomNavigation(navController: NavController, onAddTransactionClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -65,7 +77,7 @@ fun BottomNavigation(navController: NavController) {
         ) {
             NavItem("Home", R.drawable.home24, Color(0xFF5875DD), navController, "main")
             NavItem("Promos", R.drawable.gift24, Color.Black, navController, "promos")
-            AddTransactionButton()
+            AddTransactionButton(onClick = onAddTransactionClick)
             NavItem("Accounts", R.drawable.creditcard24, Color.Black, navController, "accounts")
             NavItem("Profile", R.drawable.person24, Color.Black, navController, "profile")
         }
@@ -96,20 +108,22 @@ fun NavItem(label: String, iconRes: Int, tint: Color, navController: NavControll
 }
 
 @Composable
-fun AddTransactionButton() {
-    Box(
-        modifier = Modifier
-            .size(50.dp)
-            .clip(CircleShape)
-            .background(Color(0xFF5875DD))
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.add24),
-            contentDescription = "Add Transaction",
-            tint = Color.White,
+fun AddTransactionButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Box(
             modifier = Modifier
-                .size(24.dp)
-                .align(Alignment.Center)
-        )
+                .size(50.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF5875DD))
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.add24),
+                contentDescription = "Add Transaction",
+                tint = Color.White,
+                modifier = Modifier
+                    .size(24.dp)
+                    .align(Alignment.Center)
+            )
+        }
     }
 }
