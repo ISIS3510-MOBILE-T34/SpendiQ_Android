@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
@@ -64,6 +65,9 @@ fun MainContent(navController: NavController, viewModel: AuthenticationViewModel
 
 @Composable
 fun BottomNavigation(navController: NavController, onAddTransactionClick: () -> Unit) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -75,17 +79,19 @@ fun BottomNavigation(navController: NavController, onAddTransactionClick: () -> 
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavItem("Home", R.drawable.home24, Color(0xFF5875DD), navController, "main")
-            NavItem("Promos", R.drawable.gift24, Color.Black, navController, "promos")
+            NavItem("Home", R.drawable.home24, isSelected = currentRoute == "main", navController, "main")
+            NavItem("Promos", R.drawable.gift24, isSelected = currentRoute == "promos", navController, "promos")
             AddTransactionButton(onClick = onAddTransactionClick)
-            NavItem("Accounts", R.drawable.creditcard24, Color.Black, navController, "accounts")
-            NavItem("Profile", R.drawable.person24, Color.Black, navController, "profile")
+            NavItem("Accounts", R.drawable.creditcard24, isSelected = currentRoute == "accounts", navController, "accounts")
+            NavItem("Profile", R.drawable.person24, isSelected = currentRoute == "profile", navController, "profile")
         }
     }
 }
 
 @Composable
-fun NavItem(label: String, iconRes: Int, tint: Color, navController: NavController, route: String) {
+fun NavItem(label: String, iconRes: Int, isSelected: Boolean, navController: NavController, route: String) {
+    val color = if (isSelected) Color(0xFF5875DD) else Color.Black
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -94,13 +100,13 @@ fun NavItem(label: String, iconRes: Int, tint: Color, navController: NavControll
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = label,
-                tint = tint,
+                tint = color,
                 modifier = Modifier.size(24.dp)
             )
         }
         Text(
             text = label,
-            color = tint,
+            color = color,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )

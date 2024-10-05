@@ -35,7 +35,7 @@ fun AccountsScreen(navController: NavController) {
     }
 
     Scaffold(
-        bottomBar = { BottomNavigation(navController) { } } // Passing an empty lambda for onAddTransactionClick
+        bottomBar = { BottomNavigation(navController) { } } // Indicate that Accounts is selected
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -77,7 +77,7 @@ fun AccountsScreen(navController: NavController) {
             onDismiss = { showEditModal = false },
             onAccountChanged = {
                 coroutineScope.launch {
-                    accounts = fetchAccounts()
+                    accounts = fetchAccounts() // Refresh accounts list after an action is performed
                 }
             }
         )
@@ -125,6 +125,8 @@ fun EditAccountModal(
     var selectedAction by remember { mutableStateOf("") }
     var expandedAccountType by remember { mutableStateOf(false) }
     var expandedAction by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     val availableAccountTypes = listOf("Nu", "Bancolombia", "Nequi")
         .filter { accountType -> existingAccounts.none { it.name == accountType } }
@@ -140,36 +142,7 @@ fun EditAccountModal(
             Text("Edit Accounts", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
-            ExposedDropdownMenuBox(
-                expanded = expandedAccountType,
-                onExpandedChange = { expandedAccountType = !expandedAccountType }
-            ) {
-                TextField(
-                    value = selectedAccountType,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Account Type") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAccountType) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedAccountType,
-                    onDismissRequest = { expandedAccountType = false }
-                ) {
-                    (if (selectedAction == "Create") availableAccountTypes else existingAccounts.map { it.name }).forEach { accountType ->
-                        DropdownMenuItem(
-                            text = { Text(accountType) },
-                            onClick = {
-                                selectedAccountType = accountType
-                                expandedAccountType = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // Select Action First
             ExposedDropdownMenuBox(
                 expanded = expandedAction,
                 onExpandedChange = { expandedAction = !expandedAction }
@@ -192,8 +165,44 @@ fun EditAccountModal(
                             onClick = {
                                 selectedAction = action
                                 expandedAction = false
+                                selectedAccountType = "" // Clear account type selection when action changes
                             }
                         )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Select Account Type based on Action
+            if (selectedAction.isNotEmpty()) {
+                val applicableAccountTypes = if (selectedAction == "Create") availableAccountTypes else existingAccounts.map { it.name }
+
+                ExposedDropdownMenuBox(
+                    expanded = expandedAccountType,
+                    onExpandedChange = { expandedAccountType = !expandedAccountType }
+                ) {
+                    TextField(
+                        value = selectedAccountType,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Account Type") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAccountType) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedAccountType,
+                        onDismissRequest = { expandedAccountType = false }
+                    ) {
+                        applicableAccountTypes.forEach { accountType ->
+                            DropdownMenuItem(
+                                text = { Text(accountType) },
+                                onClick = {
+                                    selectedAccountType = accountType
+                                    expandedAccountType = false
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -202,18 +211,51 @@ fun EditAccountModal(
 
             Button(
                 onClick = {
-                    when (selectedAction) {
-                        "Create" -> createAccount(selectedAccountType)
-                        "Delete" -> deleteAccount(selectedAccountType)
+                    if (selectedAction == "Delete") {
+                        showDeleteConfirmation = true
+                    } else {
+                        coroutineScope.launch {
+                            createAccount(selectedAccountType)
+                            onAccountChanged() // Call as a regular callback to refresh the accounts list after the operation completes
+                            onDismiss()
+                        }
                     }
-                    onAccountChanged() // Call as a regular callback
-                    onDismiss()
                 },
+                enabled = selectedAccountType.isNotEmpty(), // Only enable if an account type is selected
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(selectedAction)
             }
         }
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete Account") },
+            text = { Text("Are you sure you want to delete the account?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            deleteAccount(selectedAccountType)
+                            onAccountChanged() // Call as a regular callback to refresh the accounts list after the operation completes
+                            showDeleteConfirmation = false
+                            onDismiss()
+                        }
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteConfirmation = false }
+                ) {
+                    Text("No")
+                }
+            }
+        )
     }
 }
 
@@ -246,6 +288,21 @@ suspend fun fetchAccounts(): List<Account> {
     }
 }
 
+suspend fun deleteAccount(accountType: String) {
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+    val documents = firestore.collection("accounts")
+        .whereEqualTo("name", accountType)
+        .whereEqualTo("user_id", userId)
+        .get()
+        .await()  // Await the query result
+
+    for (document in documents) {
+        document.reference.delete().await()  // Await each delete operation
+    }
+}
+
 fun createAccount(accountType: String) {
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
@@ -257,19 +314,4 @@ fun createAccount(accountType: String) {
             "user_id" to userId
         )
     )
-}
-
-fun deleteAccount(accountType: String) {
-    val firestore = FirebaseFirestore.getInstance()
-    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-
-    firestore.collection("accounts")
-        .whereEqualTo("name", accountType)
-        .whereEqualTo("user_id", userId)
-        .get()
-        .addOnSuccessListener { documents ->
-            for (document in documents) {
-                document.reference.delete()
-            }
-        }
 }

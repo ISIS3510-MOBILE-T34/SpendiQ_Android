@@ -8,6 +8,7 @@ import com.isis3510.spendiq.model.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.Date
 
 class AuthenticationViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository(application)
@@ -25,6 +26,34 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    fun register(email: String, password: String, fullName: String, phoneNumber: String, birthDate: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.register(email, password).collect { result ->
+                _authState.value = when {
+                    result.isSuccess -> {
+                        _user.value = result.getOrNull()
+                        saveUserData(
+                            mapOf(
+                                "fullName" to fullName,
+                                "email" to email,
+                                "phoneNumber" to phoneNumber,
+                                "birthDate" to birthDate,
+                                "registrationDate" to Date()
+                            )
+                        )
+                        AuthState.Authenticated
+                    }
+                    result.isFailure -> {
+                        val error = result.exceptionOrNull()
+                        AuthState.Error(error?.message ?: "Registration failed")
+                    }
+                    else -> AuthState.Error("Unexpected error during registration")
+                }
+            }
+        }
+    }
+
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
@@ -36,25 +65,6 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
                     }
                     result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
                     else -> AuthState.Error("Unexpected error")
-                }
-            }
-        }
-    }
-
-    fun register(email: String, password: String) {
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            authRepository.register(email, password).collect { result ->
-                _authState.value = when {
-                    result.isSuccess -> {
-                        _user.value = result.getOrNull()
-                        AuthState.Authenticated
-                    }
-                    result.isFailure -> {
-                        val error = result.exceptionOrNull()
-                        AuthState.Error(error?.message ?: "Registration failed")
-                    }
-                    else -> AuthState.Error("Unexpected error during registration")
                 }
             }
         }
