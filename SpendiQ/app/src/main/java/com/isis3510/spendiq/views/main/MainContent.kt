@@ -24,7 +24,12 @@ fun MainContent(navController: NavController, viewModel: AuthenticationViewModel
     var showAddTransactionModal by remember { mutableStateOf(false) }
 
     Scaffold(
-        bottomBar = { BottomNavigation(navController, onAddTransactionClick = { showAddTransactionModal = true }) }
+        bottomBar = {
+            BottomNavigation(
+                navController = navController,
+                onAddTransactionClick = { showAddTransactionModal = true }
+            )
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier

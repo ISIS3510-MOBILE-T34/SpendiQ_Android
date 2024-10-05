@@ -19,7 +19,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.views.main.BottomNavigation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import androidx.compose.material3.ExperimentalMaterial3Api
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +34,7 @@ fun AccountsScreen(navController: NavController) {
     }
 
     Scaffold(
-        bottomBar = { BottomNavigation(navController) { } } // Indicate that Accounts is selected
+        bottomBar = { BottomNavigation(navController) { } }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -58,7 +57,7 @@ fun AccountsScreen(navController: NavController) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(accounts) { account ->
-                    AccountItem(account)
+                    AccountItem(account, navController)
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -77,7 +76,7 @@ fun AccountsScreen(navController: NavController) {
             onDismiss = { showEditModal = false },
             onAccountChanged = {
                 coroutineScope.launch {
-                    accounts = fetchAccounts() // Refresh accounts list after an action is performed
+                    accounts = fetchAccounts()
                 }
             }
         )
@@ -86,31 +85,38 @@ fun AccountsScreen(navController: NavController) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountItem(account: Account) {
-    Box(
+fun AccountItem(account: Account, navController: NavController) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp)
-            .background(account.color, RoundedCornerShape(8.dp))
-            .padding(16.dp)
+            .padding(vertical = 8.dp),
+        onClick = { navController.navigate("accountTransactions/${account.name}") }
     ) {
-        Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .background(account.color)
+                .padding(16.dp)
+        ) {
+            Column {
+                Text(
+                    text = account.name,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = account.type,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
             Text(
-                text = account.name,
+                text = "$ ${account.amount}",
                 color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = account.type,
-                color = Color.White.copy(alpha = 0.7f)
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
-        Text(
-            text = "$ ${account.amount}",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.CenterEnd)
-        )
     }
 }
 
@@ -142,7 +148,6 @@ fun EditAccountModal(
             Text("Edit Accounts", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Select Action First
             ExposedDropdownMenuBox(
                 expanded = expandedAction,
                 onExpandedChange = { expandedAction = !expandedAction }
@@ -165,7 +170,7 @@ fun EditAccountModal(
                             onClick = {
                                 selectedAction = action
                                 expandedAction = false
-                                selectedAccountType = "" // Clear account type selection when action changes
+                                selectedAccountType = ""
                             }
                         )
                     }
@@ -174,7 +179,6 @@ fun EditAccountModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Select Account Type based on Action
             if (selectedAction.isNotEmpty()) {
                 val applicableAccountTypes = if (selectedAction == "Create") availableAccountTypes else existingAccounts.map { it.name }
 
@@ -216,12 +220,12 @@ fun EditAccountModal(
                     } else {
                         coroutineScope.launch {
                             createAccount(selectedAccountType)
-                            onAccountChanged() // Call as a regular callback to refresh the accounts list after the operation completes
+                            onAccountChanged()
                             onDismiss()
                         }
                     }
                 },
-                enabled = selectedAccountType.isNotEmpty(), // Only enable if an account type is selected
+                enabled = selectedAccountType.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(selectedAction)
@@ -239,7 +243,7 @@ fun EditAccountModal(
                     onClick = {
                         coroutineScope.launch {
                             deleteAccount(selectedAccountType)
-                            onAccountChanged() // Call as a regular callback to refresh the accounts list after the operation completes
+                            onAccountChanged()
                             showDeleteConfirmation = false
                             onDismiss()
                         }
@@ -296,10 +300,10 @@ suspend fun deleteAccount(accountType: String) {
         .whereEqualTo("name", accountType)
         .whereEqualTo("user_id", userId)
         .get()
-        .await()  // Await the query result
+        .await()
 
     for (document in documents) {
-        document.reference.delete().await()  // Await each delete operation
+        document.reference.delete().await()
     }
 }
 
