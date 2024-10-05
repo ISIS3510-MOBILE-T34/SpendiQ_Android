@@ -1,6 +1,5 @@
 package com.isis3510.spendiq.views
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -15,9 +14,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.isis3510.spendiq.ui.main.MainContent
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
-import com.isis3510.spendiq.views.login.LoginScreen
-import com.isis3510.spendiq.views.register.RegisterScreen
+import com.isis3510.spendiq.views.auth.AuthenticationScreen
+import com.isis3510.spendiq.views.auth.LoginScreen
+import com.isis3510.spendiq.views.auth.RegisterScreen
+import com.isis3510.spendiq.views.splash.SplashScreen
 import com.isis3510.spendiq.views.theme.SpendiQTheme
 
 class MainActivity : ComponentActivity() {

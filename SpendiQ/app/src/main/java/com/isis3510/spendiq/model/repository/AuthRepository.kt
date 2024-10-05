@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.repository
+package com.isis3510.spendiq.model.repository
 
 import android.content.Context
 import android.content.SharedPreferences

@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.views.register
+package com.isis3510.spendiq.views.auth
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
