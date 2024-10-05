@@ -1,6 +1,9 @@
 package com.isis3510.spendiq
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +30,12 @@ import com.isis3510.spendiq.views.splash.SplashScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Request notification permission if not already enabled
+        if (!isNotificationServiceEnabled()) {
+            requestNotificationPermission()
+        }
+
         setContent {
             SpendiQTheme {
                 Surface(
@@ -37,6 +46,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    // This function guides the user to notification access settings if required
+    private fun requestNotificationPermission() {
+        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        startActivity(intent)
+    }
+
+    // Check if notification listener access is enabled
+    private fun isNotificationServiceEnabled(): Boolean {
+        val packageName = applicationContext.packageName
+        val enabledListeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        return enabledListeners?.contains(packageName) == true
     }
 }
 
