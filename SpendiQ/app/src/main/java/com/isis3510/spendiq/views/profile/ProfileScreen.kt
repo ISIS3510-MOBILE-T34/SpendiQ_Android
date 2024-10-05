@@ -10,7 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +34,8 @@ import com.isis3510.spendiq.views.main.BottomNavigation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +73,7 @@ fun ProfileScreen(navController: NavController) {
                 title = { Text("Profile") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -126,10 +128,27 @@ fun ProfileScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = "Joined ${(data["registrationDate"] as? com.google.firebase.Timestamp)?.toDate()?.toString() ?: ""}",
+                    text = "Joined " + (data["registrationDate"] as? com.google.firebase.Timestamp)?.toDate()?.let {
+                        SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale("es", "ES")).format(it)
+                    } ?: "",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Logout Button
+                Button(
+                    onClick = {
+                        FirebaseAuth.getInstance().signOut()
+                        navController.navigate("authentication") {
+                            popUpTo("main") { inclusive = true }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(0.8f)
+                ) {
+                    Text("Logout")
+                }
             }
         }
     }
@@ -159,7 +178,7 @@ fun ProfileField(label: String, value: String, iconResId: Int) {
                 style = MaterialTheme.typography.bodyLarge
             )
         }
-        Divider(modifier = Modifier.padding(top = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
 }
 
