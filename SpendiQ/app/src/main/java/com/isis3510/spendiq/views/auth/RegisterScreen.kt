@@ -10,13 +10,31 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
 import com.isis3510.spendiq.viewmodel.AuthState
+import java.util.Calendar
+import android.app.DatePickerDialog
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewModel) {
+    var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
+    var birthDate by remember { mutableStateOf("") }
     val authState by viewModel.authState.collectAsState()
+
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            birthDate = "$dayOfMonth/${month + 1}/$year"
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
 
     Column(
         modifier = Modifier
@@ -25,6 +43,13 @@ fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewMo
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        TextField(
+            value = fullName,
+            onValueChange = { fullName = it },
+            label = { Text("Full Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         TextField(
             value = email,
             onValueChange = { email = it },
@@ -47,11 +72,35 @@ fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewMo
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = phoneNumber,
+            onValueChange = { phoneNumber = it },
+            label = { Text("Phone Number") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        TextField(
+            value = birthDate,
+            onValueChange = { },
+            label = { Text("Birth Date (DD/MM/YYYY)") },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = false
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(
+            onClick = {
+                datePickerDialog.show()
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Select Birth Date")
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
                 if (password == confirmPassword) {
-                    viewModel.register(email, password)
+                    viewModel.register(email, password, fullName, phoneNumber, birthDate)
                 } else {
                     // Show error message
                 }
@@ -60,6 +109,8 @@ fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewMo
         ) {
             Text("Register")
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         when (authState) {
             is AuthState.Loading -> CircularProgressIndicator()

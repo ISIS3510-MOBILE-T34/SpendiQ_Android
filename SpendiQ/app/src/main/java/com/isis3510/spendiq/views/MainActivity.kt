@@ -15,9 +15,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.isis3510.spendiq.views.main.MainContent
-import com.isis3510.spendiq.ui.promos.PromosScreen
+import com.isis3510.spendiq.views.promos.PromosScreen
 import com.isis3510.spendiq.views.accounts.AccountsScreen
-import com.isis3510.spendiq.ui.profile.ProfileScreen
+import com.isis3510.spendiq.views.profile.ProfileScreen
 import com.isis3510.spendiq.views.splash.SplashScreen
 import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
@@ -71,8 +71,8 @@ fun MainScreen() {
         composable("login") { LoginScreen(navController, viewModel) }
         composable("register") { RegisterScreen(navController, viewModel) }
         composable("main") { MainContent(navController, viewModel) }
-        composable("promos") { PromosScreen() }
+        composable("promos") { PromosScreen(navController) }
         composable("accounts") { AccountsScreen(navController) }
-        composable("profile") { ProfileScreen() }
+        composable("profile") { ProfileScreen(navController) }
     }
 }
