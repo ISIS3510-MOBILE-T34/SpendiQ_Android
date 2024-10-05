@@ -2,6 +2,7 @@ package com.isis3510.spendiq.views.profile
 
 import android.content.Context
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -42,6 +43,7 @@ import java.util.*
 fun ProfileScreen(navController: NavController) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -50,7 +52,7 @@ fun ProfileScreen(navController: NavController) {
     ) { success ->
         if (success && profileImageUri != null) {
             coroutineScope.launch {
-                uploadImageToFirebase(profileImageUri!!)
+                uploadImageToFirebase(profileImageUri!!, context)
             }
         }
     }
@@ -58,12 +60,20 @@ fun ProfileScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         val userId = FirebaseAuth.getInstance().currentUser?.uid
         if (userId != null) {
-            val userDoc = FirebaseFirestore.getInstance().collection("users").document(userId).get().await()
-            userData = userDoc.data
-            val imageUrl = userData?.get("profileImageUrl") as? String
-            if (imageUrl != null) {
-                profileImageUri = Uri.parse(imageUrl)
+            try {
+                val userDoc = FirebaseFirestore.getInstance().collection("users").document(userId).get().await()
+                userData = userDoc.data
+                val imageUrl = userData?.get("profileImageUrl") as? String
+                if (imageUrl != null) {
+                    profileImageUri = Uri.parse(imageUrl)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed to load user data: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                isLoading = false
             }
+        } else {
+            isLoading = false
         }
     }
 
@@ -80,77 +90,94 @@ fun ProfileScreen(navController: NavController) {
         },
         bottomBar = { BottomNavigation(navController) { /* Add transaction logic */ } }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Profile Image
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(Color.LightGray)
-                    .clickable {
-                        val uri = ComposeFileProvider.getImageUri(context)
-                        profileImageUri = uri
-                        cameraLauncher.launch(uri)
-                    }
-            ) {
-                Image(
-                    painter = rememberAsyncImagePainter(
-                        profileImageUri ?: R.drawable.person24
-                    ),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // User Data
-            userData?.let { data ->
-                Text(
-                    text = data["fullName"] as? String ?: "",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-
-                ProfileField("Full Name", data["fullName"] as? String ?: "", R.drawable.person24)
-                ProfileField("Email Address", data["email"] as? String ?: "", R.drawable.email24)
-                ProfileField("Phone Number", data["phoneNumber"] as? String ?: "", R.drawable.phone24)
-                ProfileField("Birth Date", data["birthDate"] as? String ?: "", R.drawable.calendar24)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = "Joined " + (data["registrationDate"] as? com.google.firebase.Timestamp)?.toDate()?.let {
-                        SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale("es", "ES")).format(it)
-                    } ?: "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Logout Button
-                Button(
-                    onClick = {
-                        FirebaseAuth.getInstance().signOut()
-                        navController.navigate("authentication") {
-                            popUpTo("main") { inclusive = true }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Profile Image
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(Color.LightGray)
+                        .clickable {
+                            val uri = ComposeFileProvider.getImageUri(context)
+                            profileImageUri = uri
+                            cameraLauncher.launch(uri)
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(0.8f)
                 ) {
-                    Text("Logout")
+                    Image(
+                        painter = rememberAsyncImagePainter(
+                            profileImageUri ?: R.drawable.person24
+                        ),
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // User Data
+                userData?.let { data ->
+                    Text(
+                        text = data["fullName"] as? String ?: "",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    ProfileField("Full Name", data["fullName"] as? String ?: "", R.drawable.person24)
+                    ProfileField("Email Address", data["email"] as? String ?: "", R.drawable.email24)
+                    ProfileField("Phone Number", data["phoneNumber"] as? String ?: "", R.drawable.phone24)
+                    ProfileField("Birth Date", data["birthDate"] as? String ?: "", R.drawable.calendar24)
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "Joined " + (data["registrationDate"] as? com.google.firebase.Timestamp)?.toDate()?.let {
+                            SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale("es", "ES")).format(it)
+                        } ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Logout Button
+                    LogoutButton(navController = navController)
                 }
             }
         }
+    }
+}
+
+@Composable
+fun LogoutButton(navController: NavController) {
+    val context = LocalContext.current
+    Button(
+        onClick = {
+            try {
+                FirebaseAuth.getInstance().signOut()
+                Toast.makeText(context, "You have been logged out", Toast.LENGTH_SHORT).show()
+                navController.navigate("authentication") {
+                    popUpTo(0) { inclusive = true }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Logout failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        },
+        modifier = Modifier.fillMaxWidth(0.8f)
+    ) {
+        Text("Logout")
     }
 }
 
@@ -182,20 +209,24 @@ fun ProfileField(label: String, value: String, iconResId: Int) {
     }
 }
 
-suspend fun uploadImageToFirebase(uri: Uri) {
+suspend fun uploadImageToFirebase(uri: Uri, context: Context) {
     val user = FirebaseAuth.getInstance().currentUser
     if (user != null) {
-        val storageRef = FirebaseStorage.getInstance().reference
-        val imageRef = storageRef.child("profile_images/${user.uid}.jpg")
-        val uploadTask = imageRef.putFile(uri).await()
-        val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
+        try {
+            val storageRef = FirebaseStorage.getInstance().reference
+            val imageRef = storageRef.child("profile_images/${user.uid}.jpg")
+            val uploadTask = imageRef.putFile(uri).await()
+            val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
 
-        FirebaseFirestore.getInstance().collection("users").document(user.uid)
-            .update("profileImageUrl", downloadUrl).await()
+            FirebaseFirestore.getInstance().collection("users").document(user.uid)
+                .update("profileImageUrl", downloadUrl).await()
+            Toast.makeText(context, "Profile image updated successfully", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Failed to upload image: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 }
 
-// You'll need to create this class in your project
 object ComposeFileProvider {
     fun getImageUri(context: Context): Uri {
         val directory = File(context.cacheDir, "images")
