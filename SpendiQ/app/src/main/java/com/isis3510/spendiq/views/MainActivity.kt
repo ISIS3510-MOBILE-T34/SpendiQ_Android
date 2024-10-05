@@ -14,13 +14,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.isis3510.spendiq.ui.main.MainContent
+import com.isis3510.spendiq.views.main.MainContent
+import com.isis3510.spendiq.ui.promos.PromosScreen
+import com.isis3510.spendiq.views.accounts.AccountsScreen
+import com.isis3510.spendiq.ui.profile.ProfileScreen
+import com.isis3510.spendiq.views.splash.SplashScreen
+import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
 import com.isis3510.spendiq.views.auth.AuthenticationScreen
 import com.isis3510.spendiq.views.auth.LoginScreen
 import com.isis3510.spendiq.views.auth.RegisterScreen
-import com.isis3510.spendiq.views.splash.SplashScreen
-import com.isis3510.spendiq.views.theme.SpendiQTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,5 +71,8 @@ fun MainScreen() {
         composable("login") { LoginScreen(navController, viewModel) }
         composable("register") { RegisterScreen(navController, viewModel) }
         composable("main") { MainContent(navController, viewModel) }
+        composable("promos") { PromosScreen() }
+        composable("accounts") { AccountsScreen(navController) }
+        composable("profile") { ProfileScreen() }
     }
 }
