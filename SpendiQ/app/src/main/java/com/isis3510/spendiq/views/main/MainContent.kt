@@ -42,18 +42,6 @@ fun MainContent(navController: NavController, viewModel: AuthenticationViewModel
                 text = "Welcome to SpendiQ!",
                 style = MaterialTheme.typography.headlineMedium
             )
-            Spacer(modifier = Modifier.height(32.dp))
-            Button(
-                onClick = {
-                    viewModel.logout()
-                    navController.navigate("authentication") {
-                        popUpTo("main") { inclusive = true }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(0.8f)
-            ) {
-                Text("Logout")
-            }
         }
 
         if (showAddTransactionModal) {
