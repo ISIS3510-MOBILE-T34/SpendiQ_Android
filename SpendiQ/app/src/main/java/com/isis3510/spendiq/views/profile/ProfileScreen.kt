@@ -32,6 +32,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.views.main.BottomNavigation
+import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.File
@@ -44,6 +45,7 @@ fun ProfileScreen(navController: NavController) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var showAddTransactionModal by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -88,7 +90,12 @@ fun ProfileScreen(navController: NavController) {
                 }
             )
         },
-        bottomBar = { BottomNavigation(navController) { /* Add transaction logic */ } }
+        bottomBar = {
+            BottomNavigation(
+                navController = navController,
+                onAddTransactionClick = { showAddTransactionModal = true }
+            )
+        }
     ) { innerPadding ->
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -157,6 +164,16 @@ fun ProfileScreen(navController: NavController) {
                 }
             }
         }
+    }
+
+    if (showAddTransactionModal) {
+        AddTransactionModal(
+            onDismiss = { showAddTransactionModal = false },
+            onTransactionAdded = {
+                showAddTransactionModal = false
+                // Optionally, you can add logic here to refresh the profile data if needed
+            }
+        )
     }
 }
 
