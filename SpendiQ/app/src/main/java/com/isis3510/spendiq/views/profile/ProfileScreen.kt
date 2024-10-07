@@ -23,7 +23,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider.getUriForFile
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
@@ -110,7 +109,6 @@ fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewMod
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Profile Image
                 Box(
                     modifier = Modifier
                         .size(100.dp)
@@ -134,7 +132,6 @@ fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewMod
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // User Data
                 userData?.let { data ->
                     Text(
                         text = data["fullName"] as? String ?: "",
@@ -172,7 +169,6 @@ fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewMod
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false
-                // Optionally, you can add logic here to refresh the profile data if needed
             }
         )
     }

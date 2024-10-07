@@ -35,7 +35,6 @@ data class Promo(
     val expirationDate: Date
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PromosScreen(navController: NavController) {
     var promos by remember { mutableStateOf<List<Promo>>(emptyList()) }
@@ -89,7 +88,6 @@ fun PromosScreen(navController: NavController) {
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false
-                // Optionally, you can add logic here to refresh the promos data if needed
             }
         )
     }

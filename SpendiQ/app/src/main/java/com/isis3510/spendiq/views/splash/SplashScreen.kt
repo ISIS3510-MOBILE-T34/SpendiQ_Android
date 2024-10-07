@@ -32,7 +32,7 @@ fun SplashScreen(navController: NavController, viewModel: AuthenticationViewMode
             is AuthState.EmailVerified -> navController.navigate("authentication") {
                 popUpTo("splash") { inclusive = true }
             }
-            AuthState.Loading -> {} // Do nothing, wait for the state to change
+            AuthState.Loading -> {}
         }
     }
 }

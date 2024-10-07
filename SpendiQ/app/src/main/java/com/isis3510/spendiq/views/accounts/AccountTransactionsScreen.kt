@@ -18,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -115,7 +114,7 @@ fun TransactionItem(transaction: Transaction) {
             Icon(
                 imageVector = if (transaction.amount > 0) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                 contentDescription = if (transaction.amount > 0) "Income" else "Expense",
-                tint = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000) // Azul para Income, Rojo para Expense
+                tint = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000)
             )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -124,7 +123,7 @@ fun TransactionItem(transaction: Transaction) {
             }
             Text(
                 formatCurrency(transaction.amount),
-                color = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000), // Azul para Income, Rojo para Expense
+                color = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000),
                 fontWeight = FontWeight.Bold
             )
         }
