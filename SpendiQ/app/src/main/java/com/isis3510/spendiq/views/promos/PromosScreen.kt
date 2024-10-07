@@ -21,6 +21,7 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.views.main.BottomNavigation
+import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
@@ -39,13 +40,19 @@ data class Promo(
 fun PromosScreen(navController: NavController) {
     var promos by remember { mutableStateOf<List<Promo>>(emptyList()) }
     var selectedPromo by remember { mutableStateOf<Promo?>(null) }
+    var showAddTransactionModal by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         promos = fetchPromos()
     }
 
     Scaffold(
-        bottomBar = { BottomNavigation(navController) { /* Add transaction logic */ } }
+        bottomBar = {
+            BottomNavigation(
+                navController = navController,
+                onAddTransactionClick = { showAddTransactionModal = true }
+            )
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -75,6 +82,16 @@ fun PromosScreen(navController: NavController) {
         PromoDetailDialog(promo) {
             selectedPromo = null
         }
+    }
+
+    if (showAddTransactionModal) {
+        AddTransactionModal(
+            onDismiss = { showAddTransactionModal = false },
+            onTransactionAdded = {
+                showAddTransactionModal = false
+                // Optionally, you can add logic here to refresh the promos data if needed
+            }
+        )
     }
 }
 

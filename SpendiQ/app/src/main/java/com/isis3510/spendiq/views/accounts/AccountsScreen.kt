@@ -17,6 +17,7 @@ import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.views.main.BottomNavigation
+import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -25,6 +26,7 @@ import kotlinx.coroutines.tasks.await
 fun AccountsScreen(navController: NavController) {
     var accounts by remember { mutableStateOf<List<Account>>(emptyList()) }
     var showEditModal by remember { mutableStateOf(false) }
+    var showAddTransactionModal by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -34,7 +36,12 @@ fun AccountsScreen(navController: NavController) {
     }
 
     Scaffold(
-        bottomBar = { BottomNavigation(navController) { } }
+        bottomBar = {
+            BottomNavigation(
+                navController = navController,
+                onAddTransactionClick = { showAddTransactionModal = true }
+            )
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -77,6 +84,18 @@ fun AccountsScreen(navController: NavController) {
             onAccountChanged = {
                 coroutineScope.launch {
                     accounts = fetchAccounts()
+                }
+            }
+        )
+    }
+
+    if (showAddTransactionModal) {
+        AddTransactionModal(
+            onDismiss = { showAddTransactionModal = false },
+            onTransactionAdded = {
+                showAddTransactionModal = false
+                coroutineScope.launch {
+                    accounts = fetchAccounts() // Refresh accounts after adding a transaction
                 }
             }
         )
