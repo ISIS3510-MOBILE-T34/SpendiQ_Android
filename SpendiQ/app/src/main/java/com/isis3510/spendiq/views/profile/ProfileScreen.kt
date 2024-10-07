@@ -31,6 +31,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.isis3510.spendiq.R
+import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
 import com.isis3510.spendiq.views.main.BottomNavigation
 import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import kotlinx.coroutines.launch
@@ -41,7 +42,7 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewModel) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -160,7 +161,7 @@ fun ProfileScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // Logout Button
-                    LogoutButton(navController = navController)
+                    LogoutButton(navController = navController, viewModel = viewModel)
                 }
             }
         }
@@ -178,12 +179,12 @@ fun ProfileScreen(navController: NavController) {
 }
 
 @Composable
-fun LogoutButton(navController: NavController) {
+fun LogoutButton(navController: NavController, viewModel: AuthenticationViewModel) {
     val context = LocalContext.current
     Button(
         onClick = {
             try {
-                FirebaseAuth.getInstance().signOut()
+                viewModel.logout()
                 Toast.makeText(context, "You have been logged out", Toast.LENGTH_SHORT).show()
                 navController.navigate("authentication") {
                     popUpTo(0) { inclusive = true }

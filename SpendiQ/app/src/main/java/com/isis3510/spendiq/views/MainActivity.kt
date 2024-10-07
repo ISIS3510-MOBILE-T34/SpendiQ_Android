@@ -74,7 +74,7 @@ fun MainScreen() {
         composable("register") { RegisterScreen(navController, viewModel) }
         composable("main") { MainContent(navController, viewModel) }
         composable("promos") { PromosScreen(navController) }
-        composable("profile") { ProfileScreen(navController) }
+        composable("profile") { ProfileScreen(navController, viewModel) }
         composable("accounts") { AccountsScreen(navController) }
         composable("accountTransactions/{accountName}") { backStackEntry ->
             val accountName = backStackEntry.arguments?.getString("accountName") ?: ""
