@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.services
+package com.isis3510.spendiq.Services
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
@@ -19,31 +19,24 @@ class NotificationListener : NotificationListenerService() {
             val notification = sbn.notification
             val extras = notification.extras
 
-            // Log the notification details
             Log.d("NotificationListener1", "Notification received from: ${sbn.packageName}")
 
-            // Extract the title and the text from the notification
             val title = extras.getString("android.title", "No title") ?: "No title"
             val text = extras.getCharSequence("android.text", "No text").toString()
 
-            // Log the notification title and text
             Log.d("NotificationListener3", "Notification Title: $title")
             Log.d("NotificationListener4", "Notification Text: $text")
 
-            // Check if sensitive content is hidden
             if (text.contains("content hidden", ignoreCase = true)) {
                 Log.d("NotificationListener2", "Sensitive notification content is hidden. Unable to process.")
                 return
             }
 
-            // Check for specific transaction-related notifications
             if (title.startsWith("Compra aprobada por")) {
-                // Process expense transaction
                 GlobalScope.launch {
                     processExpenseTransaction(text)
                 }
             } else if (title == "Nu") {
-                // Process income transaction
                 GlobalScope.launch {
                     processIncomeTransaction(text)
                 }
@@ -53,9 +46,8 @@ class NotificationListener : NotificationListenerService() {
         }
     }
 
-    // Process Income Transactions
     private suspend fun processIncomeTransaction(text: String) {
-        val userId = getCurrentUserId() ?: return  // Get the current user's UID, return if null
+        val userId = getCurrentUserId() ?: return
 
         val nuAccount = getNuAccount(userId)
         if (nuAccount == null) {
@@ -63,23 +55,20 @@ class NotificationListener : NotificationListenerService() {
             createNuAccount(userId)
         }
 
-        // General structure: "{company} te envio ${amount} con motivo de {motivo_string}"
         val regex = Regex("([\\w\\s]+) te envio \\$([\\d,.]+) con motivo de ([\\w\\s]+)")
         val matchResult = regex.find(text)
 
         matchResult?.let {
             val company = matchResult.groupValues[1]
-            var amountString = matchResult.groupValues[2].replace(".", "")  // Remove dots and commas
+            var amountString = matchResult.groupValues[2].replace(".", "")
 
-            // Remove decimal part completely
             if (amountString.contains(",")) {
-                amountString = amountString.split(",")[0]  // Take only the part before the comma
+                amountString = amountString.split(",")[0]
             }
 
-            val amount = amountString.toLong()  // Convert to a long integer
+            val amount = amountString.toLong()
             val currentTime = System.currentTimeMillis()
 
-            // Check if this transaction already exists (deduplication)
             if (!transactionExists(userId, company, amount, currentTime, "Income")) {
                 Log.d("NotificationListener9", "Processing income from $company, amount: $amount")
                 addTransaction(userId, amount, company, "Income")
@@ -92,9 +81,8 @@ class NotificationListener : NotificationListenerService() {
         }
     }
 
-    // Process Expense Transactions
     private suspend fun processExpenseTransaction(text: String) {
-        val userId = getCurrentUserId() ?: return  // Get the current user's UID, return if null
+        val userId = getCurrentUserId() ?: return
 
         val nuAccount = getNuAccount(userId)
         if (nuAccount == null) {
@@ -102,27 +90,24 @@ class NotificationListener : NotificationListenerService() {
             createNuAccount(userId)
         }
 
-        // General structure: "Tu compra en {company} por ${amount} con tu tarjeta terminada en {numbers_string} ha sido APROBADA"
         val regex = Regex("Tu compra en ([\\w\\*\\s]+) por \\$([\\d,.]+) con tu tarjeta terminada en ([\\d]+)")
         val matchResult = regex.find(text)
 
         matchResult?.let {
             val company = matchResult.groupValues[1]
-            var amountString = matchResult.groupValues[2].replace(".", "")  // Remove dots and commas
+            var amountString = matchResult.groupValues[2].replace(".", "")
 
-            // Remove decimal part completely
             if (amountString.contains(",")) {
-                amountString = amountString.split(",")[0]  // Take only the part before the comma
+                amountString = amountString.split(",")[0]
             }
 
-            val amount = amountString.toLong()  // Convert to a long integer
+            val amount = amountString.toLong()
             val currentTime = System.currentTimeMillis()
 
-            // Check if this transaction already exists (deduplication)
             if (!transactionExists(userId, company, amount, currentTime, "Expense")) {
                 Log.d("NotificationListener7", "Processing expense for $company, amount: $amount")
                 addTransaction(userId, amount, company, "Expense")
-                updateNuAccountBalance(userId, -amount) // Deduct from account
+                updateNuAccountBalance(userId, -amount)
             } else {
                 Log.d("NotificationListener", "Duplicate expense transaction detected. Skipping creation.")
             }
@@ -147,12 +132,12 @@ class NotificationListener : NotificationListenerService() {
                     .whereEqualTo("transactionName", transactionName)
                     .whereEqualTo("amount", amount)
                     .whereEqualTo("transactionType", transactionType)
-                    .whereGreaterThan("dateTime", dateTime - 60000)  // Consider transactions within the last minute
+                    .whereGreaterThan("dateTime", dateTime - 60000)
                     .whereLessThan("dateTime", dateTime + 60000)
                     .get()
                     .await()
 
-                return transactionSnapshot.documents.isNotEmpty() // Return true if a similar transaction exists
+                return transactionSnapshot.documents.isNotEmpty()
             } else {
                 false
             }
@@ -213,7 +198,7 @@ class NotificationListener : NotificationListenerService() {
                             mapOf(
                                 "amount" to amount,
                                 "dateTime" to currentTime,
-                                "accountID" to account.id, // Only include the account ID
+                                "accountID" to account.id,
                                 "transactionName" to transactionName,
                                 "transactionType" to transactionType
                             )
@@ -251,7 +236,6 @@ class NotificationListener : NotificationListenerService() {
         Log.d("NotificationListener", "Notification removed: ${sbn?.packageName}")
     }
 
-    // Retrieve the currently logged-in user's UID
     private fun getCurrentUserId(): String? {
         val user = FirebaseAuth.getInstance().currentUser
         return user?.uid

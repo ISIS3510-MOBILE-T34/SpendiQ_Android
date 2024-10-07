@@ -81,7 +81,7 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
             else -> {}
         }
 
-        TextButton(onClick = { /* TODO: Implement Forgot Password functionality */ }) {
+        TextButton(onClick = { }) {
             Text("Forgot your ID or password?", color = MaterialTheme.colorScheme.primary)
         }
     }

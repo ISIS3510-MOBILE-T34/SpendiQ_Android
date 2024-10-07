@@ -102,7 +102,6 @@ fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewMo
                 if (password == confirmPassword) {
                     viewModel.register(email, password, fullName, phoneNumber, birthDate)
                 } else {
-                    // Show error message
                 }
             },
             modifier = Modifier.fillMaxWidth()

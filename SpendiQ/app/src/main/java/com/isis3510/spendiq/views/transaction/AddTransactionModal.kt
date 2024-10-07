@@ -118,7 +118,6 @@ fun AddTransactionModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Account Type Dropdown
             ExposedDropdownMenuBox(
                 expanded = expandedAccountType,
                 onExpandedChange = { expandedAccountType = !expandedAccountType }
@@ -141,7 +140,6 @@ fun AddTransactionModal(
                             expandedAccountType = false
                         }
                     )
-                    // Add more account types here if needed
                 }
             }
 
@@ -187,7 +185,6 @@ private suspend fun addTransaction(
     onDismiss: () -> Unit
 ) {
     try {
-        // Check if the account exists
         val accountSnapshot = firestore.collection("accounts")
             .whereEqualTo("name", accountType)
             .whereEqualTo("user_id", userId)
@@ -197,7 +194,6 @@ private suspend fun addTransaction(
         val accountId = if (accountSnapshot.documents.isNotEmpty()) {
             accountSnapshot.documents[0].id
         } else {
-            // Create a new account if it doesn't exist
             val newAccount = hashMapOf(
                 "amount" to 0L,
                 "name" to accountType,
@@ -206,7 +202,6 @@ private suspend fun addTransaction(
             firestore.collection("accounts").add(newAccount).await().id
         }
 
-        // Add the transaction
         val transaction = hashMapOf(
             "accountID" to accountId,
             "amount" to amount,
@@ -219,7 +214,6 @@ private suspend fun addTransaction(
             .add(transaction)
             .await()
 
-        // Update account balance
         val accountDoc = firestore.collection("accounts").document(accountId)
         firestore.runTransaction { transaction ->
             val account = transaction.get(accountDoc)
@@ -228,11 +222,9 @@ private suspend fun addTransaction(
             transaction.update(accountDoc, "amount", newBalance)
         }.await()
 
-        // Notify that the transaction was added successfully
         onTransactionAdded()
         onDismiss()
     } catch (e: Exception) {
-        // Handle any errors
         e.printStackTrace()
     }
 }
