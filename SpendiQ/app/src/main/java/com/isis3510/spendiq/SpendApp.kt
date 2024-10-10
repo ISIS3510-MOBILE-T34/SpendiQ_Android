@@ -15,6 +15,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.isis3510.spendiq.views.login.LogInScreen
+import com.isis3510.spendiq.views.start.StartScreen
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,7 +28,7 @@ fun SpendApp()
             Scaffold { innerPaddingModifier ->
                 NavHost(
                     navController = appState.navController,
-                    startDestination = LOG_IN_SCREEN,
+                    startDestination = START_SCREEN,
                     modifier = Modifier.padding(innerPaddingModifier)
                 ){
                     spendGraph(appState)
@@ -55,5 +56,9 @@ fun NavGraphBuilder.spendGraph(appState: SpendAppState){
 
     composable(SIGN_UP_SCREEN){
 
+    }
+
+    composable(START_SCREEN){
+        StartScreen(openAndPopUp = {route, popUp->appState.navigateAndPopUp(route, popUp)})
     }
 }

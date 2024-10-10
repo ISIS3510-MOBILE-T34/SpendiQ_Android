@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.views.login
+package com.isis3510.spendiq.views.start
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
@@ -16,15 +15,11 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -38,31 +33,30 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.login.LogInViewModel
-import com.isis3510.spendiq.views.theme.SpendiQTheme
+import com.isis3510.spendiq.viewmodel.start.StartViewModel
 
 @Composable
-fun LogInScreen(
+fun StartScreen(
     openAndPopUp: (String, String) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LogInViewModel = hiltViewModel()
+    viewModel: StartViewModel = hiltViewModel()
 ) {
-    val email = viewModel.email.collectAsState()
-    val password = viewModel.password.collectAsState()
     Box(
-//        modifier = modifier
-//            .requiredWidth(width = 393.dp)
-//            .requiredHeight(height = 852.dp)
-//            .background(color = Color.White)
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .requiredWidth(width = 393.dp)
+            .requiredHeight(height = 852.dp)
+            .clip(shape = RoundedCornerShape(7.dp))
+            .background(color = Color.White)
     ) {
         Image(
-            painter = painterResource(id = R.drawable.logo_log_in),
-            contentDescription = "logo log in",
+            painter = painterResource(id = R.drawable.logogroupstart),
+            contentDescription = "Logo Group",
             modifier = Modifier
-                .fillMaxSize()
-                .align(alignment = Alignment.Center)
-                .requiredWidth(width = 708.dp)
-                .requiredHeight(height = 357.dp))
+                .align(alignment = Alignment.TopStart)
+                .offset(x = (-63).dp,
+                    y = 376.dp)
+                .requiredWidth(width = 488.dp)
+                .requiredHeight(height = 470.dp))
         Text(
             text = "SpendiQ",
             color = Color.Black,
@@ -73,90 +67,71 @@ fun LogInScreen(
                 fontWeight = FontWeight.Bold
             ),
             modifier = Modifier
-                .fillMaxWidth()
                 .align(alignment = Alignment.TopStart)
-                .offset(y = 93.dp)
-                .requiredHeight(77.dp)
-        )
-
-        TextField(
-            value = email.value,
-            onValueChange = { viewModel.updateEmail(it) },
-            label = { Text(text = "E-mail") },
-            modifier = Modifier
-                .align(alignment = Alignment.Center)
-                .fillMaxWidth(0.8f)
-                .requiredHeight(50.dp)
-        )
-
-        // Password TextField
-        TextField(
-            value = password.value,
-            onValueChange = { viewModel.updatePassword(it) },
-            label = { Text(text = "Password") },
-            modifier = Modifier
-                .align(alignment = Alignment.Center)
-                .fillMaxWidth(0.8f)
-                .requiredHeight(50.dp)
-                .offset(y = 93.dp)
-        )
-
-        Text(
-            text = "Forgot your ID or password?",
-            color = Color(0xff5875dd),
-            textAlign = TextAlign.Center,
-            style = TextStyle(
-                fontSize = 16.sp),
-            modifier = Modifier
-                .align(alignment = Alignment.Center)
-                .offset(y = 220.dp)
-                .requiredWidth(width = 208.dp)
-                .requiredHeight(height = 28.dp))
-        Text(
-            text = "Privacy",
-            color = Color(0xffc33ba5),
-            textAlign = TextAlign.Center,
-            style = TextStyle(
-                fontSize = 16.sp),
-            modifier = Modifier
-                .align(alignment = Alignment.TopStart)
-                .offset(x = 90.dp,
-                    y = 591.dp)
-                .requiredWidth(width = 80.dp)
-                .requiredHeight(height = 19.dp))
-        Text(
-            text = "Help",
-            color = Color(0xffb3cb54),
-            textAlign = TextAlign.Center,
-            style = TextStyle(
-                fontSize = 16.sp),
-            modifier = Modifier
-                .align(alignment = Alignment.TopStart)
-                .offset(x = 190.dp,
-                    y = 591.dp)
-                .requiredWidth(width = 50.dp)
-                .requiredHeight(height = 19.dp))
+                .offset(x = 57.dp,
+                    y = 156.dp)
+                .requiredWidth(width = 281.dp)
+                .requiredHeight(height = 72.dp))
         DarkThemeTrue(
             modifier = Modifier
                 .align(alignment = Alignment.TopStart)
                 .offset(x = 0.dp,
                     y = 818.dp))
         Button(
-            onClick = { viewModel.onLogInClick(openAndPopUp) },
+            onClick = {viewModel.onLogInClick(openAndPopUp)},
             shape = RoundedCornerShape(7.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             modifier = Modifier
                 .align(alignment = Alignment.Center)
-                .offset(y = 170.dp)
-                .requiredWidth(width = 268.dp)
+                .offset(y = (-120).dp)
+                .requiredWidth(width = 226.dp)
                 .requiredHeight(height = 42.dp)
         ) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .requiredWidth(width = 268.dp)
+                    .requiredWidth(width = 226.dp)
+                    .requiredHeight(height = 42.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(shape = RoundedCornerShape(7.dp))
+                ) {
+                    Text(
+                        text = "Log In",
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 1.43.em,
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            letterSpacing = 0.1.sp),
+                        modifier = Modifier
+                            .wrapContentHeight(align = Alignment.CenterVertically))
+                }
+            }
+        }
+        Button(
+            onClick = {viewModel.onSignUpClick(openAndPopUp)},
+            shape = RoundedCornerShape(7.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
+            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp),
+            modifier = Modifier
+                .align(alignment = Alignment.Center)
+                .offset(y = (-50).dp)
+                .requiredWidth(width = 226.dp)
+                .requiredHeight(height = 42.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .requiredWidth(width = 226.dp)
                     .requiredHeight(height = 42.dp)
             ) {
                 Row(
@@ -166,24 +141,19 @@ fun LogInScreen(
                         .fillMaxSize()
                 ) {
                     Text(
-                        text = "Log In",
+                        text = "Sign Up",
                         color = Color.White,
                         textAlign = TextAlign.Center,
-                        lineHeight = 8.75.em,
+                        lineHeight = 1.43.em,
                         style = TextStyle(
-                            fontSize = 16.sp),
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            letterSpacing = 0.1.sp),
                         modifier = Modifier
                             .wrapContentHeight(align = Alignment.CenterVertically))
                 }
             }
         }
-        Divider(
-            color = Color(0xff5875dd).copy(alpha = 0.53f),
-            modifier = Modifier
-                .align(alignment = Alignment.Center)
-                .offset(y = 250.dp)
-                .requiredWidth(width = 20.dp)
-                .rotate(degrees = 90f))
     }
 }
 
@@ -207,10 +177,8 @@ fun DarkThemeTrue(modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(widthDp = 393, heightDp = 852)
+@Preview
 @Composable
-private fun UserLoginPreview() {
-    SpendiQTheme {
-        LogInScreen({_, _ ->})
-    }
+private fun UserLoginSignUpPreview() {
+    StartScreen({_, _ ->})
 }
