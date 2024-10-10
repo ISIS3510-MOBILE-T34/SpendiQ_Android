@@ -15,6 +15,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.isis3510.spendiq.views.login.LogInScreen
+import com.isis3510.spendiq.views.signup.SignUpScreen
 import com.isis3510.spendiq.views.start.StartScreen
 
 @Composable
@@ -55,7 +56,7 @@ fun NavGraphBuilder.spendGraph(appState: SpendAppState){
     }
 
     composable(SIGN_UP_SCREEN){
-
+        SignUpScreen(openAndPopUp = {route, popUp->appState.navigateAndPopUp(route, popUp)})
     }
 
     composable(START_SCREEN){
