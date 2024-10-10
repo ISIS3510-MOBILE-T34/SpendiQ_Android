@@ -1,16 +1,35 @@
 package com.isis3510.spendiq.Services
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.isis3510.spendiq.R
+import com.isis3510.spendiq.services.LocationService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 
 class NotificationListener : NotificationListenerService() {
 
     private val firestore = FirebaseFirestore.getInstance()
+    private lateinit var locationService: LocationService
+    private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    override fun onCreate() {
+        super.onCreate()
+        locationService = LocationService(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        coroutineScope.cancel()
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
@@ -19,29 +38,33 @@ class NotificationListener : NotificationListenerService() {
             val notification = sbn.notification
             val extras = notification.extras
 
-            Log.d("NotificationListener1", "Notification received from: ${sbn.packageName}")
+            Log.d("NotificationListener", "Notification received from: ${sbn.packageName}")
 
             val title = extras.getString("android.title", "No title") ?: "No title"
             val text = extras.getCharSequence("android.text", "No text").toString()
 
-            Log.d("NotificationListener3", "Notification Title: $title")
-            Log.d("NotificationListener4", "Notification Text: $text")
+            Log.d("NotificationListener", "Notification Title: $title")
+            Log.d("NotificationListener", "Notification Text: $text")
 
             if (text.contains("content hidden", ignoreCase = true)) {
-                Log.d("NotificationListener2", "Sensitive notification content is hidden. Unable to process.")
+                Log.d("NotificationListener", "Sensitive notification content is hidden. Unable to process.")
                 return
             }
 
-            if (title.startsWith("Compra aprobada por")) {
-                GlobalScope.launch {
-                    processExpenseTransaction(text)
+            when {
+                title.startsWith("Compra aprobada por") -> {
+                    coroutineScope.launch {
+                        processExpenseTransaction(text)
+                    }
                 }
-            } else if (title == "Nu") {
-                GlobalScope.launch {
-                    processIncomeTransaction(text)
+                title == "Nu" -> {
+                    coroutineScope.launch {
+                        processIncomeTransaction(text)
+                    }
                 }
-            } else {
-                Log.d("NotificationListener5", "Notification does not match the required title for processing.")
+                else -> {
+                    Log.d("NotificationListener", "Notification does not match the required title for processing.")
+                }
             }
         }
     }
@@ -51,7 +74,7 @@ class NotificationListener : NotificationListenerService() {
 
         val nuAccount = getNuAccount(userId)
         if (nuAccount == null) {
-            Log.d("NotificationListener6", "Nu account not found, creating new account.")
+            Log.d("NotificationListener", "Nu account not found, creating new account.")
             createNuAccount(userId)
         }
 
@@ -70,14 +93,16 @@ class NotificationListener : NotificationListenerService() {
             val currentTime = System.currentTimeMillis()
 
             if (!transactionExists(userId, company, amount, currentTime, "Income")) {
-                Log.d("NotificationListener9", "Processing income from $company, amount: $amount")
-                addTransaction(userId, amount, company, "Income")
-                updateNuAccountBalance(userId, amount) // Add to account
+                Log.d("NotificationListener", "Processing income from $company, amount: $amount")
+                val location = locationService.getCurrentLocation()
+                addTransaction(userId, amount, company, "Income", location)
+                updateNuAccountBalance(userId, amount)
+                showNotification("Income Recorded", "Income of $$amount from $company has been recorded.")
             } else {
                 Log.d("NotificationListener", "Duplicate income transaction detected. Skipping creation.")
             }
         } ?: run {
-            Log.d("NotificationListener10", "Income transaction format not matched.")
+            Log.d("NotificationListener", "Income transaction format not matched.")
         }
     }
 
@@ -86,7 +111,7 @@ class NotificationListener : NotificationListenerService() {
 
         val nuAccount = getNuAccount(userId)
         if (nuAccount == null) {
-            Log.d("NotificationListener6", "Nu account not found, creating new account.")
+            Log.d("NotificationListener", "Nu account not found, creating new account.")
             createNuAccount(userId)
         }
 
@@ -105,14 +130,16 @@ class NotificationListener : NotificationListenerService() {
             val currentTime = System.currentTimeMillis()
 
             if (!transactionExists(userId, company, amount, currentTime, "Expense")) {
-                Log.d("NotificationListener7", "Processing expense for $company, amount: $amount")
-                addTransaction(userId, amount, company, "Expense")
+                Log.d("NotificationListener", "Processing expense for $company, amount: $amount")
+                val location = locationService.getCurrentLocation()
+                addTransaction(userId, amount, company, "Expense", location)
                 updateNuAccountBalance(userId, -amount)
+                showNotification("Expense Recorded", "Expense of $$amount to $company has been recorded.")
             } else {
                 Log.d("NotificationListener", "Duplicate expense transaction detected. Skipping creation.")
             }
         } ?: run {
-            Log.d("NotificationListener8", "Expense transaction format not matched.")
+            Log.d("NotificationListener", "Expense transaction format not matched.")
         }
     }
 
@@ -137,7 +164,7 @@ class NotificationListener : NotificationListenerService() {
                     .get()
                     .await()
 
-                return transactionSnapshot.documents.isNotEmpty()
+                transactionSnapshot.documents.isNotEmpty()
             } else {
                 false
             }
@@ -181,30 +208,41 @@ class NotificationListener : NotificationListenerService() {
         }
     }
 
-    private suspend fun addTransaction(userId: String, amount: Long, transactionName: String, transactionType: String) {
+    private suspend fun addTransaction(userId: String, amount: Long, transactionName: String, transactionType: String, location: android.location.Location?) {
         val currentTime = System.currentTimeMillis()
 
         try {
-            firestore.collection("accounts")
+            val accountSnapshot = firestore.collection("accounts")
                 .whereEqualTo("name", "Nu")
                 .whereEqualTo("user_id", userId)
                 .get()
                 .await()
-                .documents.firstOrNull()?.let { account ->
-                    firestore.collection("accounts")
-                        .document(account.id)
-                        .collection("transactions")
-                        .add(
-                            mapOf(
-                                "amount" to amount,
-                                "dateTime" to currentTime,
-                                "accountID" to account.id,
-                                "transactionName" to transactionName,
-                                "transactionType" to transactionType
-                            )
-                        ).await()
-                    Log.d("NotificationListener", "Transaction added: $transactionName, Amount: $amount")
-                }
+
+            if (accountSnapshot.documents.isNotEmpty()) {
+                val accountId = accountSnapshot.documents[0].id
+                val transaction = hashMapOf(
+                    "amount" to amount,
+                    "dateTime" to currentTime,
+                    "accountID" to accountId,
+                    "transactionName" to transactionName,
+                    "transactionType" to transactionType,
+                    "location" to if (location != null) {
+                        hashMapOf(
+                            "latitude" to location.latitude,
+                            "longitude" to location.longitude
+                        )
+                    } else null
+                )
+
+                firestore.collection("accounts")
+                    .document(accountId)
+                    .collection("transactions")
+                    .add(transaction)
+                    .await()
+                Log.d("NotificationListener", "Transaction added: $transactionName, Amount: $amount")
+            } else {
+                Log.e("NotificationListener", "No Nu account found for user: $userId")
+            }
         } catch (e: Exception) {
             Log.e("NotificationListener", "Error adding transaction: ${e.message}")
         }
@@ -212,20 +250,25 @@ class NotificationListener : NotificationListenerService() {
 
     private suspend fun updateNuAccountBalance(userId: String, amountDelta: Long) {
         try {
-            firestore.collection("accounts")
+            val accountSnapshot = firestore.collection("accounts")
                 .whereEqualTo("name", "Nu")
                 .whereEqualTo("user_id", userId)
                 .get()
                 .await()
-                .documents.firstOrNull()?.let { account ->
-                    val currentAmount = account.getLong("amount") ?: 0L
-                    val newAmount = currentAmount + amountDelta
-                    firestore.collection("accounts")
-                        .document(account.id)
-                        .update("amount", newAmount)
-                        .await()
-                    Log.d("NotificationListener", "Nu account balance updated by $amountDelta. New balance: $newAmount")
-                }
+
+            if (accountSnapshot.documents.isNotEmpty()) {
+                val accountId = accountSnapshot.documents[0].id
+                val currentAmount = accountSnapshot.documents[0].getLong("amount") ?: 0L
+                val newAmount = currentAmount + amountDelta
+
+                firestore.collection("accounts")
+                    .document(accountId)
+                    .update("amount", newAmount)
+                    .await()
+                Log.d("NotificationListener", "Nu account balance updated by $amountDelta. New balance: $newAmount")
+            } else {
+                Log.e("NotificationListener", "No Nu account found for user: $userId")
+            }
         } catch (e: Exception) {
             Log.e("NotificationListener", "Error updating account balance: ${e.message}")
         }
@@ -239,5 +282,25 @@ class NotificationListener : NotificationListenerService() {
     private fun getCurrentUserId(): String? {
         val user = FirebaseAuth.getInstance().currentUser
         return user?.uid
+    }
+
+    private fun showNotification(title: String, content: String) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "SpendiQ_Channel"
+        val channelName = "SpendiQ Notifications"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_DEFAULT)
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(R.drawable.notification)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
     }
 }

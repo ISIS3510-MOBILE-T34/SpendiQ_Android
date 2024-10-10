@@ -6,11 +6,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.isis3510.spendiq.services.LocationService
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.*
@@ -32,8 +33,9 @@ fun AddTransactionModal(
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid
     val coroutineScope = rememberCoroutineScope()
-
     val context = LocalContext.current
+    val locationService = remember { LocationService(context) }
+
     val calendar = Calendar.getInstance()
 
     val datePickerDialog = DatePickerDialog(
@@ -83,7 +85,6 @@ fun AddTransactionModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Transaction Type Dropdown
             ExposedDropdownMenuBox(
                 expanded = expandedTransactionType,
                 onExpandedChange = { expandedTransactionType = !expandedTransactionType }
@@ -149,6 +150,7 @@ fun AddTransactionModal(
                 onClick = {
                     coroutineScope.launch {
                         if (userId != null) {
+                            val location = locationService.getCurrentLocation()
                             addTransaction(
                                 userId,
                                 amount.toLongOrNull() ?: 0L,
@@ -158,7 +160,8 @@ fun AddTransactionModal(
                                 selectedAccountType,
                                 firestore,
                                 onTransactionAdded,
-                                onDismiss
+                                onDismiss,
+                                location
                             )
                         }
                     }
@@ -171,8 +174,6 @@ fun AddTransactionModal(
     }
 }
 
-
-
 private suspend fun addTransaction(
     userId: String,
     amount: Long,
@@ -182,7 +183,8 @@ private suspend fun addTransaction(
     accountType: String,
     firestore: FirebaseFirestore,
     onTransactionAdded: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    location: android.location.Location?
 ) {
     try {
         val accountSnapshot = firestore.collection("accounts")
@@ -207,8 +209,15 @@ private suspend fun addTransaction(
             "amount" to amount,
             "dateTime" to dateTime,
             "transactionName" to transactionName,
-            "transactionType" to transactionType
+            "transactionType" to transactionType,
+            "location" to if (location != null) {
+                hashMapOf(
+                    "latitude" to location.latitude,
+                    "longitude" to location.longitude
+                )
+            } else null
         )
+
         firestore.collection("accounts").document(accountId)
             .collection("transactions")
             .add(transaction)

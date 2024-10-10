@@ -1,6 +1,9 @@
 package com.isis3510.spendiq.views.accounts
 
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,12 +11,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,6 +105,8 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
 
 @Composable
 fun TransactionItem(transaction: Transaction) {
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -120,6 +127,29 @@ fun TransactionItem(transaction: Transaction) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(transaction.transactionName, fontWeight = FontWeight.Bold)
                 Text(transaction.description, color = Color.Gray, fontSize = 14.sp)
+                if (transaction.location != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            val uri = Uri.parse("geo:${transaction.location.latitude},${transaction.location.longitude}?q=${transaction.location.latitude},${transaction.location.longitude}")
+                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = "Location",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "Ver ubicación",
+                            color = Color.Gray,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
             }
             Text(
                 formatCurrency(transaction.amount),
@@ -134,7 +164,13 @@ data class Transaction(
     val transactionName: String,
     val description: String,
     val amount: Double,
-    val date: Date
+    val date: Date,
+    val location: Location?
+)
+
+data class Location(
+    val latitude: Double,
+    val longitude: Double
 )
 
 suspend fun fetchTransactions(accountName: String): List<Transaction> {
@@ -171,17 +207,28 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
         return transactionsSnapshot.documents.mapNotNull { doc ->
             val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
             val amount = doc.getDouble("amount") ?: return@mapNotNull null
-
-            // Handle dateTime as Long and convert to Date
             val dateTime = doc.getLong("dateTime")?.let { Date(it) } ?: return@mapNotNull null
-
             val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
+            val locationMap = doc.get("location") as? Map<String, Any>
+
+            val location = if (locationMap != null) {
+                val latitude = locationMap["latitude"] as? Double
+                val longitude = locationMap["longitude"] as? Double
+                if (latitude != null && longitude != null) {
+                    Location(latitude, longitude)
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
 
             Transaction(
                 transactionName = transactionName,
                 description = if (transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
                 amount = if (transactionType.equals("Income", ignoreCase = true)) amount else -amount,
-                date = dateTime
+                date = dateTime,
+                location = location
             )
         }.sortedByDescending { it.date }
     } catch (e: Exception) {
