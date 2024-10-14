@@ -12,11 +12,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -98,8 +103,20 @@ fun LogInScreen(
                 .align(alignment = Alignment.Center)
                 .fillMaxWidth(0.8f)
                 .requiredHeight(50.dp)
-                .offset(y = 93.dp)
+                .offset(y = 93.dp),
+            trailingIcon = {
+                IconButton(onClick = { /* Handle icon click here */ }) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.fingerprint), // Example: replace with any vector
+                        contentDescription = "Search Icon",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            }
+
         )
+
 
         Text(
             text = "Forgot your ID or password?",

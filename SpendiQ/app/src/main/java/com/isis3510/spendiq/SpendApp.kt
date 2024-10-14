@@ -14,6 +14,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.isis3510.spendiq.views.landing.LandingScreen
 import com.isis3510.spendiq.views.login.LogInScreen
 import com.isis3510.spendiq.views.signup.SignUpScreen
 import com.isis3510.spendiq.views.start.StartScreen
@@ -48,7 +49,7 @@ fun rememberAppState(navController: NavHostController = rememberNavController())
 
 fun NavGraphBuilder.spendGraph(appState: SpendAppState){
     composable(LANDING_SCREEN){
-
+        LandingScreen()
     }
 
     composable(LOG_IN_SCREEN){

@@ -205,7 +205,7 @@ fun SignUpScreen(
                     onCheckedChange = null // null recommended for accessibility with screenreaders
                 )
                 Text(
-                    text = "Option selection",
+                    text = "Accept Terms & Conditions",
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
