@@ -92,4 +92,17 @@ class AuthRepository(context: Context) {
             emit(Result.failure(e))
         }
     }
+
+    fun loginWithToken(token: String): Flow<Result<User>> = flow {
+        try {
+            val result = auth.signInWithCustomToken(token).await()
+            result.user?.let {
+                val user = User(it.uid, it.email ?: "")
+                saveUserSession(user)
+                emit(Result.success(user))
+            } ?: emit(Result.failure(Exception("Login with token failed")))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }
 }

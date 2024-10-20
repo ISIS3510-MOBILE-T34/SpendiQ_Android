@@ -67,6 +67,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.security.crypto)
 
     // Navigation and ViewModel
     implementation("androidx.navigation:navigation-compose:2.7.6")

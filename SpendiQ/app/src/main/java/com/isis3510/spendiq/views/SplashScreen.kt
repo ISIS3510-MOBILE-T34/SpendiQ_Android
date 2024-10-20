@@ -29,6 +29,11 @@ fun SplashScreen(navController: NavController, viewModel: AuthenticationViewMode
                 popUpTo("splash") { inclusive = true }
             }
             AuthState.Loading -> {} // Do nothing, wait for the state to change
+            AuthState.BiometricEnabled -> {
+                navController.navigate("main") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
         }
     }
 }
