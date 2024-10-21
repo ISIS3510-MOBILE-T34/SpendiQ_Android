@@ -1,5 +1,6 @@
 package com.isis3510.spendiq.views.login
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -128,7 +129,9 @@ fun LoginScreen(navController: NavController,
                     y = 591.dp)
                 .requiredWidth(width = 80.dp)
                 .requiredHeight(height = 19.dp)
-                .clickable { viewModel.enableBiometricLogin(email, password) })
+                .clickable {
+                    Log.d("LoginScreen", "Enable Biometrics clicked with email: $email")
+                    viewModel.enableBiometricLogin(email, password) })
         Text(
             text = "Help",
             color = Color(0xffb3cb54),

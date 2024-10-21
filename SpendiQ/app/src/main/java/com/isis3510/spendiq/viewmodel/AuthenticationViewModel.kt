@@ -3,6 +3,7 @@ package com.isis3510.spendiq.viewmodel
 import android.app.Application
 import android.content.SharedPreferences
 import android.util.Base64
+import android.util.Log
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -120,7 +121,8 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
                     result.isSuccess -> {
                         val user = result.getOrNull()
                         user?.let {
-                            encryptAndStoreUserToken(it.id)
+                            Log.d("AuthenticationViewModel", "Login successful, storing credentials")
+                            storeCredentials(email, password)
                             _authState.value = AuthState.BiometricEnabled
                         }
                     }
@@ -131,39 +133,37 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
     }
 
     fun loginWithBiometrics() {
-        val encryptedToken = encryptedPrefs.getString("user_token", null)
-        encryptedToken?.let {
-            try {
-                // Descifrar el token
-                val decodedToken = Base64.decode(it, Base64.DEFAULT)
-                val token = String(decodedToken)
+        val encryptedEmail = encryptedPrefs.getString("user_email", null)
+        val encryptedPassword = encryptedPrefs.getString("user_password", null)
 
-                // Usar el token para autenticar al usuario
-                viewModelScope.launch {
-                    authRepository.loginWithToken(token).collect { result ->
-                        when {
-                            result.isSuccess -> {
-                                _user.value = result.getOrNull()
-                                _authState.value = AuthState.Authenticated
-                            }
-                            result.isFailure -> {
-                                _authState.value = AuthState.Error("Falló la autenticación biométrica")
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                _authState.value = AuthState.Error("Error al procesar el token biométrico")
-            }
-        } ?: run {
-            _authState.value = AuthState.Error("No se encontró token biométrico")
+        if (encryptedEmail == null || encryptedPassword == null) {
+            Log.e("AuthenticationViewModel", "Credenciales no encontradas")
+            _authState.value = AuthState.Error("No se encontraron credenciales")
+            return
+        }
+
+        try {
+            val email = String(Base64.decode(encryptedEmail, Base64.DEFAULT))
+            val password = String(Base64.decode(encryptedPassword, Base64.DEFAULT))
+
+            // Realiza el login con las credenciales desencriptadas
+            login(email, password)
+        } catch (e: Exception) {
+            Log.e("AuthenticationViewModel", "Error al procesar las credenciales", e)
+            _authState.value = AuthState.Error("Error al procesar las credenciales: ${e.message}")
         }
     }
 
-    private fun encryptAndStoreUserToken(token: String) {
-        val encryptedToken = Base64.encodeToString(token.toByteArray(), Base64.DEFAULT)
-        encryptedPrefs.edit().putString("user_token", encryptedToken).apply()
+    private fun storeCredentials(email: String, password: String) {
+        val encryptedEmail = Base64.encodeToString(email.toByteArray(), Base64.DEFAULT)
+        val encryptedPassword = Base64.encodeToString(password.toByteArray(), Base64.DEFAULT)
+        encryptedPrefs.edit().apply {
+            putString("user_email", encryptedEmail)
+            putString("user_password", encryptedPassword)
+            apply()
+        }
     }
+
 
     private fun createEncryptedSharedPreferences(): SharedPreferences {
         val masterKey = MasterKey.Builder(getApplication())
