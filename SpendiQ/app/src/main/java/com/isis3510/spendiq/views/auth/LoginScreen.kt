@@ -217,9 +217,25 @@ fun LoginScreen(
                     style = TextStyle(fontSize = 16.sp)
                 )
             }
+
+            // Aquí movemos el manejo del estado de error dentro de la columna
+            when (authState) {
+                is AuthState.Error -> {
+                    Text(
+                        text = (authState as AuthState.Error).message,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        style = TextStyle(fontSize = 16.sp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                }
+                else -> { /* Otros estados no afectan aquí */ }
+            }
         }
 
-        // Authentication State Handling
+        // Mantenemos el manejo de otros estados fuera de la columna
         when (authState) {
             is AuthState.Loading -> {
                 Box(
@@ -228,15 +244,6 @@ fun LoginScreen(
                 ) {
                     CircularProgressIndicator()
                 }
-            }
-            is AuthState.Error -> {
-                Text(
-                    text = (authState as AuthState.Error).message,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp)
-                )
             }
             is AuthState.Authenticated -> {
                 LaunchedEffect(Unit) {
@@ -248,7 +255,7 @@ fun LoginScreen(
             is AuthState.BiometricEnabled -> {
                 Log.d("LoginScreen", "Biometrics enabled successfully")
             }
-            else -> { /* Handle other states */ }
+            else -> { /* Otros estados ya manejados */ }
         }
 
         // Bottom Bar
