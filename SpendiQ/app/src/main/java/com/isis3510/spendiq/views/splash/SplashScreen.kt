@@ -36,18 +36,34 @@ fun SplashScreen(navController: NavController, viewModel: AuthenticationViewMode
             is AuthState.Authenticated -> navController.navigate("main") {
                 popUpTo("splash") { inclusive = true }
             }
+            is AuthState.EmailVerified -> {
+                // Navigate to main if email is verified
+                navController.navigate("main") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
+            is AuthState.EmailNotVerified -> {
+                // Navigate to authentication if email is not verified
+                navController.navigate("authentication") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
+            is AuthState.EmailVerificationSent -> {
+                // Navigate to authentication after email verification is sent
+                navController.navigate("authentication") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
             is AuthState.Error,
             AuthState.Idle,
             AuthState.BiometricEnabled -> navController.navigate("authentication") {
                 popUpTo("splash") { inclusive = true }
             }
-            is AuthState.PasswordResetEmailSent -> {
-                navController.navigate("authentication") {
-                    popUpTo("splash") { inclusive = true }
-                }
-            }
             AuthState.Loading -> {
+                // Do nothing while loading
             }
+
+            AuthState.PasswordResetEmailSent -> TODO()
         }
     }
 }

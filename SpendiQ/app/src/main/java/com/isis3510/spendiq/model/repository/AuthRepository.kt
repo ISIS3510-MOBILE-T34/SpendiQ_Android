@@ -58,6 +58,32 @@ class AuthRepository(context: Context) {
         clearUserSession()
     }
 
+    // Send email verification to the currently signed-in user
+    fun sendEmailVerification(): Flow<Result<Unit>> = flow {
+        try {
+            auth.currentUser?.sendEmailVerification()?.await()
+            emit(Result.success(Unit))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }
+
+    // Check if the current user's email is verified
+    fun isEmailVerified(): Boolean {
+        return auth.currentUser?.isEmailVerified ?: false
+    }
+
+    // Reload the current user data from Firebase
+    fun reloadUser(): Flow<Result<Unit>> = flow {
+        try {
+            auth.currentUser?.reload()?.await()
+            emit(Result.success(Unit))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }
+
+    // Save the user's session (for auto-login and biometric login)
     private fun saveUserSession(user: User) {
         prefs.edit().apply {
             putString("user_id", user.id)
@@ -66,6 +92,7 @@ class AuthRepository(context: Context) {
         }
     }
 
+    // Clear user session on logout
     private fun clearUserSession() {
         prefs.edit().clear().apply()
     }
@@ -92,6 +119,7 @@ class AuthRepository(context: Context) {
         }
     }
 
+    // Send password reset email
     fun sendPasswordResetEmail(email: String): Flow<Result<Unit>> = flow {
         try {
             auth.sendPasswordResetEmail(email).await()

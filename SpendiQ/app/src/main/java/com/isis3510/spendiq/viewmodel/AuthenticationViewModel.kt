@@ -17,13 +17,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
 
+// Define various authentication states
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
     object Authenticated : AuthState()
-    data class Error(val message: String) : AuthState()
     object BiometricEnabled : AuthState()
-    object PasswordResetEmailSent : AuthState() // Added state
+    object PasswordResetEmailSent : AuthState()
+    object EmailVerificationSent : AuthState()
+    object EmailVerified : AuthState()
+    object EmailNotVerified : AuthState()
+    data class Error(val message: String) : AuthState()
 }
 
 class AuthenticationViewModel(application: Application) : AndroidViewModel(application) {
@@ -44,6 +48,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    // Register a new user
     fun register(
         email: String,
         password: String,
@@ -80,6 +85,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    // Login a user
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
@@ -96,12 +102,14 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    // Logout the user
     fun logout() {
         authRepository.logout()
         _user.value = null
         _authState.value = AuthState.Idle
     }
 
+    // Save user data to Firestore
     fun saveUserData(data: Map<String, Any>) {
         viewModelScope.launch {
             _user.value?.let { user ->
@@ -114,6 +122,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    // Get user data from Firestore
     fun getUserData() {
         viewModelScope.launch {
             _user.value?.let { user ->
@@ -129,7 +138,51 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    // Biometric Authentication Methods
+    // Send email verification
+    fun sendEmailVerification() {
+        viewModelScope.launch {
+            authRepository.sendEmailVerification().collect { result ->
+                _authState.value = when {
+                    result.isSuccess -> AuthState.EmailVerificationSent
+                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Failed to send verification email")
+                    else -> AuthState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    // Check if the user's email is verified
+    fun checkEmailVerification() {
+        viewModelScope.launch {
+            authRepository.reloadUser().collect { result ->
+                if (result.isSuccess) {
+                    if (authRepository.isEmailVerified()) {
+                        _authState.value = AuthState.EmailVerified
+                    } else {
+                        _authState.value = AuthState.EmailNotVerified
+                    }
+                } else {
+                    _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Failed to check email verification")
+                }
+            }
+        }
+    }
+
+    // Send password reset email
+    fun sendPasswordResetEmail(email: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.sendPasswordResetEmail(email).collect { result ->
+                _authState.value = when {
+                    result.isSuccess -> AuthState.PasswordResetEmailSent
+                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
+                    else -> AuthState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    // Biometric login setup
     fun setupBiometricPrompt(
         activity: FragmentActivity,
         onSuccess: () -> Unit,
@@ -138,10 +191,12 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         biometricHelper.setupBiometricPrompt(activity, onSuccess, onError)
     }
 
+    // Show biometric login prompt
     fun showBiometricPrompt() {
         biometricHelper.showBiometricPrompt()
     }
 
+    // Enable biometric login by saving credentials
     fun enableBiometricLogin(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
@@ -161,6 +216,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    // Perform login using stored biometric credentials
     fun loginWithBiometrics() {
         val encryptedEmail = encryptedPrefs.getString("user_email", null)
         val encryptedPassword = encryptedPrefs.getString("user_password", null)
@@ -179,6 +235,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    // Store credentials securely for biometric login
     private fun storeCredentials(email: String, password: String) {
         val encryptedEmail = Base64.encodeToString(email.toByteArray(), Base64.DEFAULT)
         val encryptedPassword = Base64.encodeToString(password.toByteArray(), Base64.DEFAULT)
@@ -189,6 +246,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    // Create encrypted SharedPreferences to store biometric login credentials
     private fun createEncryptedSharedPreferences(): SharedPreferences {
         val masterKey = MasterKey.Builder(getApplication())
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -203,21 +261,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         )
     }
 
-    // Function to send password reset email
-    fun sendPasswordResetEmail(email: String) {
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            authRepository.sendPasswordResetEmail(email).collect { result ->
-                _authState.value = when {
-                    result.isSuccess -> AuthState.PasswordResetEmailSent
-                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
-                    else -> AuthState.Error("Unexpected error")
-                }
-            }
-        }
-    }
-
-    // Function to reset the auth state
+    // Reset authentication state
     fun resetAuthState() {
         _authState.value = AuthState.Idle
     }

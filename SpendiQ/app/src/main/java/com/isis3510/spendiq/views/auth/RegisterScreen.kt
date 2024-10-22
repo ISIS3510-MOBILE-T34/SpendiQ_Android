@@ -53,16 +53,15 @@ fun RegisterScreen(
     val authState by viewModel.authState.collectAsState()
     val (checkedState, onStateChange) = remember { mutableStateOf(false) }
 
-    // Variables del calendario
+    // Calendar setup for date picker
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val year = calendar.get(Calendar.YEAR)
     val month = calendar.get(Calendar.MONTH)
     val day = calendar.get(Calendar.DAY_OF_MONTH)
-
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-    // Diálogo de selección de fecha
+    // Date picker dialog
     val datePickerDialog = DatePickerDialog(
         context,
         { _: DatePicker, selectedYear: Int, selectedMonth: Int, selectedDay: Int ->
@@ -74,7 +73,7 @@ fun RegisterScreen(
         day
     )
 
-    // Establecer fecha máxima y mínima
+    // Set max and min dates for the date picker
     datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
     calendar.add(Calendar.YEAR, -100)
     datePickerDialog.datePicker.minDate = calendar.timeInMillis
@@ -85,35 +84,13 @@ fun RegisterScreen(
             .clip(shape = RoundedCornerShape(7.dp))
             .background(color = Color.White)
     ) {
-        // Imagen superior derecha
-        Image(
-            painter = painterResource(R.drawable.logoup),
-            contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 185.dp, y = (-70).dp)
-                .size(300.dp)
-        )
-
-        // Botón de retroceso
-        Image(
-            painter = painterResource(id = R.drawable.leftactionable),
-            contentDescription = "Back",
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp)
-                .size(24.dp)
-                .clickable { navController.popBackStack() }
-                .zIndex(1f) // Asegura que esté por encima de otros elementos
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp), // Añadimos padding horizontal
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally // Centramos horizontalmente
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "Create Free Account",
@@ -123,108 +100,88 @@ fun RegisterScreen(
                     fontSize = 48.sp,
                     fontFamily = FontFamily.SansSerif
                 ),
-                modifier = Modifier
-                    .padding(top = 16.dp) // Ajustamos el padding superior
+                modifier = Modifier.padding(top = 16.dp)
             )
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            // Full name input field
             OutlinedTextField(
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth(0.9f) // Ajustamos el ancho para que no ocupe todo el ancho
-                    .padding(vertical = 4.dp)
-                    .border(
-                        BorderStroke(width = 2.dp, color = Purple40),
-                        shape = RoundedCornerShape(50)
-                    ),
                 value = fullName,
                 onValueChange = { fullName = it },
-                placeholder = { Text(text = "Full Name") },
-                leadingIcon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Person") }
-            )
-
-            OutlinedTextField(
-                singleLine = true,
+                placeholder = { Text("Full Name") },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
-                    .border(
-                        BorderStroke(width = 2.dp, color = Purple40),
-                        shape = RoundedCornerShape(50)
-                    ),
+                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Person") }
+            )
+
+            // Email input field
+            OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                placeholder = { Text(text = "Email") },
-                leadingIcon = { Icon(imageVector = Icons.Default.Email, contentDescription = "Email") }
-            )
-
-            OutlinedTextField(
-                singleLine = true,
+                placeholder = { Text("Email") },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
-                    .border(
-                        BorderStroke(width = 2.dp, color = Purple40),
-                        shape = RoundedCornerShape(50)
-                    ),
+                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") }
+            )
+
+            // Phone number input field
+            OutlinedTextField(
                 value = phoneNumber,
                 onValueChange = { phoneNumber = it },
-                placeholder = { Text(text = "Phone Number") },
-                leadingIcon = { Icon(imageVector = Icons.Default.Phone, contentDescription = "Phone") }
-            )
-
-            // Campo de fecha de nacimiento con selector de calendario
-            OutlinedTextField(
-                singleLine = true,
+                placeholder = { Text("Phone Number") },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
-                    .border(
-                        BorderStroke(width = 2.dp, color = Purple40),
-                        shape = RoundedCornerShape(50)
-                    )
-                    .clickable { datePickerDialog.show() },
+                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
+                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone") }
+            )
+
+            // Birth date field
+            OutlinedTextField(
                 value = birthDate,
                 onValueChange = { },
-                placeholder = { Text(text = "Birth Date (Click to select)") },
-                leadingIcon = { Icon(imageVector = Icons.Default.DateRange, contentDescription = "Calendar") },
+                placeholder = { Text("Birth Date (Click to select)") },
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50))
+                    .clickable { datePickerDialog.show() },
+                leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = "Calendar") },
                 readOnly = true,
                 enabled = false
             )
 
+            // Password input fields
             OutlinedTextField(
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-                    .border(
-                        BorderStroke(width = 2.dp, color = Purple40),
-                        shape = RoundedCornerShape(50)
-                    ),
                 value = password,
                 onValueChange = { password = it },
-                placeholder = { Text(text = "Password") },
-                leadingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = "Lock1") },
-                visualTransformation = PasswordVisualTransformation()
-            )
-
-            OutlinedTextField(
-                singleLine = true,
+                placeholder = { Text("Password") },
+                visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
-                    .border(
-                        BorderStroke(width = 2.dp, color = Purple40),
-                        shape = RoundedCornerShape(50)
-                    ),
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                placeholder = { Text(text = "Confirm Password") },
-                leadingIcon = { Icon(imageVector = Icons.Default.Lock, contentDescription = "Lock2") },
-                visualTransformation = PasswordVisualTransformation()
+                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock1") }
             )
 
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                placeholder = { Text("Confirm Password") },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .padding(vertical = 4.dp)
+                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock2") }
+            )
+
+            // Checkbox for terms & conditions
             Row(
                 Modifier
                     .fillMaxWidth(0.9f)
@@ -236,28 +193,17 @@ fun RegisterScreen(
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
-                    checked = checkedState,
-                    onCheckedChange = null
-                )
-                Text(
-                    text = "Accept Terms & Conditions",
-                    modifier = Modifier.padding(start = 16.dp)
-                )
+                Checkbox(checked = checkedState, onCheckedChange = null)
+                Text(text = "Accept Terms & Conditions", modifier = Modifier.padding(start = 16.dp))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Register button
             Button(
                 onClick = {
                     if (password == confirmPassword && checkedState) {
-                        viewModel.register(
-                            email = email,
-                            password = password,
-                            fullName = fullName,
-                            phoneNumber = phoneNumber,
-                            birthDate = birthDate
-                        )
+                        viewModel.register(email, password, fullName, phoneNumber, birthDate)
                     }
                 },
                 enabled = password == confirmPassword && checkedState &&
@@ -265,25 +211,16 @@ fun RegisterScreen(
                         birthDate.isNotEmpty() && phoneNumber.isNotEmpty(),
                 shape = RoundedCornerShape(7.dp),
                 modifier = Modifier
-                    .fillMaxWidth(0.6f) // Ajustamos el ancho del botón
+                    .fillMaxWidth(0.6f)
                     .padding(vertical = 16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f))
             ) {
-                Text(
-                    text = "Sign Up",
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 1.43.em,
-                    style = TextStyle(
-                        fontFamily = FontFamily.SansSerif,
-                        fontSize = 20.sp,
-                        letterSpacing = 0.1.sp
-                    ),
-                    modifier = Modifier
-                        .wrapContentHeight(align = Alignment.CenterVertically)
-                )
+                Text("Sign Up", color = Color.White, textAlign = TextAlign.Center)
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Auth state handling
             when (authState) {
                 is AuthState.Loading -> CircularProgressIndicator()
                 is AuthState.Error -> Text(
@@ -292,6 +229,18 @@ fun RegisterScreen(
                 )
                 is AuthState.Authenticated -> {
                     LaunchedEffect(Unit) {
+                        // Trigger email verification
+                        viewModel.sendEmailVerification()
+                    }
+                }
+                is AuthState.EmailVerificationSent -> {
+                    Text("Verification email sent. Please check your inbox.")
+                    Button(onClick = { viewModel.checkEmailVerification() }) {
+                        Text("I've verified my email")
+                    }
+                }
+                is AuthState.EmailVerified -> {
+                    LaunchedEffect(Unit) {
                         navController.navigate("main") {
                             popUpTo("authentication") { inclusive = true }
                         }
@@ -299,18 +248,6 @@ fun RegisterScreen(
                 }
                 else -> {}
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
-
-        // Imagen inferior izquierda
-        Image(
-            painter = painterResource(R.drawable.logodown),
-            contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = (-185).dp, y = (-32).dp)
-                .size(300.dp)
-        )
     }
 }

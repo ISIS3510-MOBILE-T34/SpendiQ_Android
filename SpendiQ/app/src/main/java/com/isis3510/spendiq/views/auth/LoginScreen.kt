@@ -263,6 +263,27 @@ fun LoginScreen(
                             .padding(16.dp)
                     )
                 }
+                is AuthState.Authenticated -> {
+                    // Check if email is verified
+                    LaunchedEffect(Unit) {
+                        viewModel.checkEmailVerification()
+                    }
+                }
+                is AuthState.EmailNotVerified -> {
+                    // Notify the user that email is not verified
+                    Text("Please verify your email to continue.")
+                    Button(onClick = { viewModel.sendEmailVerification() }) {
+                        Text("Resend verification email")
+                    }
+                }
+                is AuthState.EmailVerified -> {
+                    // Navigate to the main screen after email verification
+                    LaunchedEffect(Unit) {
+                        navController.navigate("main") {
+                            popUpTo("authentication") { inclusive = true }
+                        }
+                    }
+                }
                 else -> { /* Handle other states */ }
             }
 
@@ -308,15 +329,6 @@ fun LoginScreen(
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()
-            }
-        }
-
-        // Handle Authenticated State
-        if (authState is AuthState.Authenticated) {
-            LaunchedEffect(Unit) {
-                navController.navigate("main") {
-                    popUpTo("authentication") { inclusive = true }
-                }
             }
         }
 
