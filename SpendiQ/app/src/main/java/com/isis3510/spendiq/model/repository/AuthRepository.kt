@@ -5,9 +5,9 @@ import android.content.SharedPreferences
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.User
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
 
 class AuthRepository(context: Context) {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -92,14 +92,10 @@ class AuthRepository(context: Context) {
         }
     }
 
-    fun loginWithToken(token: String): Flow<Result<User>> = flow {
+    fun sendPasswordResetEmail(email: String): Flow<Result<Unit>> = flow {
         try {
-            val result = auth.signInWithCustomToken(token).await()
-            result.user?.let {
-                val user = User(it.uid, it.email ?: "")
-                saveUserSession(user)
-                emit(Result.success(user))
-            } ?: emit(Result.failure(Exception("Login with token failed")))
+            auth.sendPasswordResetEmail(email).await()
+            emit(Result.success(Unit))
         } catch (e: Exception) {
             emit(Result.failure(e))
         }

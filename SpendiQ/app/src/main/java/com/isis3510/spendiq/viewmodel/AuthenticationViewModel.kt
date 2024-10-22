@@ -10,12 +10,21 @@ import androidx.lifecycle.viewModelScope
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.isis3510.spendiq.model.User
-import com.isis3510.spendiq.repository.AuthRepository
+import com.isis3510.spendiq.model.repository.AuthRepository
 import com.isis3510.spendiq.utils.BiometricHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
+
+sealed class AuthState {
+    object Idle : AuthState()
+    object Loading : AuthState()
+    object Authenticated : AuthState()
+    data class Error(val message: String) : AuthState()
+    object BiometricEnabled : AuthState()
+    object PasswordResetEmailSent : AuthState() // Added state
+}
 
 class AuthenticationViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository(application)
@@ -35,7 +44,13 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    fun register(email: String, password: String, fullName: String = "", phoneNumber: String = "", birthDate: String = "") {
+    fun register(
+        email: String,
+        password: String,
+        fullName: String = "",
+        phoneNumber: String = "",
+        birthDate: String = ""
+    ) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
             authRepository.register(email, password).collect { result ->
@@ -105,6 +120,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
                 authRepository.getUserData(user.id).collect { result ->
                     if (result.isSuccess) {
                         val userData = result.getOrNull()
+                        // Handle user data if needed
                     } else {
                         _authState.value = AuthState.Error("Failed to get user data")
                     }
@@ -114,7 +130,11 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
     }
 
     // Biometric Authentication Methods
-    fun setupBiometricPrompt(activity: FragmentActivity, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun setupBiometricPrompt(
+        activity: FragmentActivity,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
         biometricHelper.setupBiometricPrompt(activity, onSuccess, onError)
     }
 
@@ -182,12 +202,23 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     }
-}
 
-sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    object Authenticated : AuthState()
-    data class Error(val message: String) : AuthState()
-    object BiometricEnabled : AuthState()
+    // Function to send password reset email
+    fun sendPasswordResetEmail(email: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.sendPasswordResetEmail(email).collect { result ->
+                _authState.value = when {
+                    result.isSuccess -> AuthState.PasswordResetEmailSent
+                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
+                    else -> AuthState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    // Function to reset the auth state
+    fun resetAuthState() {
+        _authState.value = AuthState.Idle
+    }
 }

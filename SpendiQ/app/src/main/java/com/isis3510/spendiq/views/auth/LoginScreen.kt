@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -36,6 +38,7 @@ import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
 import com.isis3510.spendiq.viewmodel.AuthState
 import com.isis3510.spendiq.views.theme.Purple40
+import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen(
@@ -46,6 +49,10 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
+
+    // State variables for the reset password dialog
+    var showResetPasswordDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
 
     Box(
         modifier = Modifier
@@ -181,11 +188,86 @@ fun LoginScreen(
 
             // Forgot Password
             Text(
-                text = "Forgot your ID or password?",
+                text = "Forgot your password?",
                 color = Color(0xff5875dd),
-                modifier = Modifier.clickable { /* Handle forgot password */ },
+                modifier = Modifier.clickable { showResetPasswordDialog = true },
                 style = TextStyle(fontSize = 16.sp)
             )
+
+            // Reset Password Dialog
+            if (showResetPasswordDialog) {
+                AlertDialog(
+                    onDismissRequest = { showResetPasswordDialog = false },
+                    title = {
+                        Text(text = "Reset Password")
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                text = "Enter your email address to receive a password reset link.",
+                                style = TextStyle(fontSize = 14.sp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = resetEmail,
+                                onValueChange = { resetEmail = it },
+                                label = { Text("Email") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.sendPasswordResetEmail(resetEmail)
+                                showResetPasswordDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f))
+                        ) {
+                            Text("Send", color = Color.White)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showResetPasswordDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            // Additional Spacing
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Handle Success and Error Messages
+            when (authState) {
+                is AuthState.PasswordResetEmailSent -> {
+                    Text(
+                        text = "Password reset email sent successfully.",
+                        color = Color(0xffb3cb54),
+                        textAlign = TextAlign.Center,
+                        style = TextStyle(fontSize = 16.sp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                }
+                is AuthState.Error -> {
+                    Text(
+                        text = (authState as AuthState.Error).message,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        style = TextStyle(fontSize = 16.sp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                }
+                else -> { /* Handle other states */ }
+            }
+
+            // Spacer to push content up if needed
+            Spacer(modifier = Modifier.weight(1f))
 
             Row(
                 modifier = Modifier
@@ -217,45 +299,25 @@ fun LoginScreen(
                     style = TextStyle(fontSize = 16.sp)
                 )
             }
+        }
 
-            // Aquí movemos el manejo del estado de error dentro de la columna
-            when (authState) {
-                is AuthState.Error -> {
-                    Text(
-                        text = (authState as AuthState.Error).message,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                        style = TextStyle(fontSize = 16.sp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
-                }
-                else -> { /* Otros estados no afectan aquí */ }
+        // Handle Loading State
+        if (authState is AuthState.Loading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
         }
 
-        // Mantenemos el manejo de otros estados fuera de la columna
-        when (authState) {
-            is AuthState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        // Handle Authenticated State
+        if (authState is AuthState.Authenticated) {
+            LaunchedEffect(Unit) {
+                navController.navigate("main") {
+                    popUpTo("authentication") { inclusive = true }
                 }
             }
-            is AuthState.Authenticated -> {
-                LaunchedEffect(Unit) {
-                    navController.navigate("main") {
-                        popUpTo("authentication") { inclusive = true }
-                    }
-                }
-            }
-            is AuthState.BiometricEnabled -> {
-                Log.d("LoginScreen", "Biometrics enabled successfully")
-            }
-            else -> { /* Otros estados ya manejados */ }
         }
 
         // Bottom Bar
@@ -275,6 +337,14 @@ fun LoginScreen(
                     .clip(shape = RoundedCornerShape(100.dp))
                     .background(color = Color(0xff0f172a))
             )
+        }
+    }
+
+    // Reset AuthState after displaying messages
+    LaunchedEffect(authState) {
+        if (authState is AuthState.PasswordResetEmailSent || authState is AuthState.Error) {
+            delay(3000) // Wait for 3 seconds
+            viewModel.resetAuthState()
         }
     }
 }
