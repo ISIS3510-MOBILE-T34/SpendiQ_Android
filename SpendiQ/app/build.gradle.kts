@@ -57,6 +57,7 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
 
     // AndroidX and Compose
     implementation(libs.androidx.core.ktx)
@@ -74,6 +75,12 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.6")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
     implementation("androidx.compose.runtime:runtime-livedata:1.5.4")
+
+    // Image Loading
+    implementation("io.coil-kt:coil-compose:2.4.0")
+
+    // Location Services
+    implementation("com.google.android.gms:play-services-location:21.0.1")
 
     // Testing
     testImplementation(libs.junit)

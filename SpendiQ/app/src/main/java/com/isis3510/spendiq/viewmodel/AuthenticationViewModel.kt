@@ -15,9 +15,12 @@ import com.isis3510.spendiq.utils.BiometricHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.util.Date
 
 class AuthenticationViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository(application)
+    private val biometricHelper = BiometricHelper(application)
+    private val encryptedPrefs by lazy { createEncryptedSharedPreferences() }
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState
@@ -29,6 +32,36 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         _user.value = authRepository.getCurrentUser()
         if (_user.value != null) {
             _authState.value = AuthState.Authenticated
+        }
+    }
+
+    fun register(email: String, password: String, fullName: String = "", phoneNumber: String = "", birthDate: String = "") {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.register(email, password).collect { result ->
+                _authState.value = when {
+                    result.isSuccess -> {
+                        _user.value = result.getOrNull()
+                        if (!fullName.isBlank()) {
+                            saveUserData(
+                                mapOf(
+                                    "fullName" to fullName,
+                                    "email" to email,
+                                    "phoneNumber" to phoneNumber,
+                                    "birthDate" to birthDate,
+                                    "registrationDate" to Date()
+                                )
+                            )
+                        }
+                        AuthState.Authenticated
+                    }
+                    result.isFailure -> {
+                        val error = result.exceptionOrNull()
+                        AuthState.Error(error?.message ?: "Registration failed")
+                    }
+                    else -> AuthState.Error("Unexpected error during registration")
+                }
+            }
         }
     }
 
@@ -48,25 +81,6 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    fun register(email: String, password: String) {
-        viewModelScope.launch {
-            _authState.value = AuthState.Loading
-            authRepository.register(email, password).collect { result ->
-                _authState.value = when {
-                    result.isSuccess -> {
-                        _user.value = result.getOrNull()
-                        AuthState.Authenticated
-                    }
-                    result.isFailure -> {
-                        val error = result.exceptionOrNull()
-                        AuthState.Error(error?.message ?: "Registration failed")
-                    }
-                    else -> AuthState.Error("Unexpected error during registration")
-                }
-            }
-        }
-    }
-
     fun logout() {
         authRepository.logout()
         _user.value = null
@@ -78,7 +92,6 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
             _user.value?.let { user ->
                 authRepository.saveUserData(user.id, data).collect { result ->
                     if (result.isFailure) {
-                        // Handle error (you might want to add a state for this)
                         _authState.value = AuthState.Error("Failed to save user data")
                     }
                 }
@@ -91,20 +104,16 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
             _user.value?.let { user ->
                 authRepository.getUserData(user.id).collect { result ->
                     if (result.isSuccess) {
-                        // Handle successful data retrieval (you might want to add a state for this)
                         val userData = result.getOrNull()
-                        // Update UI or state with userData
                     } else {
-                        // Handle error
                         _authState.value = AuthState.Error("Failed to get user data")
                     }
                 }
             }
         }
     }
-    private val biometricHelper = BiometricHelper(application)
-    private val encryptedPrefs by lazy { createEncryptedSharedPreferences() }
 
+    // Biometric Authentication Methods
     fun setupBiometricPrompt(activity: FragmentActivity, onSuccess: () -> Unit, onError: (String) -> Unit) {
         biometricHelper.setupBiometricPrompt(activity, onSuccess, onError)
     }
@@ -121,7 +130,7 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
                     result.isSuccess -> {
                         val user = result.getOrNull()
                         user?.let {
-                            Log.d("AuthenticationViewModel", "Login successful, storing credentials")
+                            Log.d("AuthViewModel", "Login successful, storing credentials")
                             storeCredentials(email, password)
                             _authState.value = AuthState.BiometricEnabled
                         }
@@ -137,20 +146,16 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         val encryptedPassword = encryptedPrefs.getString("user_password", null)
 
         if (encryptedEmail == null || encryptedPassword == null) {
-            Log.e("AuthenticationViewModel", "Credenciales no encontradas")
-            _authState.value = AuthState.Error("No se encontraron credenciales")
+            _authState.value = AuthState.Error("No stored credentials found")
             return
         }
 
         try {
             val email = String(Base64.decode(encryptedEmail, Base64.DEFAULT))
             val password = String(Base64.decode(encryptedPassword, Base64.DEFAULT))
-
-            // Realiza el login con las credenciales desencriptadas
             login(email, password)
         } catch (e: Exception) {
-            Log.e("AuthenticationViewModel", "Error al procesar las credenciales", e)
-            _authState.value = AuthState.Error("Error al procesar las credenciales: ${e.message}")
+            _authState.value = AuthState.Error("Error processing credentials: ${e.message}")
         }
     }
 
@@ -163,7 +168,6 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
             apply()
         }
     }
-
 
     private fun createEncryptedSharedPreferences(): SharedPreferences {
         val masterKey = MasterKey.Builder(getApplication())

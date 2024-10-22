@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.views
+package com.isis3510.spendiq.views.splash
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,15 +25,12 @@ fun SplashScreen(navController: NavController, viewModel: AuthenticationViewMode
             is AuthState.Authenticated -> navController.navigate("main") {
                 popUpTo("splash") { inclusive = true }
             }
-            is AuthState.Error, AuthState.Idle -> navController.navigate("authentication") {
+            is AuthState.Error,
+            AuthState.Idle,
+            AuthState.BiometricEnabled -> navController.navigate("authentication") {
                 popUpTo("splash") { inclusive = true }
             }
             AuthState.Loading -> {} // Do nothing, wait for the state to change
-            AuthState.BiometricEnabled -> {
-                navController.navigate("main") {
-                    popUpTo("splash") { inclusive = true }
-                }
-            }
         }
     }
 }
