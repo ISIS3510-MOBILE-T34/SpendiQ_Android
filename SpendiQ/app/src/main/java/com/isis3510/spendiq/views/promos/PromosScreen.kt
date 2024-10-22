@@ -1,48 +1,35 @@
-package com.isis3510.spendiq.views.promos
+package com.isis3510.spendiq.view.promos
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
-import com.google.firebase.firestore.FirebaseFirestore
-import com.isis3510.spendiq.views.main.BottomNavigation
-import com.isis3510.spendiq.views.transaction.AddTransactionModal
-import kotlinx.coroutines.tasks.await
+import com.isis3510.spendiq.model.data.Promo
+import com.isis3510.spendiq.views.common.BottomNavigation
+import com.isis3510.spendiq.viewmodel.PromoViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-data class Promo(
-    val title: String,
-    val description: String,
-    val imageUrl: String,
-    val discountCode: String,
-    val restaurantName: String,
-    val expirationDate: Date
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PromosScreen(navController: NavController) {
-    var promos by remember { mutableStateOf<List<Promo>>(emptyList()) }
+fun PromosScreen(navController: NavController, viewModel: PromoViewModel) {
+    val promos by viewModel.promos.collectAsState()
     var selectedPromo by remember { mutableStateOf<Promo?>(null) }
     var showAddTransactionModal by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        promos = fetchPromos()
+        viewModel.fetchPromos()
     }
 
     Scaffold(
@@ -82,15 +69,6 @@ fun PromosScreen(navController: NavController) {
             selectedPromo = null
         }
     }
-
-    if (showAddTransactionModal) {
-        AddTransactionModal(
-            onDismiss = { showAddTransactionModal = false },
-            onTransactionAdded = {
-                showAddTransactionModal = false
-            }
-        )
-    }
 }
 
 @Composable
@@ -99,29 +77,18 @@ fun PromoItem(promo: Promo, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column {
-            Image(
-                painter = rememberAsyncImagePainter(promo.imageUrl),
-                contentDescription = promo.title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentScale = ContentScale.Crop
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(promo.title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(promo.description, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Expires on: ${SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(promo.expirationDate)}",
+                fontSize = 12.sp,
+                color = Color.Gray
             )
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(promo.title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(promo.description, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Expires on: ${SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(promo.expirationDate)}",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
         }
     }
 }
@@ -157,24 +124,4 @@ fun PromoDetailDialog(promo: Promo, onDismiss: () -> Unit) {
             }
         }
     )
-}
-
-suspend fun fetchPromos(): List<Promo> {
-    val firestore = FirebaseFirestore.getInstance()
-    val currentDate = Date()
-    val snapshot = firestore.collection("promos")
-        .whereGreaterThan("expirationDate", currentDate)
-        .get()
-        .await()
-
-    return snapshot.documents.mapNotNull { doc ->
-        val title = doc.getString("title") ?: return@mapNotNull null
-        val description = doc.getString("description") ?: return@mapNotNull null
-        val imageUrl = doc.getString("imageUrl") ?: return@mapNotNull null
-        val discountCode = doc.getString("discountCode") ?: return@mapNotNull null
-        val restaurantName = doc.getString("restaurantName") ?: return@mapNotNull null
-        val expirationDate = doc.getDate("expirationDate") ?: return@mapNotNull null
-
-        Promo(title, description, imageUrl, discountCode, restaurantName, expirationDate)
-    }
 }

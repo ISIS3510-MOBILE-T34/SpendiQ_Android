@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.views.accounts
+package com.isis3510.spendiq.view.accounts  // Ensure this matches the actual directory structure
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,25 +13,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.isis3510.spendiq.views.main.BottomNavigation
+import com.isis3510.spendiq.model.data.Account
+import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.views.transaction.AddTransactionModal
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import com.isis3510.spendiq.viewmodel.AccountViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountsScreen(navController: NavController) {
-    var accounts by remember { mutableStateOf<List<Account>>(emptyList()) }
+fun AccountsScreen(navController: NavController, accountViewModel: AccountViewModel) {  // Make sure the parameter name is consistent
+    val accounts by accountViewModel.accounts.collectAsState()
+    val uiState by accountViewModel.uiState.collectAsState()
     var showEditModal by remember { mutableStateOf(false) }
     var showAddTransactionModal by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            accounts = fetchAccounts()
-        }
+        accountViewModel.fetchAccounts()
     }
 
     Scaffold(
@@ -59,13 +54,29 @@ fun AccountsScreen(navController: NavController) {
                 color = Color.Gray
             )
             Spacer(modifier = Modifier.height(16.dp))
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(accounts) { account ->
-                    AccountItem(account, navController)
+
+            when (uiState) {
+                is AccountViewModel.UiState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                 }
+                is AccountViewModel.UiState.Success -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(accounts) { account ->
+                            AccountItem(account, navController)
+                        }
+                    }
+                }
+                is AccountViewModel.UiState.Error -> {
+                    Text(
+                        text = (uiState as AccountViewModel.UiState.Error).message,
+                        color = Color.Red
+                    )
+                }
+                else -> {} // Idle state, do nothing
             }
+
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = { showEditModal = true },
@@ -80,22 +91,22 @@ fun AccountsScreen(navController: NavController) {
         EditAccountModal(
             existingAccounts = accounts,
             onDismiss = { showEditModal = false },
-            onAccountChanged = {
-                coroutineScope.launch {
-                    accounts = fetchAccounts()
-                }
+            onCreateAccount = { accountType ->
+                accountViewModel.createAccount(accountType)
+            },
+            onDeleteAccount = { accountType ->
+                accountViewModel.deleteAccount(accountType)
             }
         )
     }
 
     if (showAddTransactionModal) {
         AddTransactionModal(
+            accountViewModel = accountViewModel,
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false
-                coroutineScope.launch {
-                    accounts = fetchAccounts()
-                }
+                accountViewModel.fetchAccounts()
             }
         )
     }
@@ -142,14 +153,14 @@ fun AccountItem(account: Account, navController: NavController) {
 fun EditAccountModal(
     existingAccounts: List<Account>,
     onDismiss: () -> Unit,
-    onAccountChanged: () -> Unit
+    onCreateAccount: (String) -> Unit,
+    onDeleteAccount: (String) -> Unit
 ) {
     var selectedAccountType by remember { mutableStateOf("") }
     var selectedAction by remember { mutableStateOf("") }
     var expandedAccountType by remember { mutableStateOf(false) }
     var expandedAction by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     val availableAccountTypes = listOf("Nu", "Bancolombia", "Nequi")
         .filter { accountType -> existingAccounts.none { it.name == accountType } }
@@ -235,11 +246,8 @@ fun EditAccountModal(
                     if (selectedAction == "Delete") {
                         showDeleteConfirmation = true
                     } else {
-                        coroutineScope.launch {
-                            createAccount(selectedAccountType)
-                            onAccountChanged()
-                            onDismiss()
-                        }
+                        onCreateAccount(selectedAccountType)
+                        onDismiss()
                     }
                 },
                 enabled = selectedAccountType.isNotEmpty(),
@@ -258,12 +266,9 @@ fun EditAccountModal(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        coroutineScope.launch {
-                            deleteAccount(selectedAccountType)
-                            onAccountChanged()
-                            showDeleteConfirmation = false
-                            onDismiss()
-                        }
+                        onDeleteAccount(selectedAccountType)
+                        showDeleteConfirmation = false
+                        onDismiss()
                     }
                 ) {
                     Text("Yes")
@@ -278,61 +283,4 @@ fun EditAccountModal(
             }
         )
     }
-}
-
-data class Account(
-    val name: String,
-    val type: String,
-    val amount: Long,
-    val color: Color
-)
-
-suspend fun fetchAccounts(): List<Account> {
-    val firestore = FirebaseFirestore.getInstance()
-    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return emptyList()
-
-    val snapshot = firestore.collection("accounts")
-        .whereEqualTo("user_id", userId)
-        .get()
-        .await()
-
-    return snapshot.documents.mapNotNull { doc ->
-        val name = doc.getString("name") ?: return@mapNotNull null
-        val amount = doc.getLong("amount") ?: 0L
-        val color = when (name) {
-            "Nu" -> Color(0xFF9747FF)
-            "Bancolombia" -> Color(0xFFFFCC00)
-            "Nequi" -> Color(0xFF8B2F87)
-            else -> Color.Gray
-        }
-        Account(name, "Debit", amount, color)
-    }
-}
-
-suspend fun deleteAccount(accountType: String) {
-    val firestore = FirebaseFirestore.getInstance()
-    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-
-    val documents = firestore.collection("accounts")
-        .whereEqualTo("name", accountType)
-        .whereEqualTo("user_id", userId)
-        .get()
-        .await()
-
-    for (document in documents) {
-        document.reference.delete().await()
-    }
-}
-
-fun createAccount(accountType: String) {
-    val firestore = FirebaseFirestore.getInstance()
-    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-
-    firestore.collection("accounts").add(
-        mapOf(
-            "name" to accountType,
-            "amount" to 0L,
-            "user_id" to userId
-        )
-    )
 }

@@ -8,11 +8,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
-import com.isis3510.spendiq.viewmodel.AuthState
+import com.isis3510.spendiq.viewmodel.AuthViewModel
 
 @Composable
-fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel) {
+fun LoginScreen(navController: NavController, viewModel: AuthViewModel) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val authState by viewModel.authState.collectAsState()
@@ -55,23 +54,23 @@ fun LoginScreen(navController: NavController, viewModel: AuthenticationViewModel
         }
 
         when (authState) {
-            is AuthState.Loading -> CircularProgressIndicator()
-            is AuthState.Error -> Text(
-                (authState as AuthState.Error).message,
+            is AuthViewModel.AuthState.Loading -> CircularProgressIndicator()
+            is AuthViewModel.AuthState.Error -> Text(
+                (authState as AuthViewModel.AuthState.Error).message,
                 color = MaterialTheme.colorScheme.error
             )
-            is AuthState.Authenticated -> {
+            is AuthViewModel.AuthState.Authenticated -> {
                 LaunchedEffect(Unit) {
                     viewModel.checkEmailVerification()
                 }
             }
-            is AuthState.EmailNotVerified -> {
+            is AuthViewModel.AuthState.EmailNotVerified -> {
                 Text("Please verify your email to continue.")
                 Button(onClick = { viewModel.sendEmailVerification() }) {
                     Text("Resend verification email")
                 }
             }
-            is AuthState.EmailVerified -> {
+            is AuthViewModel.AuthState.EmailVerified -> {
                 LaunchedEffect(Unit) {
                     navController.navigate("main") {
                         popUpTo("authentication") { inclusive = true }

@@ -1,16 +1,17 @@
 package com.isis3510.spendiq.viewmodel
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.isis3510.spendiq.model.User
+import com.isis3510.spendiq.model.data.User
 import com.isis3510.spendiq.model.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
 
-class AuthenticationViewModel(application: Application) : AndroidViewModel(application) {
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository(application)
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -18,6 +19,9 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
 
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user
+
+    private val _userData = MutableStateFlow<UserDataState>(UserDataState.Idle)
+    val userData: StateFlow<UserDataState> = _userData
 
     init {
         _user.value = authRepository.getCurrentUser()
@@ -29,19 +33,17 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
     fun register(email: String, password: String, fullName: String, phoneNumber: String, birthDate: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.register(email, password).collect { result ->
+            val userData = mapOf(
+                "fullName" to fullName,
+                "email" to email,
+                "phoneNumber" to phoneNumber,
+                "birthDate" to birthDate,
+                "registrationDate" to Date()
+            )
+            authRepository.register(email, password, userData).collect { result ->
                 _authState.value = when {
                     result.isSuccess -> {
                         _user.value = result.getOrNull()
-                        saveUserData(
-                            mapOf(
-                                "fullName" to fullName,
-                                "email" to email,
-                                "phoneNumber" to phoneNumber,
-                                "birthDate" to birthDate,
-                                "registrationDate" to Date()
-                            )
-                        )
                         AuthState.Authenticated
                     }
                     result.isFailure -> {
@@ -118,27 +120,46 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
 
     fun getUserData() {
         viewModelScope.launch {
+            _userData.value = UserDataState.Loading
             _user.value?.let { user ->
                 authRepository.getUserData(user.id).collect { result ->
-                    if (result.isSuccess) {
-                        // Handle successful data retrieval
-                        val userData = result.getOrNull()
-                        // Update UI or state with userData
+                    _userData.value = if (result.isSuccess) {
+                        UserDataState.Success(result.getOrNull() ?: emptyMap())
                     } else {
-                        _authState.value = AuthState.Error("Failed to get user data")
+                        UserDataState.Error(result.exceptionOrNull()?.message ?: "Failed to get user data")
                     }
                 }
             }
         }
     }
-}
 
-sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    object Authenticated : AuthState()
-    object EmailVerificationSent : AuthState()
-    object EmailVerified : AuthState()
-    object EmailNotVerified : AuthState()
-    data class Error(val message: String) : AuthState()
+    fun uploadProfileImage(uri: Uri) {
+        viewModelScope.launch {
+            _userData.value = UserDataState.Loading
+            authRepository.uploadProfileImage(uri).collect { result ->
+                if (result.isSuccess) {
+                    getUserData() // Refresh user data after successful upload
+                } else {
+                    _userData.value = UserDataState.Error(result.exceptionOrNull()?.message ?: "Failed to upload profile image")
+                }
+            }
+        }
+    }
+
+    sealed class AuthState {
+        object Idle : AuthState()
+        object Loading : AuthState()
+        object Authenticated : AuthState()
+        object EmailVerificationSent : AuthState()
+        object EmailVerified : AuthState()
+        object EmailNotVerified : AuthState()
+        data class Error(val message: String) : AuthState()
+    }
+
+    sealed class UserDataState {
+        object Idle : UserDataState()
+        object Loading : UserDataState()
+        data class Success(val data: Map<String, Any>) : UserDataState()
+        data class Error(val message: String) : UserDataState()
+    }
 }

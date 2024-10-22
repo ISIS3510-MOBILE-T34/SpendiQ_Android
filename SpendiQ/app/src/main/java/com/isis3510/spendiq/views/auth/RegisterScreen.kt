@@ -8,14 +8,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
-import com.isis3510.spendiq.viewmodel.AuthState
 import java.util.Calendar
 import android.app.DatePickerDialog
 import androidx.compose.ui.platform.LocalContext
+import com.isis3510.spendiq.viewmodel.AuthViewModel
 
 @Composable
-fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewModel) {
+fun RegisterScreen(navController: NavController, viewModel: AuthViewModel) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -112,20 +111,20 @@ fun RegisterScreen(navController: NavController, viewModel: AuthenticationViewMo
         Spacer(modifier = Modifier.height(16.dp))
 
         when (authState) {
-            is AuthState.Loading -> CircularProgressIndicator()
-            is AuthState.Error -> Text((authState as AuthState.Error).message, color = MaterialTheme.colorScheme.error)
-            is AuthState.Authenticated -> {
+            is AuthViewModel.AuthState.Loading -> CircularProgressIndicator()
+            is AuthViewModel.AuthState.Error -> Text((authState as AuthViewModel.AuthState.Error).message, color = MaterialTheme.colorScheme.error)
+            is AuthViewModel.AuthState.Authenticated -> {
                 LaunchedEffect(Unit) {
                     viewModel.sendEmailVerification()
                 }
             }
-            is AuthState.EmailVerificationSent -> {
+            is AuthViewModel.AuthState.EmailVerificationSent -> {
                 Text("Verification email sent. Please check your inbox.")
                 Button(onClick = { viewModel.checkEmailVerification() }) {
                     Text("I've verified my email")
                 }
             }
-            is AuthState.EmailVerified -> {
+            is AuthViewModel.AuthState.EmailVerified -> {
                 LaunchedEffect(Unit) {
                     navController.navigate("main") {
                         popUpTo("authentication") { inclusive = true }

@@ -58,6 +58,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.maps.android:maps-compose:2.4.0")
 
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.4.0")
@@ -79,6 +80,8 @@ dependencies {
 
     // Location Services
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation(libs.firebase.crashlytics.buildtools)
+    implementation(libs.play.services.maps)
 
     // Testing
     testImplementation(libs.junit)

@@ -9,40 +9,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.isis3510.spendiq.services.LocationService
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.google.firebase.Timestamp
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionModal(
+    accountViewModel: AccountViewModel,
     onDismiss: () -> Unit,
     onTransactionAdded: () -> Unit
 ) {
     var amount by remember { mutableStateOf("") }
     var transactionName by remember { mutableStateOf("") }
-    var selectedDate by remember { mutableStateOf(Date()) }
+    var selectedDate by remember { mutableStateOf(Timestamp.now()) }
     var selectedTransactionType by remember { mutableStateOf("Expense") }
     var expandedTransactionType by remember { mutableStateOf(false) }
     var selectedAccountType by remember { mutableStateOf("Nu") }
     var expandedAccountType by remember { mutableStateOf(false) }
 
-    val firestore = FirebaseFirestore.getInstance()
-    val userId = FirebaseAuth.getInstance().currentUser?.uid
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    val locationService = remember { LocationService(context) }
-
     val calendar = Calendar.getInstance()
 
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
             calendar.set(year, month, dayOfMonth)
-            selectedDate = calendar.time
+            selectedDate = Timestamp(calendar.time) // Convert Date to Timestamp
         },
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
@@ -80,7 +74,7 @@ fun AddTransactionModal(
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(onClick = { datePickerDialog.show() }) {
-                Text("Select Date: ${selectedDate.toString().substring(0, 10)}")
+                Text("Select Date: ${selectedDate.toDate().toString().substring(0, 10)}")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -148,92 +142,23 @@ fun AddTransactionModal(
 
             Button(
                 onClick = {
-                    coroutineScope.launch {
-                        if (userId != null) {
-                            val location = locationService.getCurrentLocation()
-                            addTransaction(
-                                userId,
-                                amount.toLongOrNull() ?: 0L,
-                                transactionName,
-                                selectedDate.time,
-                                selectedTransactionType,
-                                selectedAccountType,
-                                firestore,
-                                onTransactionAdded,
-                                onDismiss,
-                                location
-                            )
-                        }
-                    }
+                    val transaction = Transaction(
+                        id = "", // This will be set by Firestore
+                        accountId = selectedAccountType, // This should be set based on the selected account
+                        transactionName = transactionName,
+                        amount = amount.toLongOrNull() ?: 0L,
+                        dateTime = selectedDate, // Use Timestamp here
+                        transactionType = selectedTransactionType,
+                        location = null // You might want to add location handling here
+                    )
+                    accountViewModel.addTransactionWithAccountCheck(transaction)
+                    onTransactionAdded()
+                    onDismiss()
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Add Transaction")
             }
         }
-    }
-}
-
-private suspend fun addTransaction(
-    userId: String,
-    amount: Long,
-    transactionName: String,
-    dateTime: Long,
-    transactionType: String,
-    accountType: String,
-    firestore: FirebaseFirestore,
-    onTransactionAdded: () -> Unit,
-    onDismiss: () -> Unit,
-    location: android.location.Location?
-) {
-    try {
-        val accountSnapshot = firestore.collection("accounts")
-            .whereEqualTo("name", accountType)
-            .whereEqualTo("user_id", userId)
-            .get()
-            .await()
-
-        val accountId = if (accountSnapshot.documents.isNotEmpty()) {
-            accountSnapshot.documents[0].id
-        } else {
-            val newAccount = hashMapOf(
-                "amount" to 0L,
-                "name" to accountType,
-                "user_id" to userId
-            )
-            firestore.collection("accounts").add(newAccount).await().id
-        }
-
-        val transaction = hashMapOf(
-            "accountID" to accountId,
-            "amount" to amount,
-            "dateTime" to dateTime,
-            "transactionName" to transactionName,
-            "transactionType" to transactionType,
-            "location" to if (location != null) {
-                hashMapOf(
-                    "latitude" to location.latitude,
-                    "longitude" to location.longitude
-                )
-            } else null
-        )
-
-        firestore.collection("accounts").document(accountId)
-            .collection("transactions")
-            .add(transaction)
-            .await()
-
-        val accountDoc = firestore.collection("accounts").document(accountId)
-        firestore.runTransaction { transaction ->
-            val account = transaction.get(accountDoc)
-            val currentBalance = account.getLong("amount") ?: 0L
-            val newBalance = if (transactionType == "Income") currentBalance + amount else currentBalance - amount
-            transaction.update(accountDoc, "amount", newBalance)
-        }.await()
-
-        onTransactionAdded()
-        onDismiss()
-    } catch (e: Exception) {
-        e.printStackTrace()
     }
 }
