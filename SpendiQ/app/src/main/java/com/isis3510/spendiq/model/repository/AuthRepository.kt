@@ -5,9 +5,9 @@ import android.content.SharedPreferences
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.User
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.tasks.await
 
 class AuthRepository(context: Context) {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
@@ -58,6 +58,7 @@ class AuthRepository(context: Context) {
         clearUserSession()
     }
 
+    // Send email verification to the currently signed-in user
     fun sendEmailVerification(): Flow<Result<Unit>> = flow {
         try {
             auth.currentUser?.sendEmailVerification()?.await()
@@ -67,10 +68,12 @@ class AuthRepository(context: Context) {
         }
     }
 
+    // Check if the current user's email is verified
     fun isEmailVerified(): Boolean {
         return auth.currentUser?.isEmailVerified ?: false
     }
 
+    // Reload the current user data from Firebase
     fun reloadUser(): Flow<Result<Unit>> = flow {
         try {
             auth.currentUser?.reload()?.await()
@@ -80,6 +83,7 @@ class AuthRepository(context: Context) {
         }
     }
 
+    // Save the user's session (for auto-login and biometric login)
     private fun saveUserSession(user: User) {
         prefs.edit().apply {
             putString("user_id", user.id)
@@ -88,6 +92,7 @@ class AuthRepository(context: Context) {
         }
     }
 
+    // Clear user session on logout
     private fun clearUserSession() {
         prefs.edit().clear().apply()
     }
@@ -109,6 +114,16 @@ class AuthRepository(context: Context) {
             } else {
                 emit(Result.failure(Exception("User data not found")))
             }
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }
+
+    // Send password reset email
+    fun sendPasswordResetEmail(email: String): Flow<Result<Unit>> = flow {
+        try {
+            auth.sendPasswordResetEmail(email).await()
+            emit(Result.success(Unit))
         } catch (e: Exception) {
             emit(Result.failure(e))
         }

@@ -3,6 +3,7 @@ package com.isis3510.spendiq.views.splash
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -17,7 +18,17 @@ fun SplashScreen(navController: NavController, viewModel: AuthenticationViewMode
     val authState = viewModel.authState.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+        when (authState.value) {
+            AuthState.Loading -> {
+                // Show a loading screen
+                CircularProgressIndicator()
+                Text(text = "Loading...", modifier = Modifier.align(Alignment.BottomCenter))
+            }
+            else -> {
+                // Fallback UI while waiting for a state change
+                CircularProgressIndicator()
+            }
+        }
     }
 
     LaunchedEffect(authState.value) {
@@ -25,14 +36,34 @@ fun SplashScreen(navController: NavController, viewModel: AuthenticationViewMode
             is AuthState.Authenticated -> navController.navigate("main") {
                 popUpTo("splash") { inclusive = true }
             }
+            is AuthState.EmailVerified -> {
+                // Navigate to main if email is verified
+                navController.navigate("main") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
+            is AuthState.EmailNotVerified -> {
+                // Navigate to authentication if email is not verified
+                navController.navigate("authentication") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
+            is AuthState.EmailVerificationSent -> {
+                // Navigate to authentication after email verification is sent
+                navController.navigate("authentication") {
+                    popUpTo("splash") { inclusive = true }
+                }
+            }
             is AuthState.Error,
             AuthState.Idle,
-            is AuthState.EmailNotVerified,
-            is AuthState.EmailVerificationSent,
-            is AuthState.EmailVerified -> navController.navigate("authentication") {
+            AuthState.BiometricEnabled -> navController.navigate("authentication") {
                 popUpTo("splash") { inclusive = true }
             }
-            AuthState.Loading -> {}
+            AuthState.Loading -> {
+                // Do nothing while loading
+            }
+
+            AuthState.PasswordResetEmailSent -> TODO()
         }
     }
 }
