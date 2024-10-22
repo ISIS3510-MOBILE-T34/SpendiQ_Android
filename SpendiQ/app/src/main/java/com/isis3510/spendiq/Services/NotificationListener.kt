@@ -92,9 +92,11 @@ class NotificationListener : NotificationListenerService() {
             val amount = amountString.toLong()
             val currentTime = System.currentTimeMillis()
 
+            // Retrieve location before proceeding with transaction
+            val location = locationService.getCurrentLocation()
+
             if (!transactionExists(userId, company, amount, currentTime, "Income")) {
                 Log.d("NotificationListener", "Processing income from $company, amount: $amount")
-                val location = locationService.getCurrentLocation()
                 addTransaction(userId, amount, company, "Income", location)
                 updateNuAccountBalance(userId, amount)
                 showNotification("Income Recorded", "Income of $$amount from $company has been recorded.")
@@ -129,9 +131,11 @@ class NotificationListener : NotificationListenerService() {
             val amount = amountString.toLong()
             val currentTime = System.currentTimeMillis()
 
+            // Retrieve location before proceeding with transaction
+            val location = locationService.getCurrentLocation()
+
             if (!transactionExists(userId, company, amount, currentTime, "Expense")) {
                 Log.d("NotificationListener", "Processing expense for $company, amount: $amount")
-                val location = locationService.getCurrentLocation()
                 addTransaction(userId, amount, company, "Expense", location)
                 updateNuAccountBalance(userId, -amount)
                 showNotification("Expense Recorded", "Expense of $$amount to $company has been recorded.")
