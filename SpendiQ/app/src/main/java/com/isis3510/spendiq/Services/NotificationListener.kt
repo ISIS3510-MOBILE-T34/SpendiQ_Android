@@ -8,6 +8,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.R
@@ -90,12 +91,12 @@ class NotificationListener : NotificationListenerService() {
             }
 
             val amount = amountString.toLong()
-            val currentTime = System.currentTimeMillis()
+            val currentTimestamp = Timestamp.now()
 
             // Retrieve location before proceeding with transaction
             val location = locationService.getCurrentLocation()
 
-            if (!transactionExists(userId, company, amount, currentTime, "Income")) {
+            if (!transactionExists(userId, company, amount, currentTimestamp, "Income")) {
                 Log.d("NotificationListener", "Processing income from $company, amount: $amount")
                 addTransaction(userId, amount, company, "Income", location)
                 updateNuAccountBalance(userId, amount)
@@ -129,12 +130,12 @@ class NotificationListener : NotificationListenerService() {
             }
 
             val amount = amountString.toLong()
-            val currentTime = System.currentTimeMillis()
+            val currentTimestamp = Timestamp.now()
 
             // Retrieve location before proceeding with transaction
             val location = locationService.getCurrentLocation()
 
-            if (!transactionExists(userId, company, amount, currentTime, "Expense")) {
+            if (!transactionExists(userId, company, amount, currentTimestamp, "Expense")) {
                 Log.d("NotificationListener", "Processing expense for $company, amount: $amount")
                 addTransaction(userId, amount, company, "Expense", location)
                 updateNuAccountBalance(userId, -amount)
@@ -147,8 +148,11 @@ class NotificationListener : NotificationListenerService() {
         }
     }
 
-    private suspend fun transactionExists(userId: String, transactionName: String, amount: Long, dateTime: Long, transactionType: String): Boolean {
+    private suspend fun transactionExists(userId: String, transactionName: String, amount: Long, timestamp: Timestamp, transactionType: String): Boolean {
         return try {
+            val startTime = Timestamp(timestamp.seconds - 60, timestamp.nanoseconds)
+            val endTime = Timestamp(timestamp.seconds + 60, timestamp.nanoseconds)
+
             val snapshot = firestore.collection("accounts")
                 .whereEqualTo("name", "Nu")
                 .whereEqualTo("user_id", userId)
@@ -163,8 +167,8 @@ class NotificationListener : NotificationListenerService() {
                     .whereEqualTo("transactionName", transactionName)
                     .whereEqualTo("amount", amount)
                     .whereEqualTo("transactionType", transactionType)
-                    .whereGreaterThan("dateTime", dateTime - 60000)
-                    .whereLessThan("dateTime", dateTime + 60000)
+                    .whereGreaterThan("dateTime", startTime)
+                    .whereLessThan("dateTime", endTime)
                     .get()
                     .await()
 
@@ -213,8 +217,6 @@ class NotificationListener : NotificationListenerService() {
     }
 
     private suspend fun addTransaction(userId: String, amount: Long, transactionName: String, transactionType: String, location: android.location.Location?) {
-        val currentTime = System.currentTimeMillis()
-
         try {
             val accountSnapshot = firestore.collection("accounts")
                 .whereEqualTo("name", "Nu")
@@ -226,7 +228,7 @@ class NotificationListener : NotificationListenerService() {
                 val accountId = accountSnapshot.documents[0].id
                 val transaction = hashMapOf(
                     "amount" to amount,
-                    "dateTime" to currentTime,
+                    "dateTime" to Timestamp.now(),
                     "accountID" to accountId,
                     "transactionName" to transactionName,
                     "transactionType" to transactionType,
