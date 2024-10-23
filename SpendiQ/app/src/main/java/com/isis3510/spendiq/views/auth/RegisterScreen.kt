@@ -114,7 +114,7 @@ fun RegisterScreen(
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
                     .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Person") }
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Person", tint = Color(0xffb3cb54)) }
             )
 
             // Email input field
@@ -126,7 +126,7 @@ fun RegisterScreen(
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
                     .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") }
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xffb3cb54)) }
             )
 
             // Phone number input field
@@ -138,7 +138,7 @@ fun RegisterScreen(
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
                     .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone") }
+                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone",  tint = Color(0xffb3cb54)) }
             )
 
             // Birth date field
@@ -151,7 +151,7 @@ fun RegisterScreen(
                     .padding(vertical = 4.dp)
                     .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50))
                     .clickable { datePickerDialog.show() },
-                leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = "Calendar") },
+                leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = "Calendar", tint = Color(0xffc33ba5)) },
                 readOnly = true,
                 enabled = false
             )
@@ -166,7 +166,7 @@ fun RegisterScreen(
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
                     .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock1") }
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock1", tint = Color(0xffc33ba5)) }
             )
 
             OutlinedTextField(
@@ -178,7 +178,7 @@ fun RegisterScreen(
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
                     .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock2") }
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock2", tint = Color(0xffc33ba5)) }
             )
 
             // Checkbox for terms & conditions
