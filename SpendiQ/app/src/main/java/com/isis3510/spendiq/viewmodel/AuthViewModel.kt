@@ -1,45 +1,49 @@
 package com.isis3510.spendiq.viewmodel
 
 import android.app.Application
-import android.content.SharedPreferences
-import android.util.Base64
-import android.util.Log
-import androidx.fragment.app.FragmentActivity
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
-import com.isis3510.spendiq.model.User
+import com.isis3510.spendiq.model.data.User
 import com.isis3510.spendiq.model.repository.AuthRepository
 import com.isis3510.spendiq.utils.BiometricHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
+import android.content.SharedPreferences
+import android.util.Base64
+import android.util.Log
+import androidx.fragment.app.FragmentActivity
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
-// Define various authentication states
 sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    object Authenticated : AuthState()
-    object BiometricEnabled : AuthState()
-    object PasswordResetEmailSent : AuthState()
-    object EmailVerificationSent : AuthState()
-    object EmailVerified : AuthState()
-    object EmailNotVerified : AuthState()
+    data object Idle : AuthState()
+    data object Loading : AuthState()
+    data object Authenticated : AuthState()
+    data object BiometricEnabled : AuthState() // Re-added this state
+    data object PasswordResetEmailSent : AuthState() // Fixed the missing reference
+    data object EmailVerificationSent : AuthState()
+    data object EmailVerified : AuthState()
+    data object EmailNotVerified : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
-class AuthenticationViewModel(application: Application) : AndroidViewModel(application) {
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository(application)
-    private val biometricHelper = BiometricHelper(application)
-    private val encryptedPrefs by lazy { createEncryptedSharedPreferences() }
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState
 
     private val _user = MutableStateFlow<User?>(null)
     val user: StateFlow<User?> = _user
+
+    private val _userData = MutableStateFlow<UserDataState>(UserDataState.Idle)
+    val userData: StateFlow<UserDataState> = _userData
+
+    private val biometricHelper = BiometricHelper(application)
+    private val encryptedPrefs by lazy { createEncryptedSharedPreferences() }
 
     init {
         _user.value = authRepository.getCurrentUser()
@@ -48,31 +52,20 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    // Register a new user
-    fun register(
-        email: String,
-        password: String,
-        fullName: String = "",
-        phoneNumber: String = "",
-        birthDate: String = ""
-    ) {
+    fun register(email: String, password: String, fullName: String, phoneNumber: String, birthDate: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
-            authRepository.register(email, password).collect { result ->
+            val userData = mapOf(
+                "fullName" to fullName,
+                "email" to email,
+                "phoneNumber" to phoneNumber,
+                "birthDate" to birthDate,
+                "registrationDate" to Date()
+            )
+            authRepository.register(email, password, userData).collect { result ->
                 _authState.value = when {
                     result.isSuccess -> {
                         _user.value = result.getOrNull()
-                        if (!fullName.isBlank()) {
-                            saveUserData(
-                                mapOf(
-                                    "fullName" to fullName,
-                                    "email" to email,
-                                    "phoneNumber" to phoneNumber,
-                                    "birthDate" to birthDate,
-                                    "registrationDate" to Date()
-                                )
-                            )
-                        }
                         AuthState.Authenticated
                     }
                     result.isFailure -> {
@@ -85,7 +78,6 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    // Login a user
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
@@ -102,14 +94,12 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    // Logout the user
     fun logout() {
         authRepository.logout()
         _user.value = null
         _authState.value = AuthState.Idle
     }
 
-    // Save user data to Firestore
     fun saveUserData(data: Map<String, Any>) {
         viewModelScope.launch {
             _user.value?.let { user ->
@@ -122,20 +112,39 @@ class AuthenticationViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-    // Get user data from Firestore
     fun getUserData() {
         viewModelScope.launch {
+            _userData.value = UserDataState.Loading
             _user.value?.let { user ->
                 authRepository.getUserData(user.id).collect { result ->
-                    if (result.isSuccess) {
-                        val userData = result.getOrNull()
-                        // Handle user data if needed
+                    _userData.value = if (result.isSuccess) {
+                        UserDataState.Success(result.getOrNull() ?: emptyMap())
                     } else {
-                        _authState.value = AuthState.Error("Failed to get user data")
+                        UserDataState.Error(result.exceptionOrNull()?.message ?: "Failed to get user data")
                     }
                 }
             }
         }
+    }
+
+    fun uploadProfileImage(uri: Uri) {
+        viewModelScope.launch {
+            _userData.value = UserDataState.Loading
+            authRepository.uploadProfileImage(uri).collect { result ->
+                if (result.isSuccess) {
+                    getUserData() // Refresh user data after successful upload
+                } else {
+                    _userData.value = UserDataState.Error(result.exceptionOrNull()?.message ?: "Failed to upload profile image")
+                }
+            }
+        }
+    }
+
+    sealed class UserDataState {
+        data object Idle : UserDataState()
+        data object Loading : UserDataState()
+        data class Success(val data: Map<String, Any>) : UserDataState()
+        data class Error(val message: String) : UserDataState()
     }
 
     // Send email verification
