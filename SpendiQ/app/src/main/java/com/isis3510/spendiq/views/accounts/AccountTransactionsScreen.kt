@@ -82,9 +82,13 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
                     val filteredTransactions = transactions.filter {
                         it.transactionName.contains(searchQuery, ignoreCase = true)
                     }
-                    val groupedTransactions = filteredTransactions.groupBy { it.date }
 
-                    groupedTransactions.forEach { (date, transactionsForDate) ->
+                    val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.date) }
+                    val sortedDates = groupedTransactions.keys.sortedDescending()
+
+                    sortedDates.forEach { date ->
+                        val transactionsForDate = groupedTransactions[date] ?: return@forEach
+
                         item {
                             Text(
                                 text = formatDate(date),
@@ -94,7 +98,7 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
                             )
                         }
 
-                        items(transactionsForDate) { transaction ->
+                        items(transactionsForDate.sortedByDescending { it.date }) { transaction ->
                             TransactionItem(transaction)
                         }
                     }
@@ -174,6 +178,43 @@ data class Location(
     val longitude: Double
 )
 
+private fun normalizeDate(date: Date): Date {
+    val calendar = Calendar.getInstance()
+    calendar.time = date
+    calendar.set(Calendar.HOUR_OF_DAY, 0)
+    calendar.set(Calendar.MINUTE, 0)
+    calendar.set(Calendar.SECOND, 0)
+    calendar.set(Calendar.MILLISECOND, 0)
+    return calendar.time
+}
+
+fun formatDate(date: Date): String {
+    val calendar = Calendar.getInstance()
+    calendar.time = date
+
+    val today = Calendar.getInstance()
+    today.set(Calendar.HOUR_OF_DAY, 0)
+    today.set(Calendar.MINUTE, 0)
+    today.set(Calendar.SECOND, 0)
+    today.set(Calendar.MILLISECOND, 0)
+
+    val yesterday = Calendar.getInstance()
+    yesterday.add(Calendar.DAY_OF_YEAR, -1)
+    yesterday.set(Calendar.HOUR_OF_DAY, 0)
+    yesterday.set(Calendar.MINUTE, 0)
+    yesterday.set(Calendar.SECOND, 0)
+    yesterday.set(Calendar.MILLISECOND, 0)
+
+    return when {
+        calendar.time == today.time -> "Hoy"
+        calendar.time == yesterday.time -> "Ayer"
+        else -> {
+            val formatter = SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale("es", "ES"))
+            formatter.format(date)
+        }
+    }
+}
+
 suspend fun fetchTransactions(accountName: String): List<Transaction> {
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return emptyList()
@@ -212,14 +253,12 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
 
                 val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
 
-                // Handle amount as either Long or Double
                 val amount = when (val amountValue = doc.get("amount")) {
                     is Long -> amountValue.toDouble()
                     is Double -> amountValue
                     else -> return@mapNotNull null
                 }
 
-                // Handle Timestamp
                 val timestamp = doc.get("dateTime") as? Timestamp
                 val date = timestamp?.toDate()
                 if (date == null) {
@@ -229,7 +268,6 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
 
                 val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
 
-                // Handle location
                 val locationMap = doc.get("location") as? Map<String, Any>
                 val location = locationMap?.let { map ->
                     val latitude = map["latitude"] as? Double
@@ -238,8 +276,6 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
                         Location(latitude, longitude)
                     } else null
                 }
-
-                Log.d("Firebase", "Successfully parsed transaction: $transactionName")
 
                 Transaction(
                     transactionName = transactionName,
@@ -256,26 +292,6 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
     } catch (e: Exception) {
         Log.e("Firebase", "Error fetching transactions", e)
         return emptyList()
-    }
-}
-
-fun formatDate(date: Date): String {
-    val calendar = Calendar.getInstance()
-    calendar.time = date
-
-    val today = Calendar.getInstance()
-    val yesterday = Calendar.getInstance()
-    yesterday.add(Calendar.DAY_OF_YEAR, -1)
-
-    return when {
-        calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
-                calendar.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR) -> "Hoy"
-        calendar.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR) &&
-                calendar.get(Calendar.DAY_OF_YEAR) == yesterday.get(Calendar.DAY_OF_YEAR) -> "Ayer"
-        else -> {
-            val formatter = SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale("es", "ES"))
-            formatter.format(date)
-        }
     }
 }
 
