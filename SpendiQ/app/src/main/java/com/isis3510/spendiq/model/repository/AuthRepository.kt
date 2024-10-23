@@ -110,4 +110,14 @@ class AuthRepository(private val context: Context) {
             emit(Result.failure(e))
         }
     }
+
+    // Send password reset email
+    fun sendPasswordResetEmail(email: String): Flow<Result<Unit>> = flow {
+        try {
+            auth.sendPasswordResetEmail(email).await()
+            emit(Result.success(Unit))
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }
 }

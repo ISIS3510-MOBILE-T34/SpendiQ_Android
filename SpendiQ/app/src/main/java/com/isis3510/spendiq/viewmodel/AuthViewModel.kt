@@ -6,10 +6,29 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.isis3510.spendiq.model.data.User
 import com.isis3510.spendiq.model.repository.AuthRepository
+import com.isis3510.spendiq.utils.BiometricHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
+import android.content.SharedPreferences
+import android.util.Base64
+import android.util.Log
+import androidx.fragment.app.FragmentActivity
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+
+sealed class AuthState {
+    data object Idle : AuthState()
+    data object Loading : AuthState()
+    data object Authenticated : AuthState()
+    data object BiometricEnabled : AuthState() // Re-added this state
+    data object PasswordResetEmailSent : AuthState() // Fixed the missing reference
+    data object EmailVerificationSent : AuthState()
+    data object EmailVerified : AuthState()
+    data object EmailNotVerified : AuthState()
+    data class Error(val message: String) : AuthState()
+}
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository(application)
@@ -22,6 +41,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _userData = MutableStateFlow<UserDataState>(UserDataState.Idle)
     val userData: StateFlow<UserDataState> = _userData
+
+    private val biometricHelper = BiometricHelper(application)
+    private val encryptedPrefs by lazy { createEncryptedSharedPreferences() }
 
     init {
         _user.value = authRepository.getCurrentUser()
@@ -78,34 +100,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _authState.value = AuthState.Idle
     }
 
-    fun sendEmailVerification() {
-        viewModelScope.launch {
-            authRepository.sendEmailVerification().collect { result ->
-                _authState.value = when {
-                    result.isSuccess -> AuthState.EmailVerificationSent
-                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Failed to send verification email")
-                    else -> AuthState.Error("Unexpected error")
-                }
-            }
-        }
-    }
-
-    fun checkEmailVerification() {
-        viewModelScope.launch {
-            authRepository.reloadUser().collect { result ->
-                if (result.isSuccess) {
-                    if (authRepository.isEmailVerified()) {
-                        _authState.value = AuthState.EmailVerified
-                    } else {
-                        _authState.value = AuthState.EmailNotVerified
-                    }
-                } else {
-                    _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Failed to check email verification")
-                }
-            }
-        }
-    }
-
     fun saveUserData(data: Map<String, Any>) {
         viewModelScope.launch {
             _user.value?.let { user ->
@@ -146,20 +140,138 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    sealed class AuthState {
-        object Idle : AuthState()
-        object Loading : AuthState()
-        object Authenticated : AuthState()
-        object EmailVerificationSent : AuthState()
-        object EmailVerified : AuthState()
-        object EmailNotVerified : AuthState()
-        data class Error(val message: String) : AuthState()
-    }
-
     sealed class UserDataState {
-        object Idle : UserDataState()
-        object Loading : UserDataState()
+        data object Idle : UserDataState()
+        data object Loading : UserDataState()
         data class Success(val data: Map<String, Any>) : UserDataState()
         data class Error(val message: String) : UserDataState()
+    }
+
+    // Send email verification
+    fun sendEmailVerification() {
+        viewModelScope.launch {
+            authRepository.sendEmailVerification().collect { result ->
+                _authState.value = when {
+                    result.isSuccess -> AuthState.EmailVerificationSent
+                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Failed to send verification email")
+                    else -> AuthState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    // Check if the user's email is verified
+    fun checkEmailVerification() {
+        viewModelScope.launch {
+            authRepository.reloadUser().collect { result ->
+                if (result.isSuccess) {
+                    if (authRepository.isEmailVerified()) {
+                        _authState.value = AuthState.EmailVerified
+                    } else {
+                        _authState.value = AuthState.EmailNotVerified
+                    }
+                } else {
+                    _authState.value = AuthState.Error(result.exceptionOrNull()?.message ?: "Failed to check email verification")
+                }
+            }
+        }
+    }
+
+    // Send password reset email
+    fun sendPasswordResetEmail(email: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.sendPasswordResetEmail(email).collect { result ->
+                _authState.value = when {
+                    result.isSuccess -> AuthState.PasswordResetEmailSent
+                    result.isFailure -> AuthState.Error(result.exceptionOrNull()?.message ?: "Unknown error")
+                    else -> AuthState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    // Biometric login setup
+    fun setupBiometricPrompt(
+        activity: FragmentActivity,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        biometricHelper.setupBiometricPrompt(activity, onSuccess, onError)
+    }
+
+    // Show biometric login prompt
+    fun showBiometricPrompt() {
+        biometricHelper.showBiometricPrompt()
+    }
+
+    // Enable biometric login by saving credentials
+    fun enableBiometricLogin(email: String, password: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.login(email, password).collect { result ->
+                when {
+                    result.isSuccess -> {
+                        val user = result.getOrNull()
+                        user?.let {
+                            Log.d("AuthViewModel", "Login successful, storing credentials")
+                            storeCredentials(email, password)
+                            _authState.value = AuthState.BiometricEnabled
+                        }
+                    }
+                    result.isFailure -> _authState.value = AuthState.Error("Failed to enable biometric login")
+                }
+            }
+        }
+    }
+
+    // Perform login using stored biometric credentials
+    fun loginWithBiometrics() {
+        val encryptedEmail = encryptedPrefs.getString("user_email", null)
+        val encryptedPassword = encryptedPrefs.getString("user_password", null)
+
+        if (encryptedEmail == null || encryptedPassword == null) {
+            _authState.value = AuthState.Error("No stored credentials found")
+            return
+        }
+
+        try {
+            val email = String(Base64.decode(encryptedEmail, Base64.DEFAULT))
+            val password = String(Base64.decode(encryptedPassword, Base64.DEFAULT))
+            login(email, password)
+        } catch (e: Exception) {
+            _authState.value = AuthState.Error("Error processing credentials: ${e.message}")
+        }
+    }
+
+    // Store credentials securely for biometric login
+    private fun storeCredentials(email: String, password: String) {
+        val encryptedEmail = Base64.encodeToString(email.toByteArray(), Base64.DEFAULT)
+        val encryptedPassword = Base64.encodeToString(password.toByteArray(), Base64.DEFAULT)
+        encryptedPrefs.edit().apply {
+            putString("user_email", encryptedEmail)
+            putString("user_password", encryptedPassword)
+            apply()
+        }
+    }
+
+    // Create encrypted SharedPreferences to store biometric login credentials
+    private fun createEncryptedSharedPreferences(): SharedPreferences {
+        val masterKey = MasterKey.Builder(getApplication())
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        return EncryptedSharedPreferences.create(
+            getApplication(),
+            "secret_shared_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    // Reset authentication state
+    fun resetAuthState() {
+        _authState.value = AuthState.Idle
     }
 }

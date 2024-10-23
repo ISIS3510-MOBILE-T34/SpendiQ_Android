@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
                         composable("accounts") { AccountsScreen(navController, accountViewModel) }
                         composable("accountTransactions/{accountName}") { backStackEntry ->
                             val accountName = backStackEntry.arguments?.getString("accountName") ?: ""
-                            AccountTransactionsScreen(navController, accountViewModel, accountName)
+                            AccountTransactionsScreen(navController, accountName)
                         }
                         // Add new route for special sales detail
                         composable("SpecialSalesDetail/{offerId}") { backStackEntry ->
