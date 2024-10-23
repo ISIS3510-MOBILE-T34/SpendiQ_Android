@@ -85,8 +85,8 @@ class MainActivity : ComponentActivity() {
                         composable("main") {
                             MainContent(navController, authViewModel, accountViewModel, offersViewModel)
                         }
-                        composable("promos") { OffersScreen(navController, offersViewModel) }
-                        composable("profile") { ProfileScreen(navController, authViewModel) }
+                        composable("promos") { OffersScreen(navController, offersViewModel, accountViewModel) }
+                        composable("profile") { ProfileScreen(navController, authViewModel, accountViewModel) }
                         composable("accounts") { AccountsScreen(navController, accountViewModel) }
                         composable("accountTransactions/{accountName}") { backStackEntry ->
                             val accountName = backStackEntry.arguments?.getString("accountName") ?: ""

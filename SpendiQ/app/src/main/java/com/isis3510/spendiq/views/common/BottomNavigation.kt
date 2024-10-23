@@ -4,11 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -16,9 +17,16 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.isis3510.spendiq.R
+import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.views.transaction.AddTransactionModal
 
 @Composable
-fun BottomNavigation(navController: NavController, onAddTransactionClick: () -> Unit) {
+fun BottomNavigation(
+    navController: NavController,
+    accountViewModel: AccountViewModel // Add AccountViewModel parameter
+) {
+    var showAddTransactionModal by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -30,12 +38,49 @@ fun BottomNavigation(navController: NavController, onAddTransactionClick: () -> 
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavItem("Home", R.drawable.home24, isSelected = navController.isCurrentRoute("main"), navController, "main")
-            NavItem("Promos", R.drawable.gift24, isSelected = navController.isCurrentRoute("promos"), navController, "promos")
-            AddTransactionButton(onClick = onAddTransactionClick)
-            NavItem("Accounts", R.drawable.creditcard24, isSelected = navController.isCurrentRoute("accounts"), navController, "accounts")
-            NavItem("Profile", R.drawable.person24, isSelected = navController.isCurrentRoute("profile"), navController, "profile")
+            NavItem(
+                "Home",
+                R.drawable.home24,
+                isSelected = navController.isCurrentRoute("main"),
+                navController,
+                "main"
+            )
+            NavItem(
+                "Promos",
+                R.drawable.gift24,
+                isSelected = navController.isCurrentRoute("promos"),
+                navController,
+                "promos"
+            )
+            AddTransactionButton(onClick = { showAddTransactionModal = true })
+            NavItem(
+                "Accounts",
+                R.drawable.creditcard24,
+                isSelected = navController.isCurrentRoute("accounts"),
+                navController,
+                "accounts"
+            )
+            NavItem(
+                "Profile",
+                R.drawable.person24,
+                isSelected = navController.isCurrentRoute("profile"),
+                navController,
+                "profile"
+            )
         }
+    }
+
+    // Show AddTransactionModal when showAddTransactionModal is true
+    if (showAddTransactionModal) {
+        AddTransactionModal(
+            accountViewModel = accountViewModel,
+            onDismiss = { showAddTransactionModal = false },
+            onTransactionAdded = {
+                showAddTransactionModal = false
+                // Optionally refresh the current screen or navigate to transactions
+                // navController.navigate("transactions")
+            }
+        )
     }
 }
 
@@ -85,7 +130,7 @@ fun AddTransactionButton(onClick: () -> Unit) {
     }
 }
 
-@Composable // Added @Composable annotation to fix error
+@Composable
 fun NavController.isCurrentRoute(route: String): Boolean {
     return this.currentBackStackEntryAsState().value?.destination?.route == route
 }

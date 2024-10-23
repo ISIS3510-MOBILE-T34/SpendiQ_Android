@@ -26,6 +26,7 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.isis3510.spendiq.R
+import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import java.io.File
@@ -34,7 +35,7 @@ import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController, viewModel: AuthViewModel) {
+fun ProfileScreen(navController: NavController, viewModel: AuthViewModel, accountViewModel: AccountViewModel) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -87,7 +88,7 @@ fun ProfileScreen(navController: NavController, viewModel: AuthViewModel) {
         bottomBar = {
             BottomNavigation(
                 navController = navController,
-                onAddTransactionClick = { showAddTransactionModal = true }
+                accountViewModel
             )
         }
     ) { innerPadding ->

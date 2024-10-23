@@ -16,11 +16,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage // Updated from deprecated rememberImagePainter
 import com.isis3510.spendiq.model.data.Offer
+import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
 
 @Composable
-fun OffersScreen(navController: NavController, viewModel: OffersViewModel) {
+fun OffersScreen(navController: NavController, viewModel: OffersViewModel, accountViewModel: AccountViewModel) {
     val offers by viewModel.offers.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -31,7 +32,7 @@ fun OffersScreen(navController: NavController, viewModel: OffersViewModel) {
         bottomBar = {
             BottomNavigation(
                 navController = navController,
-                onAddTransactionClick = { /* Handle navigation */ }
+                accountViewModel
             )
         }
     ) { innerPadding ->
