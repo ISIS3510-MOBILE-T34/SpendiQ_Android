@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -205,31 +206,52 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
         }
 
         return transactionsSnapshot.documents.mapNotNull { doc ->
-            val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
-            val amount = doc.getDouble("amount") ?: return@mapNotNull null
-            val dateTime = doc.getLong("dateTime")?.let { Date(it) } ?: return@mapNotNull null
-            val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
-            val locationMap = doc.get("location") as? Map<String, Any>
+            try {
+                Log.d("Firebase", "Processing document: ${doc.id}")
+                Log.d("Firebase", "Document data: ${doc.data}")
 
-            val location = if (locationMap != null) {
-                val latitude = locationMap["latitude"] as? Double
-                val longitude = locationMap["longitude"] as? Double
-                if (latitude != null && longitude != null) {
-                    Location(latitude, longitude)
-                } else {
-                    null
+                val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
+
+                // Handle amount as either Long or Double
+                val amount = when (val amountValue = doc.get("amount")) {
+                    is Long -> amountValue.toDouble()
+                    is Double -> amountValue
+                    else -> return@mapNotNull null
                 }
-            } else {
+
+                // Handle Timestamp
+                val timestamp = doc.get("dateTime") as? Timestamp
+                val date = timestamp?.toDate()
+                if (date == null) {
+                    Log.e("Firebase", "Invalid date format for document: ${doc.id}")
+                    return@mapNotNull null
+                }
+
+                val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
+
+                // Handle location
+                val locationMap = doc.get("location") as? Map<String, Any>
+                val location = locationMap?.let { map ->
+                    val latitude = map["latitude"] as? Double
+                    val longitude = map["longitude"] as? Double
+                    if (latitude != null && longitude != null) {
+                        Location(latitude, longitude)
+                    } else null
+                }
+
+                Log.d("Firebase", "Successfully parsed transaction: $transactionName")
+
+                Transaction(
+                    transactionName = transactionName,
+                    description = if (transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
+                    amount = if (transactionType.equals("Income", ignoreCase = true)) amount else -amount,
+                    date = date,
+                    location = location
+                )
+            } catch (e: Exception) {
+                Log.e("Firebase", "Error parsing transaction document: ${doc.id}", e)
                 null
             }
-
-            Transaction(
-                transactionName = transactionName,
-                description = if (transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
-                amount = if (transactionType.equals("Income", ignoreCase = true)) amount else -amount,
-                date = dateTime,
-                location = location
-            )
         }.sortedByDescending { it.date }
     } catch (e: Exception) {
         Log.e("Firebase", "Error fetching transactions", e)

@@ -1,6 +1,5 @@
 package com.isis3510.spendiq.model.repository
 
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.data.Account

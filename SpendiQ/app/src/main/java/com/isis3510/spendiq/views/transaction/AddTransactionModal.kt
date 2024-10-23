@@ -3,15 +3,22 @@ package com.isis3510.spendiq.views.transaction
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.model.data.Location // Import your custom Location class
 import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.services.LocationService
 import com.google.firebase.Timestamp
+import kotlinx.coroutines.launch
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,15 +35,19 @@ fun AddTransactionModal(
     var expandedTransactionType by remember { mutableStateOf(false) }
     var selectedAccountType by remember { mutableStateOf("Nu") }
     var expandedAccountType by remember { mutableStateOf(false) }
+    var location by remember { mutableStateOf<android.location.Location?>(null) }
+    var isLocationEnabled by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
+    val locationService = remember { LocationService(context) }
+    val scope = rememberCoroutineScope()
 
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
             calendar.set(year, month, dayOfMonth)
-            selectedDate = Timestamp(calendar.time) // Convert Date to Timestamp
+            selectedDate = Timestamp(calendar.time)
         },
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
@@ -135,7 +146,38 @@ fun AddTransactionModal(
                             expandedAccountType = false
                         }
                     )
+                    // You can add more account types here if necessary
                 }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Location Switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Location",
+                    tint = if (isLocationEnabled) MaterialTheme.colorScheme.primary else Color.Gray
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Include Location")
+                Spacer(modifier = Modifier.weight(1f))
+                Switch(
+                    checked = isLocationEnabled,
+                    onCheckedChange = { enabled ->
+                        isLocationEnabled = enabled
+                        if (enabled) {
+                            scope.launch {
+                                location = locationService.getCurrentLocation()
+                            }
+                        } else {
+                            location = null
+                        }
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -143,13 +185,18 @@ fun AddTransactionModal(
             Button(
                 onClick = {
                     val transaction = Transaction(
-                        id = "", // This will be set by Firestore
-                        accountId = selectedAccountType, // This should be set based on the selected account
+                        id = "",
+                        accountId = selectedAccountType,
                         transactionName = transactionName,
                         amount = amount.toLongOrNull() ?: 0L,
-                        dateTime = selectedDate, // Use Timestamp here
+                        dateTime = selectedDate,
                         transactionType = selectedTransactionType,
-                        location = null // You might want to add location handling here
+                        location = if (isLocationEnabled && location != null) {
+                            Location( // Correctly using the custom Location object
+                                latitude = location!!.latitude,
+                                longitude = location!!.longitude
+                            )
+                        } else null
                     )
                     accountViewModel.addTransactionWithAccountCheck(transaction)
                     onTransactionAdded()
