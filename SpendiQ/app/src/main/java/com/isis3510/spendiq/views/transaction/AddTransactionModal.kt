@@ -14,10 +14,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.isis3510.spendiq.model.data.Transaction
-import com.isis3510.spendiq.model.data.Location // Import your custom Location class
+import com.isis3510.spendiq.model.data.Location
 import com.isis3510.spendiq.viewmodel.AccountViewModel
-import com.isis3510.spendiq.services.LocationService
 import com.google.firebase.Timestamp
+import com.isis3510.spendiq.services.LocationService
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -33,11 +33,13 @@ fun AddTransactionModal(
     var selectedDate by remember { mutableStateOf(Timestamp.now()) }
     var selectedTransactionType by remember { mutableStateOf("Expense") }
     var expandedTransactionType by remember { mutableStateOf(false) }
-    var selectedAccountType by remember { mutableStateOf("Nu") }
+    var selectedAccountType by remember { mutableStateOf("") }
     var expandedAccountType by remember { mutableStateOf(false) }
-    var location by remember { mutableStateOf<android.location.Location?>(null) }
+    var showNoAccountsDialog by remember { mutableStateOf(false) }
     var isLocationEnabled by remember { mutableStateOf(false) }
+    var location by remember { mutableStateOf<android.location.Location?>(null) }
 
+    val accounts by accountViewModel.accounts.collectAsState()
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val locationService = remember { LocationService(context) }
@@ -53,6 +55,27 @@ fun AddTransactionModal(
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
     )
+
+    // Show dialog when there are no accounts
+    if (showNoAccountsDialog) {
+        AlertDialog(
+            onDismissRequest = { showNoAccountsDialog = false },
+            title = { Text("No Accounts Available") },
+            text = { Text("Please create an account first in the Accounts section before making a transaction.") },
+            confirmButton = {
+                Button(onClick = { showNoAccountsDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    // Check if there are any accounts available
+    LaunchedEffect(Unit) {
+        if (accounts.isEmpty()) {
+            showNoAccountsDialog = true
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss
@@ -124,87 +147,101 @@ fun AddTransactionModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            ExposedDropdownMenuBox(
-                expanded = expandedAccountType,
-                onExpandedChange = { expandedAccountType = !expandedAccountType }
-            ) {
-                TextField(
-                    value = selectedAccountType,
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAccountType) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(
+            if (accounts.isNotEmpty()) {
+                ExposedDropdownMenuBox(
                     expanded = expandedAccountType,
-                    onDismissRequest = { expandedAccountType = false }
+                    onExpandedChange = { expandedAccountType = !expandedAccountType }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Nu") },
-                        onClick = {
-                            selectedAccountType = "Nu"
-                            expandedAccountType = false
-                        }
+                    TextField(
+                        value = selectedAccountType,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Select Account") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAccountType) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
-                    // You can add more account types here if necessary
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Location Switch
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.LocationOn,
-                    contentDescription = "Location",
-                    tint = if (isLocationEnabled) MaterialTheme.colorScheme.primary else Color.Gray
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Include Location")
-                Spacer(modifier = Modifier.weight(1f))
-                Switch(
-                    checked = isLocationEnabled,
-                    onCheckedChange = { enabled ->
-                        isLocationEnabled = enabled
-                        if (enabled) {
-                            scope.launch {
-                                location = locationService.getCurrentLocation()
-                            }
-                        } else {
-                            location = null
+                    ExposedDropdownMenu(
+                        expanded = expandedAccountType,
+                        onDismissRequest = { expandedAccountType = false }
+                    ) {
+                        accounts.forEach { account ->
+                            DropdownMenuItem(
+                                text = { Text(account.name) },
+                                onClick = {
+                                    selectedAccountType = account.name
+                                    expandedAccountType = false
+                                }
+                            )
                         }
                     }
-                )
-            }
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = {
-                    val transaction = Transaction(
-                        id = "",
-                        accountId = selectedAccountType,
-                        transactionName = transactionName,
-                        amount = amount.toLongOrNull() ?: 0L,
-                        dateTime = selectedDate,
-                        transactionType = selectedTransactionType,
-                        location = if (isLocationEnabled && location != null) {
-                            Location( // Correctly using the custom Location object
-                                latitude = location!!.latitude,
-                                longitude = location!!.longitude
-                            )
-                        } else null
+                // Location Switch
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = "Location",
+                        tint = if (isLocationEnabled) MaterialTheme.colorScheme.primary else Color.Gray
                     )
-                    accountViewModel.addTransactionWithAccountCheck(transaction)
-                    onTransactionAdded()
-                    onDismiss()
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Add Transaction")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Include Location")
+                    Spacer(modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = isLocationEnabled,
+                        onCheckedChange = { enabled ->
+                            isLocationEnabled = enabled
+                            if (enabled) {
+                                scope.launch {
+                                    location = locationService.getCurrentLocation()
+                                }
+                            } else {
+                                location = null
+                            }
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        if (selectedAccountType.isNotEmpty()) {
+                            val transaction = Transaction(
+                                id = "",
+                                accountId = selectedAccountType,
+                                transactionName = transactionName,
+                                amount = amount.toLongOrNull() ?: 0L,
+                                dateTime = selectedDate,
+                                transactionType = selectedTransactionType,
+                                location = if (isLocationEnabled && location != null) {
+                                    Location(
+                                        latitude = location!!.latitude,
+                                        longitude = location!!.longitude
+                                    )
+                                } else null
+                            )
+                            accountViewModel.addTransactionWithAccountCheck(transaction)
+                            onTransactionAdded()
+                            onDismiss()
+                        }
+                    },
+                    enabled = amount.isNotEmpty() && transactionName.isNotEmpty() && selectedAccountType.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Add Transaction")
+                }
+            } else {
+                Text(
+                    "No accounts available. Please create an account first.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
             }
         }
     }
