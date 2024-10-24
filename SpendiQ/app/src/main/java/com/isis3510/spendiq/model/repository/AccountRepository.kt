@@ -11,10 +11,13 @@ import kotlinx.coroutines.tasks.await
 import com.google.firebase.Timestamp
 import android.util.Log
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 class AccountRepository {
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val anomalyRepository = AnomalyRepository()
 
     companion object {
         private val DEFAULT_LOCATION = Location(
@@ -117,7 +120,9 @@ class AccountRepository {
                             longitude = (locationMap["longitude"] as? Double) ?: DEFAULT_LOCATION.longitude
                         )
                     } else null
-                }
+                },
+                amountAnomaly = transactionDoc.getBoolean("amountAnomaly") ?: false,
+                locationAnomaly = transactionDoc.getBoolean("locationAnomaly") ?: false
             )
             emit(Result.success(transaction))
         } catch (e: Exception) {
@@ -149,7 +154,9 @@ class AccountRepository {
                             val longitude = (locationMap["longitude"] as? Double) ?: return@mapNotNull null
                             Location(latitude, longitude)
                         } else null
-                    }
+                    },
+                    amountAnomaly = doc.getBoolean("amountAnomaly") ?: false,
+                    locationAnomaly = doc.getBoolean("locationAnomaly") ?: false
                 )
             }
 
@@ -162,20 +169,15 @@ class AccountRepository {
     // Add transaction with account check and ensure transaction ID is stored correctly
     fun addTransactionWithAccountCheck(transaction: Transaction): Flow<Result<Unit>> = flow {
         try {
-            val accountId = transaction.accountId
-
-            // Generate a new document reference for the transaction (this will generate a unique ID)
-            val transactionRef = firestore.collection("accounts")
-                .document(accountId)
+            val accountRef = firestore.collection("accounts")
+                .document(transaction.accountId)
                 .collection("transactions")
-                .document() // This creates a unique ID
+                .document()
 
-            // Update the transaction object with the generated transaction ID
-            val transactionWithId = transaction.copy(id = transactionRef.id)
+            val transactionWithId = transaction.copy(id = accountRef.id)
 
-            // Prepare the transaction data to be stored, including the generated transaction ID
             val transactionMap = hashMapOf(
-                "transactionId" to transactionWithId.id, // Storing the Firestore-generated transaction ID
+                "transactionId" to transactionWithId.id,
                 "amount" to transactionWithId.amount,
                 "dateTime" to transactionWithId.dateTime,
                 "transactionName" to transactionWithId.transactionName,
@@ -185,18 +187,27 @@ class AccountRepository {
                         "latitude" to it.latitude,
                         "longitude" to it.longitude
                     )
-                }
+                },
+                "locationAnomaly" to transactionWithId.locationAnomaly,
+                "ammountAnomaly" to transactionWithId.amountAnomaly
             )
 
-            // Save the transaction data to Firestore using the generated ID
-            transactionRef.set(transactionMap).await()
+            // Save the transaction
+            accountRef.set(transactionMap).await()
+            updateAccountBalance(transaction.accountId, transactionWithId)
 
-            // Update account balance
-            updateAccountBalance(accountId, transactionWithId)
+            // Make the anomaly analysis call
+            coroutineScope {
+                launch {
+                    auth.currentUser?.uid?.let { userId ->
+                        anomalyRepository.analyzeTransaction(userId, accountRef.id)
+                    }
+                }
+            }
 
             emit(Result.success(Unit))
         } catch (e: Exception) {
-            Log.e("AccountRepository", "Error adding transaction with account check", e)
+            Log.e("AccountRepository", "Error adding transaction", e)
             emit(Result.failure(e))
         }
     }
