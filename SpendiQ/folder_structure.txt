@@ -32,6 +32,7 @@
         alias(libs.plugins.android.application)
         alias(libs.plugins.kotlin.android)
         id("com.google.gms.google-services")
+        id("com.google.firebase.crashlytics")
     }
     
     android {
@@ -84,6 +85,7 @@
     dependencies {
         // Firebase
         implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+        implementation("com.google.firebase:firebase-crashlytics-ktx")
         implementation("com.google.firebase:firebase-analytics-ktx")
         implementation("com.google.firebase:firebase-auth-ktx")
         implementation("com.google.firebase:firebase-firestore-ktx")
@@ -1159,7 +1161,7 @@
             
                     <!-- Registering NotificationListenerService -->
                     <service
-                        android:name=".Services.NotificationListener"
+                        android:name=".services.NotificationListener"
                         android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
                         android:exported="false">
                         <intent-filter>
@@ -3108,6 +3110,7 @@
                                 import androidx.compose.runtime.collectAsState
                                 import androidx.compose.ui.Modifier
                                 import androidx.core.content.ContextCompat
+                                import androidx.fragment.app.FragmentActivity
                                 import androidx.lifecycle.viewmodel.compose.viewModel
                                 import androidx.navigation.NavType
                                 import androidx.navigation.compose.NavHost
@@ -3130,7 +3133,7 @@
                                 import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
                                 import com.isis3510.spendiq.views.offers.OffersScreen
                                 
-                                class MainActivity : ComponentActivity() {
+                                class MainActivity : FragmentActivity() {
                                 
                                     companion object {
                                         private const val TAG = "MainActivity"
@@ -3262,8 +3265,12 @@
                                     
                                     import androidx.compose.foundation.Image
                                     import androidx.compose.foundation.background
+                                    import androidx.compose.foundation.clickable
                                     import androidx.compose.foundation.layout.*
                                     import androidx.compose.foundation.shape.RoundedCornerShape
+                                    import androidx.compose.material.icons.Icons
+                                    import androidx.compose.material.icons.filled.Close
+                                    import androidx.compose.material.icons.filled.Warning
                                     import androidx.compose.material3.*
                                     import androidx.compose.runtime.Composable
                                     import androidx.compose.ui.Alignment
@@ -3279,6 +3286,7 @@
                                     import androidx.compose.ui.unit.em
                                     import androidx.compose.ui.unit.sp
                                     import androidx.navigation.NavController
+                                    import com.google.firebase.crashlytics.FirebaseCrashlytics
                                     import com.isis3510.spendiq.R
                                     
                                     @Composable
@@ -3300,91 +3308,134 @@
                                                     .height(470.dp)
                                             )
                                     
-                                            // App Title
-                                            Text(
-                                                text = "SpendiQ",
-                                                color = Color.Black,
-                                                textAlign = TextAlign.Center,
-                                                style = TextStyle(
-                                                    fontSize = 73.sp,
-                                                    fontFamily = FontFamily.SansSerif,
-                                                    fontWeight = FontWeight.Bold
-                                                ),
+                                            // Column to hold the content vertically
+                                            Column(
                                                 modifier = Modifier
-                                                    .align(alignment = Alignment.TopCenter)
-                                                    .offset(y = 156.dp)
-                                            )
-                                    
-                                            // Login Button
-                                            Button(
-                                                onClick = { navController.navigate("login") },
-                                                shape = RoundedCornerShape(7.dp),
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
-                                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                                                modifier = Modifier
-                                                    .align(alignment = Alignment.Center)
-                                                    .offset(y = (-120).dp)
-                                                    .width(226.dp)
-                                                    .height(42.dp)
+                                                    .fillMaxSize()
+                                                    .padding(horizontal = 16.dp), // Add padding to both sides
+                                                horizontalAlignment = Alignment.CenterHorizontally, // Center horizontally
+                                                verticalArrangement = Arrangement.Center
                                             ) {
+                                                // App Title
                                                 Text(
-                                                    text = "Log In",
-                                                    color = Color.White,
+                                                    text = "SpendiQ",
+                                                    color = Color.Black,
                                                     textAlign = TextAlign.Center,
-                                                    lineHeight = 1.43.em,
                                                     style = TextStyle(
-                                                        fontSize = 14.sp,
+                                                        fontSize = 73.sp,
                                                         fontFamily = FontFamily.SansSerif,
-                                                        letterSpacing = 0.1.sp
-                                                    )
+                                                        fontWeight = FontWeight.Bold
+                                                    ),
+                                                    modifier = Modifier.padding(bottom = 32.dp)
                                                 )
-                                            }
                                     
-                                            // Register Button
-                                            Button(
-                                                onClick = { navController.navigate("register") },
-                                                shape = RoundedCornerShape(7.dp),
-                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
-                                                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp),
-                                                modifier = Modifier
-                                                    .align(alignment = Alignment.Center)
-                                                    .offset(y = (-50).dp)
-                                                    .width(226.dp)
-                                                    .height(42.dp)
-                                            ) {
-                                                Text(
-                                                    text = "Sign Up",
-                                                    color = Color.White,
-                                                    textAlign = TextAlign.Center,
-                                                    lineHeight = 1.43.em,
-                                                    style = TextStyle(
-                                                        fontSize = 14.sp,
-                                                        fontFamily = FontFamily.SansSerif,
-                                                        letterSpacing = 0.1.sp
-                                                    )
-                                                )
-                                            }
+                                                Spacer(modifier = Modifier.height(73.dp))
                                     
-                                            // Bottom Bar
-                                            Box(
-                                                modifier = Modifier
-                                                    .align(alignment = Alignment.BottomCenter)
-                                                    .fillMaxWidth()
-                                                    .height(34.dp)
-                                                    .background(color = Color(0xffe5e5e5).copy(alpha = 0.29f))
-                                            ) {
-                                                Box(
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.padding(16.dp)
+                                                ) {
+                                                    // Bug Icon
+                                                    IconButton(
+                                                        onClick = {
+                                                            // Simulación de un error recuperable
+                                                            val crashlytics = FirebaseCrashlytics.getInstance()
+                                    
+                                                            try {
+                                                                // Simular una operación que produce un error recuperable
+                                                                throw Exception("Simulated recoverable error: Validation failed")
+                                                            } catch (e: Exception) {
+                                                                // Registrar la excepción no fatal en Crashlytics
+                                                                crashlytics.recordException(e) // Esto reporta una excepción sin cerrar la app
+                                                                crashlytics.setCustomKey("Bug_AS", "Simulated recoverable error in Authorization Screen")
+                                                                crashlytics.log("Non-fatal exception logged")
+                                    
+                                                                // Puedes mostrar un mensaje al usuario si lo deseas, sin cerrar la app
+                                                                println("Recoverable error caught and logged")
+                                                                crashlytics.sendUnsentReports()
+                                                            }
+                                                        }
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Warning, // Replace with your warning icon resource
+                                                            contentDescription = "Bug Icon",
+                                                            tint = Color(0xffb3cb54) // Your desired color for the warning icon
+                                                        )
+                                                    }
+                                    
+                                                    // Space between icons
+                                                    Spacer(modifier = Modifier.width(16.dp))
+                                    
+                                                    // Crash Icon
+                                                    IconButton(
+                                                        onClick = {
+                                                            val crashlytics = FirebaseCrashlytics.getInstance()
+                                                            crashlytics.setCustomKey("Crash_AS","Crash in Authorization Screen")
+                                                            crashlytics.log("App Crash after pushing crash button")
+                                                            throw RuntimeException("Forced Crash from Authorization Screen")
+                                                        }
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Close, // Replace with your bus icon resource
+                                                            contentDescription = "Crash Icon",
+                                                            tint = Color(0xffc33ba5) // Your desired color for the bus icon
+                                                        )
+                                                    }
+                                                }
+                                    
+                                                // Login Button
+                                                Button(
+                                                    onClick = { navController.navigate("login") },
+                                                    shape = RoundedCornerShape(7.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
+                                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                                                     modifier = Modifier
-                                                        .align(alignment = Alignment.BottomCenter)
-                                                        .offset(y = (-8).dp)
-                                                        .width(134.dp)
-                                                        .height(5.dp)
-                                                        .clip(shape = RoundedCornerShape(100.dp))
-                                                        .background(color = Color(0xff0f172a))
-                                                )
+                                                        .fillMaxWidth() // Make button full width
+                                                        .height(42.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Log In",
+                                                        color = Color.White,
+                                                        textAlign = TextAlign.Center,
+                                                        lineHeight = 1.43.em,
+                                                        style = TextStyle(
+                                                            fontSize = 14.sp,
+                                                            fontFamily = FontFamily.SansSerif,
+                                                            letterSpacing = 0.1.sp
+                                                        )
+                                                    )
+                                                }
+                                    
+                                                Spacer(modifier = Modifier.height(16.dp)) // Add space between buttons
+                                    
+                                                // Register Button
+                                                Button(
+                                                    onClick = { navController.navigate("register") },
+                                                    shape = RoundedCornerShape(7.dp),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
+                                                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp),
+                                                    modifier = Modifier
+                                                        .fillMaxWidth() // Make button full width
+                                                        .height(42.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Sign Up",
+                                                        color = Color.White,
+                                                        textAlign = TextAlign.Center,
+                                                        lineHeight = 1.43.em,
+                                                        style = TextStyle(
+                                                            fontSize = 14.sp,
+                                                            fontFamily = FontFamily.SansSerif,
+                                                            letterSpacing = 0.1.sp
+                                                        )
+                                                    )
+                                                }
+                                    
+                                                Spacer(modifier = Modifier.height(260.dp))
                                             }
                                         }
-                                    }                                    ```
+                                    }
+                                    ```
                                 - LoginScreen.kt
                                     ```
                                     package com.isis3510.spendiq.views.auth
@@ -3445,7 +3496,7 @@
                                     
                                         Box(
                                             modifier = Modifier
-                                                .fillMaxSize()
+                                                .fillMaxWidth()
                                                 .verticalScroll(rememberScrollState())
                                         ) {
                                             // Background Logo
@@ -3453,7 +3504,8 @@
                                                 painter = painterResource(id = R.drawable.logo_log_in),
                                                 contentDescription = "Background Logo",
                                                 modifier = Modifier
-                                                    .fillMaxSize()
+                                                    .fillMaxWidth() // La imagen llena todo el ancho del Box
+                                                    .aspectRatio(1f) // Mantiene la proporción de la imagen
                                                     .align(alignment = Alignment.Center)
                                             )
                                     
@@ -3720,25 +3772,6 @@
                                                     CircularProgressIndicator()
                                                 }
                                             }
-                                    
-                                            // Bottom Bar
-                                            Box(
-                                                modifier = Modifier
-                                                    .align(alignment = Alignment.BottomCenter)
-                                                    .fillMaxWidth()
-                                                    .height(34.dp)
-                                                    .background(color = Color(0xffe5e5e5).copy(alpha = 0.29f))
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .align(alignment = Alignment.BottomCenter)
-                                                        .offset(y = (-8).dp)
-                                                        .width(134.dp)
-                                                        .height(5.dp)
-                                                        .clip(shape = RoundedCornerShape(100.dp))
-                                                        .background(color = Color(0xff0f172a))
-                                                )
-                                            }
                                         }
                                     
                                         // Reset AuthState after displaying messages
@@ -3867,7 +3900,7 @@
                                                         .fillMaxWidth(0.9f)
                                                         .padding(vertical = 4.dp)
                                                         .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Person") }
+                                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Person", tint = Color(0xffb3cb54)) }
                                                 )
                                     
                                                 // Email input field
@@ -3879,7 +3912,7 @@
                                                         .fillMaxWidth(0.9f)
                                                         .padding(vertical = 4.dp)
                                                         .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                                                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") }
+                                                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xffb3cb54)) }
                                                 )
                                     
                                                 // Phone number input field
@@ -3891,7 +3924,7 @@
                                                         .fillMaxWidth(0.9f)
                                                         .padding(vertical = 4.dp)
                                                         .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                                                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone") }
+                                                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone",  tint = Color(0xffb3cb54)) }
                                                 )
                                     
                                                 // Birth date field
@@ -3904,7 +3937,7 @@
                                                         .padding(vertical = 4.dp)
                                                         .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50))
                                                         .clickable { datePickerDialog.show() },
-                                                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = "Calendar") },
+                                                    leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = "Calendar", tint = Color(0xffc33ba5)) },
                                                     readOnly = true,
                                                     enabled = false
                                                 )
@@ -3919,7 +3952,7 @@
                                                         .fillMaxWidth(0.9f)
                                                         .padding(vertical = 4.dp)
                                                         .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                                                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock1") }
+                                                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock1", tint = Color(0xffc33ba5)) }
                                                 )
                                     
                                                 OutlinedTextField(
@@ -3931,7 +3964,7 @@
                                                         .fillMaxWidth(0.9f)
                                                         .padding(vertical = 4.dp)
                                                         .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                                                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock2") }
+                                                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock2", tint = Color(0xffc33ba5)) }
                                                 )
                                     
                                                 // Checkbox for terms & conditions
@@ -4382,23 +4415,12 @@
                                     import com.google.firebase.Timestamp
                                     import com.google.firebase.auth.FirebaseAuth
                                     import com.google.firebase.firestore.FirebaseFirestore
+                                    import com.isis3510.spendiq.model.data.Transaction
+                                    import com.isis3510.spendiq.model.data.Location
                                     import kotlinx.coroutines.tasks.await
                                     import java.text.NumberFormat
                                     import java.text.SimpleDateFormat
                                     import java.util.*
-                                    
-                                    data class Transaction(
-                                        val transactionName: String,
-                                        val description: String,
-                                        val amount: Double,
-                                        val date: Date,
-                                        val location: Location?
-                                    )
-                                    
-                                    data class Location(
-                                        val latitude: Double,
-                                        val longitude: Double
-                                    )
                                     
                                     @OptIn(ExperimentalMaterial3Api::class)
                                     @Composable
@@ -4483,7 +4505,7 @@
                                                                     it.transactionName.contains(searchQuery, ignoreCase = true)
                                                                 }
                                     
-                                                                val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.date) }
+                                                                val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.dateTime.toDate()) }
                                                                 val sortedDates = groupedTransactions.keys.sortedDescending()
                                     
                                                                 sortedDates.forEach { date ->
@@ -4498,8 +4520,8 @@
                                                                         )
                                                                     }
                                     
-                                                                    items(transactionsForDate.sortedByDescending { it.date }) { transaction ->
-                                                                        TransactionItem(transaction)
+                                                                    items(transactionsForDate.sortedByDescending { it.dateTime }) { transaction ->
+                                                                        TransactionItem(transaction, navController, accountName)
                                                                     }
                                                                 }
                                                             }
@@ -4511,13 +4533,17 @@
                                     }
                                     
                                     @Composable
-                                    fun TransactionItem(transaction: Transaction) {
+                                    fun TransactionItem(transaction: Transaction, navController: NavController, accountName: String) {
                                         val context = LocalContext.current
                                     
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
+                                                .clickable {
+                                                    // Navigate to TransactionDetailsScreen when a transaction is clicked
+                                                    navController.navigate("transactionDetails/${transaction.accountId}/${transaction.id}")
+                                                }
                                         ) {
                                             Row(
                                                 modifier = Modifier
@@ -4533,7 +4559,11 @@
                                                 Spacer(modifier = Modifier.width(16.dp))
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(transaction.transactionName, fontWeight = FontWeight.Bold)
-                                                    Text(transaction.description, color = Color.Gray, fontSize = 14.sp)
+                                                    Text(
+                                                        if (transaction.transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
+                                                        color = Color.Gray,
+                                                        fontSize = 14.sp
+                                                    )
                                                     if (transaction.location != null) {
                                                         Row(
                                                             verticalAlignment = Alignment.CenterVertically,
@@ -4559,7 +4589,7 @@
                                                     }
                                                 }
                                                 Text(
-                                                    formatCurrency(transaction.amount),
+                                                    formatCurrency(transaction.amount.toDouble()),
                                                     color = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000),
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -4606,13 +4636,8 @@
                                             return transactionsSnapshot.documents.mapNotNull { doc ->
                                                 try {
                                                     val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
-                                                    val amount = when (val amountValue = doc.get("amount")) {
-                                                        is Long -> amountValue.toDouble()
-                                                        is Double -> amountValue
-                                                        else -> return@mapNotNull null
-                                                    }
-                                                    val timestamp = doc.get("dateTime") as? Timestamp
-                                                    val date = timestamp?.toDate() ?: return@mapNotNull null
+                                                    val amount = doc.getLong("amount") ?: return@mapNotNull null
+                                                    val timestamp = doc.getTimestamp("dateTime") ?: return@mapNotNull null
                                                     val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
                                                     val locationMap = doc.get("location") as? Map<String, Any>
                                     
@@ -4625,17 +4650,19 @@
                                                     }
                                     
                                                     Transaction(
+                                                        id = doc.id,
+                                                        accountId = accountId,
                                                         transactionName = transactionName,
-                                                        description = if (transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
-                                                        amount = if (transactionType.equals("Income", ignoreCase = true)) amount else -amount,
-                                                        date = date,
+                                                        amount = amount,
+                                                        dateTime = timestamp,
+                                                        transactionType = transactionType,
                                                         location = location
                                                     )
                                                 } catch (e: Exception) {
                                                     Log.e("Firebase", "Error parsing transaction document", e)
                                                     null
                                                 }
-                                            }.sortedByDescending { it.date }
+                                            }.sortedByDescending { it.dateTime.toDate() }
                                         } catch (e: Exception) {
                                             Log.e("Firebase", "Error fetching transactions", e)
                                             throw e
@@ -4672,7 +4699,8 @@
                                     private fun formatCurrency(amount: Double): String {
                                         val format = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
                                         return format.format(amount)
-                                    }                                    ```
+                                    }
+                                    ```
                                 - TransactionDetailsScreen.kt
                                     ```
                                     package com.isis3510.spendiq.views.accounts
@@ -5781,7 +5809,7 @@
                         - **Services/**
                             - NotificationListener.kt
                                 ```
-                                package com.isis3510.spendiq.Services
+                                package com.isis3510.spendiq.services
                                 
                                 import android.app.NotificationChannel
                                 import android.app.NotificationManager
@@ -5795,7 +5823,6 @@
                                 import com.google.firebase.auth.FirebaseAuth
                                 import com.google.firebase.firestore.FirebaseFirestore
                                 import com.isis3510.spendiq.R
-                                import com.isis3510.spendiq.services.LocationService
                                 import kotlinx.coroutines.*
                                 import kotlinx.coroutines.tasks.await
                                 
@@ -6095,7 +6122,7 @@
                                 }                                ```
                             - AuthenticationService.kt
                                 ```
-                                package com.isis3510.spendiq.Services
+                                package com.isis3510.spendiq.services
                                 
                                 import com.google.firebase.auth.FirebaseAuth
                                 import kotlinx.coroutines.tasks.await
