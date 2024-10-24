@@ -132,7 +132,7 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
                                 }
 
                                 items(transactionsForDate.sortedByDescending { it.dateTime }) { transaction ->
-                                    TransactionItem(transaction)
+                                    TransactionItem(transaction, navController, accountName)
                                 }
                             }
                         }
@@ -144,13 +144,17 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
 }
 
 @Composable
-fun TransactionItem(transaction: Transaction) {
+fun TransactionItem(transaction: Transaction, navController: NavController, accountName: String) {
     val context = LocalContext.current
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable {
+                // Navigate to TransactionDetailsScreen when a transaction is clicked
+                navController.navigate("transactionDetails/${transaction.accountId}/${transaction.id}")
+            }
     ) {
         Row(
             modifier = Modifier
