@@ -75,27 +75,21 @@ fun AuthenticationScreen(navController: NavController) {
                 // Bug Icon
                 IconButton(
                     onClick = {
+                        // Simulación de un error recuperable
+                        val crashlytics = FirebaseCrashlytics.getInstance()
+
                         try {
-                            // Simulando un error recuperable
-                            // Supongamos que estamos intentando realizar una operación que podría fallar
-                            val isNetworkAvailable = false // Simula un estado de red no disponible
-                            if (!isNetworkAvailable) {
-                                throw Exception("Simulated recoverable error: Network not available")
-                            }
-
-                            // Enviar información a Crashlytics si todo va bien
-                            val crashlytics = FirebaseCrashlytics.getInstance()
-                            crashlytics.setCustomKey("Bug_AS", "Bug in Authorization Screen")
-                            crashlytics.log("Error 403")
+                            // Simular una operación que produce un error recuperable
+                            throw Exception("Simulated recoverable error: Validation failed")
                         } catch (e: Exception) {
-                            // Manejo de la excepción
-                            val crashlytics = FirebaseCrashlytics.getInstance()
-                            crashlytics.recordException(e) // Registra la excepción en Crashlytics
+                            // Registrar la excepción no fatal en Crashlytics
+                            crashlytics.recordException(e) // Esto reporta una excepción sin cerrar la app
+                            crashlytics.setCustomKey("Bug_AS", "Simulated recoverable error in Authorization Screen")
+                            crashlytics.log("Non-fatal exception logged")
 
-                            // Mostrar un mensaje al usuario indicando que hubo un error recuperable
-                            // Puedes usar un Toast, Snackbar o cualquier otra forma de mostrar el mensaje
-                            println("Recoverable error logged to Crashlytics: ${e.message}")
-                            // Aquí podrías mostrar un SnackBar o un Toast para alertar al usuario
+                            // Puedes mostrar un mensaje al usuario si lo deseas, sin cerrar la app
+                            println("Recoverable error caught and logged")
+                            crashlytics.sendUnsentReports()
                         }
                     }
                 ) {
