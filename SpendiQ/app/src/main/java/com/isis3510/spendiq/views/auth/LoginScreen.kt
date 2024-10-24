@@ -56,7 +56,7 @@ fun LoginScreen(
 
     Box(
         modifier = Modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
     ) {
         // Background Logo
@@ -64,7 +64,8 @@ fun LoginScreen(
             painter = painterResource(id = R.drawable.logo_log_in),
             contentDescription = "Background Logo",
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth() // La imagen llena todo el ancho del Box
+                .aspectRatio(1f) // Mantiene la proporción de la imagen
                 .align(alignment = Alignment.Center)
         )
 
@@ -330,25 +331,6 @@ fun LoginScreen(
             ) {
                 CircularProgressIndicator()
             }
-        }
-
-        // Bottom Bar
-        Box(
-            modifier = Modifier
-                .align(alignment = Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(34.dp)
-                .background(color = Color(0xffe5e5e5).copy(alpha = 0.29f))
-        ) {
-            Box(
-                modifier = Modifier
-                    .align(alignment = Alignment.BottomCenter)
-                    .offset(y = (-8).dp)
-                    .width(134.dp)
-                    .height(5.dp)
-                    .clip(shape = RoundedCornerShape(100.dp))
-                    .background(color = Color(0xff0f172a))
-            )
         }
     }
 

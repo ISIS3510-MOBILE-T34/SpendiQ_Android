@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.Services
+package com.isis3510.spendiq.services
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,7 +11,6 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.R
-import com.isis3510.spendiq.services.LocationService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
 
