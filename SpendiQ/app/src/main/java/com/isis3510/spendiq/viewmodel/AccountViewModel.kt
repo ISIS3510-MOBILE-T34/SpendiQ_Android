@@ -12,28 +12,26 @@ import kotlinx.coroutines.launch
 class AccountViewModel : ViewModel() {
     private val accountRepository = AccountRepository()
 
-    // Flow to observe the list of accounts
+    // State flows
     private val _accounts = MutableStateFlow<List<Account>>(emptyList())
     val accounts: StateFlow<List<Account>> = _accounts
 
-    // Flow to observe the list of transactions
     private val _transactions = MutableStateFlow<List<Transaction>>(emptyList())
     val transactions: StateFlow<List<Transaction>> = _transactions
 
-    // Flow to track the UI state
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState
 
-    // Flow to observe the current balance
     private val _currentMoney = MutableStateFlow(0L)
     val currentMoney: StateFlow<Long> = _currentMoney
 
+    private val _selectedTransaction = MutableStateFlow<Transaction?>(null)
+    val selectedTransaction: StateFlow<Transaction?> = _selectedTransaction
+
     init {
-        // Initialize by fetching the list of accounts when the ViewModel is created
         fetchAccounts()
     }
 
-    // Method to fetch all accounts from the repository
     fun fetchAccounts() {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
@@ -44,7 +42,9 @@ class AccountViewModel : ViewModel() {
                     _currentMoney.value = accountList.sumOf { it.amount }
                     _uiState.value = UiState.Success
                 } else {
-                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch accounts")
+                    _uiState.value = UiState.Error(
+                        result.exceptionOrNull()?.message ?: "Failed to fetch accounts"
+                    )
                 }
             }
         }
@@ -54,62 +54,137 @@ class AccountViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             accountRepository.createAccount(accountType).collect { result ->
-                if (result.isSuccess) {
-                    fetchAccounts()  // Refresh accounts after creation
-                    _uiState.value = UiState.Success
-                } else {
-                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to create account")
+                _uiState.value = when {
+                    result.isSuccess -> {
+                        fetchAccounts()
+                        UiState.Success
+                    }
+                    result.isFailure -> {
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to create account")
+                    }
+                    else -> UiState.Error("Unexpected error")
                 }
             }
         }
     }
 
-
-    // Method to add a transaction, which will create the account if it doesn't exist
-    fun addTransactionWithAccountCheck(transaction: Transaction) {
-        viewModelScope.launch {
-            _uiState.value = UiState.Loading
-            accountRepository.addTransactionWithAccountCheck(transaction).collect { result ->
-                if (result.isSuccess) {
-                    // Refresh the accounts and transactions after adding a transaction
-                    fetchAccounts()
-                    fetchTransactions(transaction.accountId)
-                    _uiState.value = UiState.Success
-                } else {
-                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to add transaction")
-                }
-            }
-        }
-    }
-
-    // Method to delete an account by account type
     fun deleteAccount(accountType: String) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
             accountRepository.deleteAccount(accountType).collect { result ->
-                if (result.isSuccess) {
-                    fetchAccounts()
-                    _uiState.value = UiState.Success
-                } else {
-                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete account")
+                _uiState.value = when {
+                    result.isSuccess -> {
+                        fetchAccounts()
+                        UiState.Success
+                    }
+                    result.isFailure -> {
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete account")
+                    }
+                    else -> UiState.Error("Unexpected error")
                 }
             }
         }
     }
 
-    // Method to fetch transactions for a specific account
-    fun fetchTransactions(accountName: String) {
+    fun fetchTransactions(accountId: String) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            accountRepository.getTransactions(accountName).collect { result ->
-                if (result.isSuccess) {
-                    _transactions.value = result.getOrNull() ?: emptyList()
-                    _uiState.value = UiState.Success
-                } else {
-                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch transactions")
+            accountRepository.getTransactions(accountId).collect { result ->
+                _uiState.value = when {
+                    result.isSuccess -> {
+                        _transactions.value = result.getOrNull() ?: emptyList()
+                        UiState.Success
+                    }
+                    result.isFailure -> {
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch transactions")
+                    }
+                    else -> UiState.Error("Unexpected error")
                 }
             }
         }
+    }
+
+    fun addTransactionWithAccountCheck(transaction: Transaction) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            accountRepository.addTransactionWithAccountCheck(transaction).collect { result ->
+                _uiState.value = when {
+                    result.isSuccess -> {
+                        fetchAccounts() // Refresh accounts after adding transaction
+                        fetchTransactions(transaction.accountId) // Refresh transactions
+                        UiState.Success
+                    }
+                    result.isFailure -> {
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to add transaction")
+                    }
+                    else -> UiState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    fun getTransaction(accountId: String, transactionId: String) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            accountRepository.getTransaction(accountId, transactionId).collect { result ->
+                when {
+                    result.isSuccess -> {
+                        _selectedTransaction.value = result.getOrNull()
+                        _uiState.value = UiState.Success
+                    }
+                    result.isFailure -> {
+                        _uiState.value = UiState.Error(
+                            result.exceptionOrNull()?.message ?: "Failed to get transaction"
+                        )
+                        _selectedTransaction.value = null
+                    }
+                }
+            }
+        }
+    }
+
+    fun updateTransaction(accountId: String, oldTransaction: Transaction, newTransaction: Transaction) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            accountRepository.updateTransaction(accountId, oldTransaction, newTransaction).collect { result ->
+                _uiState.value = when {
+                    result.isSuccess -> {
+                        fetchAccounts() // Refresh accounts after update
+                        fetchTransactions(oldTransaction.accountId) // Refresh transactions
+                        _selectedTransaction.value = newTransaction // Update selected transaction
+                        UiState.Success
+                    }
+                    result.isFailure -> {
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to update transaction")
+                    }
+                    else -> UiState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    fun deleteTransaction(accountId: String, transaction: Transaction) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            accountRepository.deleteTransaction(accountId, transaction).collect { result ->
+                _uiState.value = when {
+                    result.isSuccess -> {
+                        fetchAccounts() // Refresh accounts after deletion
+                        fetchTransactions(accountId) // Refresh transactions
+                        _selectedTransaction.value = null // Clear selected transaction
+                        UiState.Success
+                    }
+                    result.isFailure -> {
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete transaction")
+                    }
+                    else -> UiState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    fun clearSelectedTransaction() {
+        _selectedTransaction.value = null
     }
 
     sealed class UiState {

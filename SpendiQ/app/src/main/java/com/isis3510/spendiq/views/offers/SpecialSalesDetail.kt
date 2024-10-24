@@ -1,169 +1,161 @@
-package com.isis3510.spendiq.view.offers
+package com.isis3510.spendiq.views.offers
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberImagePainter
+import coil.compose.AsyncImage
 import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
-import com.google.type.LatLng
 import com.isis3510.spendiq.model.data.Offer
-import com.isis3510.spendiq.R
+import androidx.navigation.NavController
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpecialSalesDetail(offer: Offer) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color = Color.White)
-    ) {
-        // Background Box for overall UI
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(shape = RoundedCornerShape(7.dp))
-                .background(color = Color(0xfffcf5f3))
-        )
+fun SpecialSalesDetail(
+    offer: Offer,
+    navController: NavController
+) {
+    val context = LocalContext.current
 
-        // Offer Image at the top
-        offer.shopImage?.let {
-            Image(
-                painter = rememberImagePainter(it),
-                contentDescription = "Offer Image",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp)
-                    .clip(shape = RoundedCornerShape(7.dp))
-                    .border(
-                        border = BorderStroke(1.dp, Color.Black),
-                        shape = RoundedCornerShape(7.dp)
-                    ),
-                contentScale = ContentScale.Crop
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Special Sales") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                }
             )
         }
-
-        // Content and Details
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.Start
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = "Special Sales in your Area",
-                color = Color.Black,
-                style = TextStyle(
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Medium
-                ),
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Offer Details Section
-            offer.placeName?.let {
-                Text(
-                    text = it,
-                    color = Color.Black,
-                    style = TextStyle(
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    modifier = Modifier.padding(top = 8.dp)
+            // Store Logo and Name
+            offer.shopImage?.let { imageUrl ->
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "Store Image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentScale = ContentScale.Crop
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(
-                        style = SpanStyle(
-                            color = Color.Black,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    ) {
-                        append("Sales\n")
-                    }
-                    withStyle(
-                        style = SpanStyle(
-                            color = Color.Black,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    ) {
-                        append("\n${offer.offerDescription}\n")
-                    }
-                    withStyle(
-                        style = SpanStyle(
-                            color = Color.Black,
-                            fontSize = 14.sp
-                        )
-                    ) {
-                        append("Recommended for: ${offer.recommendationReason}")
-                    }
-                },
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            // Google Map to show the location of the offer
-            if (offer.latitude != null && offer.longitude != null) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Offer Location",
-                    color = Color.Black,
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                offer.placeName?.let {
+                    Text(
+                        text = it,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Map
+                if (offer.latitude != null && offer.longitude != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    ) {
+                        GoogleMap(
+                            modifier = Modifier.fillMaxSize(),
+                            cameraPositionState = rememberCameraPositionState {
+                                position = CameraPosition.fromLatLngZoom(
+                                    LatLng(offer.latitude, offer.longitude),
+                                    15f
+                                )
+                            }
+                        ) {
+                            Marker(
+                                state = MarkerState(position = LatLng(offer.latitude, offer.longitude)),
+                                title = offer.placeName
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            val uri = Uri.parse("geo:${offer.latitude},${offer.longitude}?q=${offer.latitude},${offer.longitude}(${offer.placeName})")
+                            val mapIntent = Intent(Intent.ACTION_VIEW, uri)
+                            mapIntent.setPackage("com.google.android.apps.maps")
+                            if (mapIntent.resolveActivity(context.packageManager) != null) {
+                                context.startActivity(mapIntent)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.LocationOn, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Open in Maps")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Sales Section
+                Text(
+                    text = "Sales",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
                 )
 
-                GoogleMap(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                        .padding(vertical = 8.dp),
-                    cameraPositionState = rememberCameraPositionState {
-                        position = CameraPosition.fromLatLngZoom(
-                            com.google.android.gms.maps.model.LatLng(
-                                offer.latitude,
-                                offer.longitude
-                            ),
-                            15f
+                Spacer(modifier = Modifier.height(8.dp))
+
+                offer.offerDescription?.let {
+                    Text(
+                        text = it,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Recommendation reason in a card
+                offer.recommendationReason?.let {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Text(
+                            text = "Recommended because: $it",
+                            modifier = Modifier.padding(16.dp),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
-                ) {
-                    Marker(
-                        state = MarkerState(
-                            position = com.google.android.gms.maps.model.LatLng(
-                                offer.latitude,
-                                offer.longitude
-                            )
-                        ),
-                        title = offer.placeName,
-                        snippet = "Special Offer Location"
-                    )
                 }
             }
         }

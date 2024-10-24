@@ -23,8 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.model.data.Location
 import kotlinx.coroutines.tasks.await
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -35,9 +38,19 @@ import java.util.*
 fun AccountTransactionsScreen(navController: NavController, accountName: String) {
     var transactions by remember { mutableStateOf<List<Transaction>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(accountName) {
-        transactions = fetchTransactions(accountName)
+        isLoading = true
+        try {
+            transactions = fetchTransactions(accountName)
+        } catch (e: Exception) {
+            error = e.message
+            Log.e("AccountTransactions", "Error fetching transactions", e)
+        } finally {
+            isLoading = false
+        }
     }
 
     Scaffold(
@@ -52,49 +65,76 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
             )
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text("Buscar") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            )
-
-            if (transactions.isEmpty()) {
+        when {
+            isLoading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No hay transacciones aún", style = MaterialTheme.typography.bodyLarge)
+                    CircularProgressIndicator()
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
+            }
+            error != null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val filteredTransactions = transactions.filter {
-                        it.transactionName.contains(searchQuery, ignoreCase = true)
-                    }
-                    val groupedTransactions = filteredTransactions.groupBy { it.date }
+                    Text(
+                        text = "Error: $error",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("Buscar") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
 
-                    groupedTransactions.forEach { (date, transactionsForDate) ->
-                        item {
-                            Text(
-                                text = formatDate(date),
-                                modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = Color.Gray
-                            )
+                    if (transactions.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No hay transacciones aún", style = MaterialTheme.typography.bodyLarge)
                         }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            val filteredTransactions = transactions.filter {
+                                it.transactionName.contains(searchQuery, ignoreCase = true)
+                            }
 
-                        items(transactionsForDate) { transaction ->
-                            TransactionItem(transaction)
+                            val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.dateTime.toDate()) }
+                            val sortedDates = groupedTransactions.keys.sortedDescending()
+
+                            sortedDates.forEach { date ->
+                                val transactionsForDate = groupedTransactions[date] ?: return@forEach
+
+                                item {
+                                    Text(
+                                        text = formatDate(date),
+                                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = Color.Gray
+                                    )
+                                }
+
+                                items(transactionsForDate.sortedByDescending { it.dateTime }) { transaction ->
+                                    TransactionItem(transaction, navController, accountName)
+                                }
+                            }
                         }
                     }
                 }
@@ -104,13 +144,17 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
 }
 
 @Composable
-fun TransactionItem(transaction: Transaction) {
+fun TransactionItem(transaction: Transaction, navController: NavController, accountName: String) {
     val context = LocalContext.current
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable {
+                // Navigate to TransactionDetailsScreen when a transaction is clicked
+                navController.navigate("transactionDetails/${transaction.accountId}/${transaction.id}")
+            }
     ) {
         Row(
             modifier = Modifier
@@ -126,7 +170,11 @@ fun TransactionItem(transaction: Transaction) {
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(transaction.transactionName, fontWeight = FontWeight.Bold)
-                Text(transaction.description, color = Color.Gray, fontSize = 14.sp)
+                Text(
+                    if (transaction.transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
                 if (transaction.location != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -152,7 +200,7 @@ fun TransactionItem(transaction: Transaction) {
                 }
             }
             Text(
-                formatCurrency(transaction.amount),
+                formatCurrency(transaction.amount.toDouble()),
                 color = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000),
                 fontWeight = FontWeight.Bold
             )
@@ -160,18 +208,15 @@ fun TransactionItem(transaction: Transaction) {
     }
 }
 
-data class Transaction(
-    val transactionName: String,
-    val description: String,
-    val amount: Double,
-    val date: Date,
-    val location: Location?
-)
-
-data class Location(
-    val latitude: Double,
-    val longitude: Double
-)
+private fun normalizeDate(date: Date): Date {
+    val calendar = Calendar.getInstance()
+    calendar.time = date
+    calendar.set(Calendar.HOUR_OF_DAY, 0)
+    calendar.set(Calendar.MINUTE, 0)
+    calendar.set(Calendar.SECOND, 0)
+    calendar.set(Calendar.MILLISECOND, 0)
+    return calendar.time
+}
 
 suspend fun fetchTransactions(accountName: String): List<Transaction> {
     val firestore = FirebaseFirestore.getInstance()
@@ -199,57 +244,62 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
             .get()
             .await()
 
-        if (transactionsSnapshot.isEmpty) {
-            Log.w("Firebase", "No transactions found for account ID: $accountId")
-            return emptyList()
-        }
-
         return transactionsSnapshot.documents.mapNotNull { doc ->
-            val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
-            val amount = doc.getDouble("amount") ?: return@mapNotNull null
-            val dateTime = doc.getLong("dateTime")?.let { Date(it) } ?: return@mapNotNull null
-            val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
-            val locationMap = doc.get("location") as? Map<String, Any>
+            try {
+                val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
+                val amount = doc.getLong("amount") ?: return@mapNotNull null
+                val timestamp = doc.getTimestamp("dateTime") ?: return@mapNotNull null
+                val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
+                val locationMap = doc.get("location") as? Map<String, Any>
 
-            val location = if (locationMap != null) {
-                val latitude = locationMap["latitude"] as? Double
-                val longitude = locationMap["longitude"] as? Double
-                if (latitude != null && longitude != null) {
-                    Location(latitude, longitude)
-                } else {
-                    null
+                val location = locationMap?.let {
+                    val latitude = it["latitude"] as? Double
+                    val longitude = it["longitude"] as? Double
+                    if (latitude != null && longitude != null) {
+                        Location(latitude, longitude)
+                    } else null
                 }
-            } else {
+
+                Transaction(
+                    id = doc.id,
+                    accountId = accountId,
+                    transactionName = transactionName,
+                    amount = amount,
+                    dateTime = timestamp,
+                    transactionType = transactionType,
+                    location = location
+                )
+            } catch (e: Exception) {
+                Log.e("Firebase", "Error parsing transaction document", e)
                 null
             }
-
-            Transaction(
-                transactionName = transactionName,
-                description = if (transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
-                amount = if (transactionType.equals("Income", ignoreCase = true)) amount else -amount,
-                date = dateTime,
-                location = location
-            )
-        }.sortedByDescending { it.date }
+        }.sortedByDescending { it.dateTime.toDate() }
     } catch (e: Exception) {
         Log.e("Firebase", "Error fetching transactions", e)
-        return emptyList()
+        throw e
     }
 }
 
-fun formatDate(date: Date): String {
+private fun formatDate(date: Date): String {
     val calendar = Calendar.getInstance()
     calendar.time = date
 
     val today = Calendar.getInstance()
+    today.set(Calendar.HOUR_OF_DAY, 0)
+    today.set(Calendar.MINUTE, 0)
+    today.set(Calendar.SECOND, 0)
+    today.set(Calendar.MILLISECOND, 0)
+
     val yesterday = Calendar.getInstance()
     yesterday.add(Calendar.DAY_OF_YEAR, -1)
+    yesterday.set(Calendar.HOUR_OF_DAY, 0)
+    yesterday.set(Calendar.MINUTE, 0)
+    yesterday.set(Calendar.SECOND, 0)
+    yesterday.set(Calendar.MILLISECOND, 0)
 
     return when {
-        calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
-                calendar.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR) -> "Hoy"
-        calendar.get(Calendar.YEAR) == yesterday.get(Calendar.YEAR) &&
-                calendar.get(Calendar.DAY_OF_YEAR) == yesterday.get(Calendar.DAY_OF_YEAR) -> "Ayer"
+        calendar.time == today.time -> "Hoy"
+        calendar.time == yesterday.time -> "Ayer"
         else -> {
             val formatter = SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale("es", "ES"))
             formatter.format(date)
@@ -257,7 +307,7 @@ fun formatDate(date: Date): String {
     }
 }
 
-fun formatCurrency(amount: Double): String {
+private fun formatCurrency(amount: Double): String {
     val format = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
     return format.format(amount)
 }

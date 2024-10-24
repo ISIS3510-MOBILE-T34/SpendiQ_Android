@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.views.common.BottomNavigation
@@ -24,7 +25,6 @@ fun AccountsScreen(navController: NavController, accountViewModel: AccountViewMo
     val uiState by accountViewModel.uiState.collectAsState()
     var showEditModal by remember { mutableStateOf(false) }
     var showAddTransactionModal by remember { mutableStateOf(false) }
-
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
     }
@@ -33,8 +33,7 @@ fun AccountsScreen(navController: NavController, accountViewModel: AccountViewMo
         bottomBar = {
             BottomNavigation(
                 navController = navController,
-                onAddTransactionClick = { showAddTransactionModal = true }
-            )
+                accountViewModel)
         }
     ) { innerPadding ->
         Column(

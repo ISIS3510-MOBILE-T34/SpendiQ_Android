@@ -49,7 +49,7 @@ fun MainContent(
         bottomBar = {
             BottomNavigation(
                 navController = navController,
-                onAddTransactionClick = { showAddTransactionModal = true }
+                accountViewModel
             )
         }
     ) { innerPadding ->
