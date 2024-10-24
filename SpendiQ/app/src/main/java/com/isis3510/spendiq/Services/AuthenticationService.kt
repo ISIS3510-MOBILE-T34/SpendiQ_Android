@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.Services
+package com.isis3510.spendiq.services
 
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await

@@ -38,7 +38,7 @@
 
         <!-- Registering NotificationListenerService -->
         <service
-            android:name=".Services.NotificationListener"
+            android:name=".services.NotificationListener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="false">
             <intent-filter>
