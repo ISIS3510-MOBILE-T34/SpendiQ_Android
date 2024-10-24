@@ -20,6 +20,7 @@ import com.google.firebase.Timestamp
 import com.isis3510.spendiq.services.LocationService
 import kotlinx.coroutines.launch
 import java.util.*
+import com.isis3510.spendiq.model.data.Account
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,23 +29,28 @@ fun AddTransactionModal(
     onDismiss: () -> Unit,
     onTransactionAdded: () -> Unit
 ) {
+    // State variables for form fields
     var amount by remember { mutableStateOf("") }
     var transactionName by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf(Timestamp.now()) }
     var selectedTransactionType by remember { mutableStateOf("Expense") }
     var expandedTransactionType by remember { mutableStateOf(false) }
-    var selectedAccountType by remember { mutableStateOf("") }
+    var selectedAccount by remember { mutableStateOf<Account?>(null) }
     var expandedAccountType by remember { mutableStateOf(false) }
     var showNoAccountsDialog by remember { mutableStateOf(false) }
     var isLocationEnabled by remember { mutableStateOf(false) }
     var location by remember { mutableStateOf<android.location.Location?>(null) }
 
+    // Collect accounts from ViewModel
     val accounts by accountViewModel.accounts.collectAsState()
+
+    // Context and services
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val locationService = remember { LocationService(context) }
     val scope = rememberCoroutineScope()
 
+    // Initialize date picker dialog
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
@@ -56,7 +62,7 @@ fun AddTransactionModal(
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    // Show dialog when there are no accounts
+    // No accounts dialog
     if (showNoAccountsDialog) {
         AlertDialog(
             onDismissRequest = { showNoAccountsDialog = false },
@@ -70,7 +76,7 @@ fun AddTransactionModal(
         )
     }
 
-    // Check if there are any accounts available
+    // Check for accounts availability
     LaunchedEffect(Unit) {
         if (accounts.isEmpty()) {
             showNoAccountsDialog = true
@@ -88,31 +94,37 @@ fun AddTransactionModal(
             Text("Add Transaction", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Amount field
             OutlinedTextField(
                 value = amount,
                 onValueChange = { amount = it.filter { char -> char.isDigit() } },
                 label = { Text("Amount") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Transaction name field
             OutlinedTextField(
                 value = transactionName,
                 onValueChange = { transactionName = it },
                 label = { Text("Transaction Name") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Date selector
             Button(onClick = { datePickerDialog.show() }) {
                 Text("Select Date: ${selectedDate.toDate().toString().substring(0, 10)}")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Transaction type dropdown
             ExposedDropdownMenuBox(
                 expanded = expandedTransactionType,
                 onExpandedChange = { expandedTransactionType = !expandedTransactionType }
@@ -121,6 +133,7 @@ fun AddTransactionModal(
                     value = selectedTransactionType,
                     onValueChange = {},
                     readOnly = true,
+                    label = { Text("Transaction Type") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTransactionType) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
                 )
@@ -148,12 +161,13 @@ fun AddTransactionModal(
             Spacer(modifier = Modifier.height(8.dp))
 
             if (accounts.isNotEmpty()) {
+                // Account selection dropdown
                 ExposedDropdownMenuBox(
                     expanded = expandedAccountType,
                     onExpandedChange = { expandedAccountType = !expandedAccountType }
                 ) {
                     TextField(
-                        value = selectedAccountType,
+                        value = selectedAccount?.name ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Select Account") },
@@ -168,7 +182,7 @@ fun AddTransactionModal(
                             DropdownMenuItem(
                                 text = { Text(account.name) },
                                 onClick = {
-                                    selectedAccountType = account.name
+                                    selectedAccount = account
                                     expandedAccountType = false
                                 }
                             )
@@ -178,7 +192,7 @@ fun AddTransactionModal(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Location Switch
+                // Location toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -208,12 +222,13 @@ fun AddTransactionModal(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Submit button
                 Button(
                     onClick = {
-                        if (selectedAccountType.isNotEmpty()) {
+                        selectedAccount?.let { account ->
                             val transaction = Transaction(
-                                id = "",
-                                accountId = selectedAccountType,
+                                id = "", // This will be set by Firestore
+                                accountId = account.id, // Using account ID instead of name
                                 transactionName = transactionName,
                                 amount = amount.toLongOrNull() ?: 0L,
                                 dateTime = selectedDate,
@@ -230,12 +245,15 @@ fun AddTransactionModal(
                             onDismiss()
                         }
                     },
-                    enabled = amount.isNotEmpty() && transactionName.isNotEmpty() && selectedAccountType.isNotEmpty(),
+                    enabled = amount.isNotEmpty() &&
+                            transactionName.isNotEmpty() &&
+                            selectedAccount != null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Add Transaction")
                 }
             } else {
+                // No accounts message
                 Text(
                     "No accounts available. Please create an account first.",
                     style = MaterialTheme.typography.bodyMedium,
