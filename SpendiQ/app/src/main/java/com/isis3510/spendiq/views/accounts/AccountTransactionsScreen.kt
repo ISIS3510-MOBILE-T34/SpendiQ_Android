@@ -26,23 +26,12 @@ import androidx.navigation.NavController
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.model.data.Location
 import kotlinx.coroutines.tasks.await
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
-
-data class Transaction(
-    val transactionName: String,
-    val description: String,
-    val amount: Double,
-    val date: Date,
-    val location: Location?
-)
-
-data class Location(
-    val latitude: Double,
-    val longitude: Double
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,7 +116,7 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
                                 it.transactionName.contains(searchQuery, ignoreCase = true)
                             }
 
-                            val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.date) }
+                            val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.dateTime.toDate()) }
                             val sortedDates = groupedTransactions.keys.sortedDescending()
 
                             sortedDates.forEach { date ->
@@ -142,7 +131,7 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
                                     )
                                 }
 
-                                items(transactionsForDate.sortedByDescending { it.date }) { transaction ->
+                                items(transactionsForDate.sortedByDescending { it.dateTime }) { transaction ->
                                     TransactionItem(transaction)
                                 }
                             }
@@ -177,7 +166,11 @@ fun TransactionItem(transaction: Transaction) {
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(transaction.transactionName, fontWeight = FontWeight.Bold)
-                Text(transaction.description, color = Color.Gray, fontSize = 14.sp)
+                Text(
+                    if (transaction.transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
                 if (transaction.location != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -203,7 +196,7 @@ fun TransactionItem(transaction: Transaction) {
                 }
             }
             Text(
-                formatCurrency(transaction.amount),
+                formatCurrency(transaction.amount.toDouble()),
                 color = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000),
                 fontWeight = FontWeight.Bold
             )
@@ -250,13 +243,8 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
         return transactionsSnapshot.documents.mapNotNull { doc ->
             try {
                 val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
-                val amount = when (val amountValue = doc.get("amount")) {
-                    is Long -> amountValue.toDouble()
-                    is Double -> amountValue
-                    else -> return@mapNotNull null
-                }
-                val timestamp = doc.get("dateTime") as? Timestamp
-                val date = timestamp?.toDate() ?: return@mapNotNull null
+                val amount = doc.getLong("amount") ?: return@mapNotNull null
+                val timestamp = doc.getTimestamp("dateTime") ?: return@mapNotNull null
                 val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
                 val locationMap = doc.get("location") as? Map<String, Any>
 
@@ -269,17 +257,19 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
                 }
 
                 Transaction(
+                    id = doc.id,
+                    accountId = accountId,
                     transactionName = transactionName,
-                    description = if (transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
-                    amount = if (transactionType.equals("Income", ignoreCase = true)) amount else -amount,
-                    date = date,
+                    amount = amount,
+                    dateTime = timestamp,
+                    transactionType = transactionType,
                     location = location
                 )
             } catch (e: Exception) {
                 Log.e("Firebase", "Error parsing transaction document", e)
                 null
             }
-        }.sortedByDescending { it.date }
+        }.sortedByDescending { it.dateTime.toDate() }
     } catch (e: Exception) {
         Log.e("Firebase", "Error fetching transactions", e)
         throw e
