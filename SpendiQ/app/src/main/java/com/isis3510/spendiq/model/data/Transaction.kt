@@ -9,7 +9,9 @@ data class Transaction(
     val amount: Long,
     val dateTime: Timestamp,
     val transactionType: String,
-    val location: Location?
+    val location: Location?,
+    val amountAnomaly: Boolean = false,
+    val locationAnomaly: Boolean = false,
 )
 
 data class Location(
