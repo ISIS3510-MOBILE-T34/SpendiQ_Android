@@ -5,9 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.location.Location
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
@@ -15,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,13 +33,13 @@ import kotlinx.coroutines.launch
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.tasks.await
 import java.text.DecimalFormat
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OffersScreen(
     navController: NavController,
@@ -49,7 +52,6 @@ fun OffersScreen(
     var currentLocation by remember { mutableStateOf<Location?>(null) }
     var sortedOffers by remember { mutableStateOf<List<Pair<Offer, Float?>>>(emptyList()) }
 
-    // Location permission state
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -59,7 +61,6 @@ fun OffersScreen(
         )
     }
 
-    // Permission launcher
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -74,7 +75,6 @@ fun OffersScreen(
         }
     }
 
-    // Initial location check and setup
     LaunchedEffect(Unit) {
         viewModel.fetchOffers()
         if (hasLocationPermission) {
@@ -87,81 +87,60 @@ fun OffersScreen(
         }
     }
 
-    // Update sorted offers when offers or location changes
     LaunchedEffect(offers, currentLocation) {
         sortedOffers = sortOffersByDistance(offers, currentLocation)
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Special Sales in your Area") },
+            )
+        },
         bottomBar = {
             BottomNavigation(navController = navController, accountViewModel)
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
         ) {
-            Text(
-                "Special Offers",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Text(
-                "Discover great deals near you",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
-            if (!hasLocationPermission) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = "Location",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Enable location for better offers",
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        TextButton(onClick = {
-                            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                        }) {
-                            Text("Enable")
-                        }
-                    }
-                }
-            }
-
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
             ) {
-                items(sortedOffers) { (offer, distance) ->
-                    OfferCard(
-                        offer = offer,
-                        distance = distance,
-                        onClick = { offer.id?.let { id -> navController.navigate("specialSalesDetail/$id") } }
+                if (!hasLocationPermission) {
+                    LocationPermissionCard(
+                        onEnableClick = {
+                            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
                     )
+                }
+
+                Text(
+                    "Based on the shops where you have purchased before, we think these sales near to your location may interest you",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(sortedOffers) { (offer, distance) ->
+                        OfferCard(
+                            offer = offer,
+                            distance = distance,
+                            onClick = {
+                                offer.id?.let { id ->
+                                    navController.navigate("specialSalesDetail/$id")
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -169,36 +148,65 @@ fun OffersScreen(
 }
 
 @Composable
-fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
-    val context = LocalContext.current
+private fun LocationPermissionCard(onEnableClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.LocationOn,
+                contentDescription = "Location",
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "Enable location for better offers",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = onEnableClick) {
+                Text("Enable")
+            }
+        }
+    }
+}
 
+@Composable
+fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            // Image Section
+            // Store Image
             offer.shopImage?.let { imageUrl ->
                 AsyncImage(
                     model = imageUrl,
-                    contentDescription = "Offer Image",
+                    contentDescription = "Store Image",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
+                        .height(180.dp),
                     contentScale = ContentScale.Crop
                 )
             }
 
-            // Content Section
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+                modifier = Modifier.padding(16.dp)
             ) {
-                // Distance and business name row
+                // Store Name and Distance
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -207,13 +215,11 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
                     offer.placeName?.let {
                         Text(
                             text = it,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
-                    // Distance chip
                     distance?.let {
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
@@ -222,8 +228,7 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
                             Text(
                                 text = "${formatDistance(it)} away",
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontSize = 14.sp
+                                fontSize = 12.sp
                             )
                         }
                     }
@@ -231,49 +236,25 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Offer description
+                // Offer Description
                 offer.offerDescription?.let {
                     Text(
                         text = it,
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Recommendation reason
-                offer.recommendationReason?.let {
-                    Text(
-                        text = "Recommended: $it",
                         fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                // Map button
-                if (offer.latitude != null && offer.longitude != null) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            val uri = Uri.parse("geo:${offer.latitude},${offer.longitude}?q=${offer.latitude},${offer.longitude}(${offer.placeName})")
-                            val mapIntent = Intent(Intent.ACTION_VIEW, uri)
-                            mapIntent.setPackage("com.google.android.apps.maps")
-                            if (mapIntent.resolveActivity(context.packageManager) != null) {
-                                context.startActivity(mapIntent)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = "Open in Maps",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("View on Maps")
-                    }
-                }
+//                offer.recommendationReason?.let {
+//                    Spacer(modifier = Modifier.height(8.dp))
+//                    Text(
+//                        text = it,
+//                        fontSize = 12.sp,
+//                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+//                        textAlign = TextAlign.Start
+//                    )
+//                }
             }
         }
     }

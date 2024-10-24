@@ -7,5 +7,6 @@ data class Offer(
     val shopImage: String? = null,
     val recommendationReason: String? = null,
     val latitude: Double? = null,
-    val longitude: Double? = null
+    val longitude: Double? = null,
+    val distance: Int? = null
 )
