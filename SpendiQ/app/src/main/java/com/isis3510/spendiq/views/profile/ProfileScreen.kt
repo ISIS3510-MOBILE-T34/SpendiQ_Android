@@ -6,7 +6,6 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -23,59 +22,54 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider.getUriForFile
+import androidx.core.content.FileProvider
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import com.isis3510.spendiq.R
-import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
-import com.isis3510.spendiq.views.main.BottomNavigation
-import com.isis3510.spendiq.views.transaction.AddTransactionModal
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import com.isis3510.spendiq.views.common.BottomNavigation
+import com.isis3510.spendiq.viewmodel.AuthViewModel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewModel) {
+fun ProfileScreen(navController: NavController, viewModel: AuthViewModel) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var showAddTransactionModal by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success && profileImageUri != null) {
-            coroutineScope.launch {
-                uploadImageToFirebase(profileImageUri!!, context)
-            }
+            viewModel.uploadProfileImage(profileImageUri!!)
         }
     }
 
     LaunchedEffect(Unit) {
-        val userId = FirebaseAuth.getInstance().currentUser?.uid
-        if (userId != null) {
-            try {
-                val userDoc = FirebaseFirestore.getInstance().collection("users").document(userId).get().await()
-                userData = userDoc.data
-                val imageUrl = userData?.get("profileImageUrl") as? String
-                if (imageUrl != null) {
-                    profileImageUri = Uri.parse(imageUrl)
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Failed to load user data: ${e.message}", Toast.LENGTH_LONG).show()
-            } finally {
+        viewModel.getUserData()
+    }
+
+    val userDataState by viewModel.userData.collectAsState()
+
+    LaunchedEffect(userDataState) {
+        when (userDataState) {
+            is AuthViewModel.UserDataState.Success -> {
+                userData = (userDataState as AuthViewModel.UserDataState.Success).data
                 isLoading = false
             }
-        } else {
-            isLoading = false
+            is AuthViewModel.UserDataState.Error -> {
+                Toast.makeText(context, "Failed to load user data: ${(userDataState as AuthViewModel.UserDataState.Error).message}", Toast.LENGTH_LONG).show()
+                isLoading = false
+            }
+            AuthViewModel.UserDataState.Loading -> {
+                isLoading = true
+            }
+
+            AuthViewModel.UserDataState.Idle -> TODO()
         }
     }
 
@@ -113,7 +107,6 @@ fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewMod
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .background(Color.LightGray)
                         .clickable {
                             val uri = ComposeFileProvider.getImageUri(context)
                             profileImageUri = uri
@@ -122,7 +115,7 @@ fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewMod
                 ) {
                     Image(
                         painter = rememberAsyncImagePainter(
-                            profileImageUri ?: R.drawable.person24
+                            model = userData?.get("profileImageUrl") ?: R.drawable.person24
                         ),
                         contentDescription = "Profile Picture",
                         modifier = Modifier.fillMaxSize(),
@@ -134,16 +127,16 @@ fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewMod
 
                 userData?.let { data ->
                     Text(
-                        text = data["fullName"] as? String ?: "",
+                        text = (data["fullName"] as? String) ?: "",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    ProfileField("Full Name", data["fullName"] as? String ?: "", R.drawable.person24)
-                    ProfileField("Email Address", data["email"] as? String ?: "", R.drawable.email24)
-                    ProfileField("Phone Number", data["phoneNumber"] as? String ?: "", R.drawable.phone24)
-                    ProfileField("Birth Date", data["birthDate"] as? String ?: "", R.drawable.calendar24)
+                    ProfileField("Full Name", (data["fullName"] as? String) ?: "", R.drawable.person24)
+                    ProfileField("Email Address", (data["email"] as? String) ?: "", R.drawable.email24)
+                    ProfileField("Phone Number", (data["phoneNumber"] as? String) ?: "", R.drawable.phone24)
+                    ProfileField("Birth Date", (data["birthDate"] as? String) ?: "", R.drawable.calendar24)
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -157,41 +150,20 @@ fun ProfileScreen(navController: NavController, viewModel: AuthenticationViewMod
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Logout Button
-                    LogoutButton(navController = navController, viewModel = viewModel)
+                    Button(
+                        onClick = {
+                            viewModel.logout()
+                            navController.navigate("authentication") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(0.8f)
+                    ) {
+                        Text("Logout")
+                    }
                 }
             }
         }
-    }
-
-    if (showAddTransactionModal) {
-        AddTransactionModal(
-            onDismiss = { showAddTransactionModal = false },
-            onTransactionAdded = {
-                showAddTransactionModal = false
-            }
-        )
-    }
-}
-
-@Composable
-fun LogoutButton(navController: NavController, viewModel: AuthenticationViewModel) {
-    val context = LocalContext.current
-    Button(
-        onClick = {
-            try {
-                viewModel.logout()
-                Toast.makeText(context, "You have been logged out", Toast.LENGTH_SHORT).show()
-                navController.navigate("authentication") {
-                    popUpTo(0) { inclusive = true }
-                }
-            } catch (e: Exception) {
-                Toast.makeText(context, "Logout failed: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        },
-        modifier = Modifier.fillMaxWidth(0.8f)
-    ) {
-        Text("Logout")
     }
 }
 
@@ -219,42 +191,13 @@ fun ProfileField(label: String, value: String, iconResId: Int) {
                 style = MaterialTheme.typography.bodyLarge
             )
         }
-        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
-    }
-}
-
-suspend fun uploadImageToFirebase(uri: Uri, context: Context) {
-    val user = FirebaseAuth.getInstance().currentUser
-    if (user != null) {
-        try {
-            val storageRef = FirebaseStorage.getInstance().reference
-            val imageRef = storageRef.child("profile_images/${user.uid}.jpg")
-            val uploadTask = imageRef.putFile(uri).await()
-            val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
-
-            FirebaseFirestore.getInstance().collection("users").document(user.uid)
-                .update("profileImageUrl", downloadUrl).await()
-            Toast.makeText(context, "Profile image updated successfully", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Toast.makeText(context, "Failed to upload image: ${e.message}", Toast.LENGTH_LONG).show()
-        }
+        Divider(modifier = Modifier.padding(top = 8.dp))
     }
 }
 
 object ComposeFileProvider {
     fun getImageUri(context: Context): Uri {
-        val directory = File(context.cacheDir, "images")
-        directory.mkdirs()
-        val file = File.createTempFile(
-            "selected_image_",
-            ".jpg",
-            directory
-        )
-        val authority = context.packageName + ".fileprovider"
-        return getUriForFile(
-            context,
-            authority,
-            file
-        )
+        val file = File(context.cacheDir, "profile_image.jpg")
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
 }

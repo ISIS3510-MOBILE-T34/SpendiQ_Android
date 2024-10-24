@@ -33,8 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import com.isis3510.spendiq.R
-import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
 import com.isis3510.spendiq.viewmodel.AuthState
+import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.views.theme.Purple40
 import java.text.SimpleDateFormat
 import java.util.*
@@ -42,7 +42,7 @@ import java.util.*
 @Composable
 fun RegisterScreen(
     navController: NavController,
-    viewModel: AuthenticationViewModel
+    viewModel: AuthViewModel
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }

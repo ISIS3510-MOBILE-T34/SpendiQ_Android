@@ -1,25 +1,25 @@
 package com.isis3510.spendiq.model.repository
 
 import android.content.Context
-import android.content.SharedPreferences
+import android.net.Uri
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.isis3510.spendiq.model.User
+import com.google.firebase.storage.FirebaseStorage
+import com.isis3510.spendiq.model.data.User
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
-class AuthRepository(context: Context) {
+class AuthRepository(private val context: Context) {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val prefs: SharedPreferences = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
 
     fun login(email: String, password: String): Flow<Result<User>> = flow {
         try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
             result.user?.let {
                 val user = User(it.uid, it.email ?: "")
-                saveUserSession(user)
                 emit(Result.success(user))
             } ?: emit(Result.failure(Exception("Login failed")))
         } catch (e: Exception) {
@@ -27,15 +27,14 @@ class AuthRepository(context: Context) {
         }
     }
 
-    fun register(email: String, password: String): Flow<Result<User>> = flow {
+    fun register(email: String, password: String, userData: Map<String, Any>): Flow<Result<User>> = flow {
         try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             result.user?.let { firebaseUser ->
                 val user = User(firebaseUser.uid, email)
                 firestore.collection("users").document(user.id)
-                    .set(mapOf("email" to user.email))
+                    .set(userData)
                     .await()
-                saveUserSession(user)
                 emit(Result.success(user))
             } ?: emit(Result.failure(Exception("Registration failed")))
         } catch (e: Exception) {
@@ -44,21 +43,14 @@ class AuthRepository(context: Context) {
     }
 
     fun getCurrentUser(): User? {
-        val userId = prefs.getString("user_id", null)
-        val userEmail = prefs.getString("user_email", null)
-        return if (userId != null && userEmail != null) {
-            User(userId, userEmail)
-        } else {
-            null
-        }
+        val firebaseUser = auth.currentUser
+        return firebaseUser?.let { User(it.uid, it.email ?: "") }
     }
 
     fun logout() {
         auth.signOut()
-        clearUserSession()
     }
 
-    // Send email verification to the currently signed-in user
     fun sendEmailVerification(): Flow<Result<Unit>> = flow {
         try {
             auth.currentUser?.sendEmailVerification()?.await()
@@ -68,12 +60,10 @@ class AuthRepository(context: Context) {
         }
     }
 
-    // Check if the current user's email is verified
     fun isEmailVerified(): Boolean {
         return auth.currentUser?.isEmailVerified ?: false
     }
 
-    // Reload the current user data from Firebase
     fun reloadUser(): Flow<Result<Unit>> = flow {
         try {
             auth.currentUser?.reload()?.await()
@@ -81,20 +71,6 @@ class AuthRepository(context: Context) {
         } catch (e: Exception) {
             emit(Result.failure(e))
         }
-    }
-
-    // Save the user's session (for auto-login and biometric login)
-    private fun saveUserSession(user: User) {
-        prefs.edit().apply {
-            putString("user_id", user.id)
-            putString("user_email", user.email)
-            apply()
-        }
-    }
-
-    // Clear user session on logout
-    private fun clearUserSession() {
-        prefs.edit().clear().apply()
     }
 
     fun saveUserData(userId: String, data: Map<String, Any>): Flow<Result<Unit>> = flow {
@@ -114,6 +90,22 @@ class AuthRepository(context: Context) {
             } else {
                 emit(Result.failure(Exception("User data not found")))
             }
+        } catch (e: Exception) {
+            emit(Result.failure(e))
+        }
+    }
+
+    fun uploadProfileImage(uri: Uri): Flow<Result<String>> = flow {
+        try {
+            val user = auth.currentUser ?: throw Exception("User not authenticated")
+            val imageRef = storage.reference.child("profile_images/${user.uid}.jpg")
+            val uploadTask = imageRef.putFile(uri).await()
+            val downloadUrl = uploadTask.storage.downloadUrl.await().toString()
+
+            firestore.collection("users").document(user.uid)
+                .update("profileImageUrl", downloadUrl).await()
+
+            emit(Result.success(downloadUrl))
         } catch (e: Exception) {
             emit(Result.failure(e))
         }

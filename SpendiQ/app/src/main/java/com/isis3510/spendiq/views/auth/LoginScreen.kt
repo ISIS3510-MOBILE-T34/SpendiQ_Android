@@ -35,15 +35,15 @@ import androidx.compose.ui.unit.sp
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.NavController
 import com.isis3510.spendiq.R
-import com.isis3510.spendiq.viewmodel.AuthenticationViewModel
 import com.isis3510.spendiq.viewmodel.AuthState
+import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.views.theme.Purple40
 import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen(
     navController: NavController,
-    viewModel: AuthenticationViewModel
+    viewModel: AuthViewModel
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
