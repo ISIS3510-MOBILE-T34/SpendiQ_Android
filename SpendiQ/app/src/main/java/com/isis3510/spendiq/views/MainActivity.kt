@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.views // Adjusted to match the file location based on your screenshot
+package com.isis3510.spendiq.views
 
 import android.Manifest
 import android.content.Intent
@@ -16,9 +16,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.isis3510.spendiq.view.accounts.AccountsScreen
 import com.isis3510.spendiq.view.offers.SpecialSalesDetail
 import com.isis3510.spendiq.views.main.MainContent
@@ -32,6 +34,7 @@ import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.views.accounts.AccountTransactionsScreen
+import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
 import com.isis3510.spendiq.views.offers.OffersScreen
 
 class MainActivity : ComponentActivity() {
@@ -88,32 +91,45 @@ class MainActivity : ComponentActivity() {
                         composable("promos") { OffersScreen(navController, offersViewModel, accountViewModel) }
                         composable("profile") { ProfileScreen(navController, authViewModel, accountViewModel) }
                         composable("accounts") { AccountsScreen(navController, accountViewModel) }
-                        composable("accountTransactions/{accountName}") { backStackEntry ->
-                            val accountName = backStackEntry.arguments?.getString("accountName") ?: ""
-                            AccountTransactionsScreen(navController, accountName)
+                        composable("accountTransactions/{accountId}") { backStackEntry ->
+                            val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
+                            AccountTransactionsScreen(navController, accountId)
                         }
-                        // Add new route for special sales detail
+                        // Special sales detail route
                         composable("SpecialSalesDetail/{offerId}") { backStackEntry ->
                             val offerId = backStackEntry.arguments?.getString("offerId")
                             if (offerId != null) {
-                                // Add logging to debug if offerId is received
                                 Log.d(TAG, "Navigating to SpecialSalesDetailScreen with offerId: $offerId")
 
-                                // Collect the offers from OffersViewModel
                                 val offers = offersViewModel.offers.collectAsState().value
                                 val offer = offers.find { it.id == offerId }
 
-                                // Log if the offer is found or not
                                 if (offer != null) {
                                     Log.d(TAG, "Offer found: ${offer.placeName}")
                                     SpecialSalesDetail(offer = offer)
                                 } else {
                                     Log.e(TAG, "Offer not found for offerId: $offerId")
-                                    // Optionally show an error screen or navigate back
                                 }
                             } else {
                                 Log.e(TAG, "offerId is null")
                             }
+                        }
+                        composable(
+                            route = "transactionDetails/{accountId}/{transactionId}",
+                            arguments = listOf(
+                                navArgument("accountId") { type = NavType.StringType },
+                                navArgument("transactionId") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
+                            val transactionId = backStackEntry.arguments?.getString("transactionId") ?: ""
+                            Log.d(TAG, "Navigating to TransactionDetailsScreen with accountId: $accountId and transactionId: $transactionId")
+                            TransactionDetailsScreen(
+                                navController = navController,
+                                accountViewModel = accountViewModel,
+                                accountId = accountId,  // Corrected to use the accountId (Firestore document ID)
+                                transactionId = transactionId
+                            )
                         }
                     }
                 }

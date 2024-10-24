@@ -4,15 +4,26 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.model.data.Location
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.Timestamp
+import android.util.Log
+import androidx.compose.ui.graphics.Color
 
 class AccountRepository {
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 
-    // Method to get all accounts for the current user
+    companion object {
+        private val DEFAULT_LOCATION = Location(
+            latitude = 4.6097100,  // Bogota's coordinates
+            longitude = -74.0817500
+        )
+    }
+
+    // Get all accounts for the current user
     fun getAccounts(): Flow<Result<List<Account>>> = flow {
         try {
             val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -32,11 +43,12 @@ class AccountRepository {
             }
             emit(Result.success(accounts))
         } catch (e: Exception) {
+            Log.e("AccountRepository", "Error fetching accounts", e)
             emit(Result.failure(e))
         }
     }
 
-    // Method to create a new account for the user
+    // Create a new account
     fun createAccount(accountType: String): Flow<Result<Unit>> = flow {
         try {
             val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -49,45 +61,74 @@ class AccountRepository {
             ).await()
             emit(Result.success(Unit))
         } catch (e: Exception) {
+            Log.e("AccountRepository", "Error creating account", e)
             emit(Result.failure(e))
         }
     }
 
-    // Method to delete an account
-    fun deleteAccount(accountType: String): Flow<Result<Unit>> = flow {
+    // Delete an account
+    fun deleteAccount(accountId: String): Flow<Result<Unit>> = flow {
         try {
-            val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-            val documents = firestore.collection("accounts")
-                .whereEqualTo("name", accountType)
-                .whereEqualTo("user_id", userId)
-                .get()
-                .await()
+            val accountRef = firestore.collection("accounts").document(accountId)
 
-            for (document in documents) {
-                document.reference.delete().await()
-            }
+            // Fetch transactions outside of the transaction
+            val transactionsSnapshot = accountRef.collection("transactions").get().await()
+
+            firestore.runTransaction { transaction ->
+                for (transactionDoc in transactionsSnapshot.documents) {
+                    transaction.delete(transactionDoc.reference)
+                }
+                transaction.delete(accountRef)
+            }.await()
+
             emit(Result.success(Unit))
         } catch (e: Exception) {
+            Log.e("AccountRepository", "Error deleting account", e)
             emit(Result.failure(e))
         }
     }
 
-    // Method to get transactions for a specific account
-    fun getTransactions(accountName: String): Flow<Result<List<Transaction>>> = flow {
+    // Get specific transaction by accountId and transactionId
+    fun getTransaction(accountId: String, transactionId: String): Flow<Result<Transaction>> = flow {
         try {
-            val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-            val accountSnapshot = firestore.collection("accounts")
-                .whereEqualTo("user_id", userId)
-                .whereEqualTo("name", accountName)
+            val transactionDoc = firestore.collection("accounts")
+                .document(accountId)
+                .collection("transactions")
+                .document(transactionId)
                 .get()
                 .await()
 
-            if (accountSnapshot.documents.isEmpty()) {
-                emit(Result.failure(Exception("Account not found")))
+            if (!transactionDoc.exists()) {
+                emit(Result.failure(Exception("Transaction not found")))
                 return@flow
             }
 
-            val accountId = accountSnapshot.documents[0].id
+            val transaction = Transaction(
+                id = transactionDoc.id,
+                accountId = accountId,
+                transactionName = transactionDoc.getString("transactionName") ?: "",
+                amount = transactionDoc.getLong("amount") ?: 0L,
+                dateTime = transactionDoc.getTimestamp("dateTime") ?: Timestamp.now(),
+                transactionType = transactionDoc.getString("transactionType") ?: "",
+                location = transactionDoc.get("location")?.let { locationMap ->
+                    if (locationMap is Map<*, *>) {
+                        Location(
+                            latitude = (locationMap["latitude"] as? Double) ?: DEFAULT_LOCATION.latitude,
+                            longitude = (locationMap["longitude"] as? Double) ?: DEFAULT_LOCATION.longitude
+                        )
+                    } else null
+                }
+            )
+            emit(Result.success(transaction))
+        } catch (e: Exception) {
+            Log.e("AccountRepository", "Error fetching transaction", e)
+            emit(Result.failure(e))
+        }
+    }
+
+    // Get transactions for an account using accountId
+    fun getTransactions(accountId: String): Flow<Result<List<Transaction>>> = flow {
+        try {
             val transactionsSnapshot = firestore.collection("accounts")
                 .document(accountId)
                 .collection("transactions")
@@ -106,53 +147,40 @@ class AccountRepository {
                         if (locationMap is Map<*, *>) {
                             val latitude = (locationMap["latitude"] as? Double) ?: return@mapNotNull null
                             val longitude = (locationMap["longitude"] as? Double) ?: return@mapNotNull null
-                            com.isis3510.spendiq.model.data.Location(latitude, longitude)
-                        } else {
-                            null
-                        }
+                            Location(latitude, longitude)
+                        } else null
                     }
                 )
             }
+
             emit(Result.success(transactions))
         } catch (e: Exception) {
+            Log.e("AccountRepository", "Error fetching transactions", e)
             emit(Result.failure(e))
         }
     }
-
-    // Method to add a transaction and create the account if it doesn't exist
+    // Add transaction with account check and ensure transaction ID is stored correctly
     fun addTransactionWithAccountCheck(transaction: Transaction): Flow<Result<Unit>> = flow {
         try {
-            val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            val accountId = transaction.accountId
 
-            // Check if account exists
-            val accountSnapshot = firestore.collection("accounts")
-                .whereEqualTo("user_id", userId)
-                .whereEqualTo("name", transaction.accountId)
-                .get()
-                .await()
+            // Generate a new document reference for the transaction (this will generate a unique ID)
+            val transactionRef = firestore.collection("accounts")
+                .document(accountId)
+                .collection("transactions")
+                .document() // This creates a unique ID
 
-            val accountId = if (accountSnapshot.documents.isEmpty()) {
-                // If the account does not exist, create it
-                val newAccountRef = firestore.collection("accounts").document()
-                val newAccountData = mapOf(
-                    "name" to transaction.accountId,
-                    "amount" to 0L,
-                    "user_id" to userId
-                )
-                newAccountRef.set(newAccountData).await()
-                newAccountRef.id
-            } else {
-                // Use existing account ID
-                accountSnapshot.documents[0].id
-            }
+            // Update the transaction object with the generated transaction ID
+            val transactionWithId = transaction.copy(id = transactionRef.id)
 
-            // Add the transaction to the account
+            // Prepare the transaction data to be stored, including the generated transaction ID
             val transactionMap = hashMapOf(
-                "amount" to transaction.amount,
-                "dateTime" to transaction.dateTime,
-                "transactionName" to transaction.transactionName,
-                "transactionType" to transaction.transactionType,
-                "location" to transaction.location?.let {
+                "transactionId" to transactionWithId.id, // Storing the Firestore-generated transaction ID
+                "amount" to transactionWithId.amount,
+                "dateTime" to transactionWithId.dateTime,
+                "transactionName" to transactionWithId.transactionName,
+                "transactionType" to transactionWithId.transactionType,
+                "location" to transactionWithId.location?.let {
                     hashMapOf(
                         "latitude" to it.latitude,
                         "longitude" to it.longitude
@@ -160,38 +188,115 @@ class AccountRepository {
                 }
             )
 
-            firestore.collection("accounts")
-                .document(accountId)
-                .collection("transactions")
-                .add(transactionMap)
-                .await()
+            // Save the transaction data to Firestore using the generated ID
+            transactionRef.set(transactionMap).await()
 
             // Update account balance
-            val accountRef = firestore.collection("accounts").document(accountId)
-            firestore.runTransaction { transactionObj ->
-                val account = transactionObj.get(accountRef)
-                val currentBalance = account.getLong("amount") ?: 0L
-                val newBalance = if (transaction.transactionType == "Income") {
-                    currentBalance + transaction.amount
-                } else {
-                    currentBalance - transaction.amount
-                }
-                transactionObj.update(accountRef, "amount", newBalance)
-            }.await()
+            updateAccountBalance(accountId, transactionWithId)
 
             emit(Result.success(Unit))
         } catch (e: Exception) {
+            Log.e("AccountRepository", "Error adding transaction with account check", e)
             emit(Result.failure(e))
         }
     }
 
-    // Utility method to get color for an account
-    private fun getColorForAccount(accountName: String): androidx.compose.ui.graphics.Color {
+
+
+    // Update account balance after transaction
+    private suspend fun updateAccountBalance(accountId: String, transaction: Transaction) {
+        val accountRef = firestore.collection("accounts").document(accountId)
+
+        firestore.runTransaction { transactionObj ->
+            val account = transactionObj.get(accountRef)
+            val currentBalance = account.getLong("amount") ?: 0L
+            val adjustment = if (transaction.transactionType == "Income") {
+                transaction.amount
+            } else {
+                -transaction.amount
+            }
+            transactionObj.update(accountRef, "amount", currentBalance + adjustment)
+        }.await()
+    }
+
+    fun updateTransaction(accountId: String, oldTransaction: Transaction, newTransaction: Transaction): Flow<Result<Unit>> = flow {
+        try {
+            val accountRef = firestore.collection("accounts").document(accountId)
+            val transactionRef = accountRef.collection("transactions").document(oldTransaction.id)
+
+            // Check if the transaction exists before updating
+            val transactionDoc = transactionRef.get().await()
+            if (!transactionDoc.exists()) {
+                emit(Result.failure(Exception("Transaction does not exist for update.")))
+                return@flow
+            }
+
+            firestore.runTransaction { transaction ->
+                // Get the account document and current balance
+                val account = transaction.get(accountRef)
+                val currentBalance = account.getLong("amount") ?: 0L
+
+                // Calculate the balance adjustment based on the old and new transaction amounts
+                val oldAmount = if (oldTransaction.transactionType == "Income") oldTransaction.amount else -oldTransaction.amount
+                val newAmount = if (newTransaction.transactionType == "Income") newTransaction.amount else -newTransaction.amount
+                val balanceAdjustment = newAmount - oldAmount
+
+                // Update the transaction details
+                transaction.set(transactionRef, mapOf(
+                    "transactionName" to newTransaction.transactionName,
+                    "amount" to newTransaction.amount,
+                    "dateTime" to newTransaction.dateTime,
+                    "transactionType" to newTransaction.transactionType,
+                    "location" to newTransaction.location?.let {
+                        mapOf("latitude" to it.latitude, "longitude" to it.longitude)
+                    }
+                ))
+
+                // Update the account's balance
+                transaction.update(accountRef, "amount", currentBalance + balanceAdjustment)
+            }.await()
+
+            emit(Result.success(Unit))
+        } catch (e: Exception) {
+            Log.e("AccountRepository", "Error updating transaction", e)
+            emit(Result.failure(e))
+        }
+    }
+
+    fun deleteTransaction(accountId: String, transaction: Transaction): Flow<Result<Unit>> = flow {
+        try {
+            val accountRef = firestore.collection("accounts").document(accountId)
+            val transactionRef = accountRef.collection("transactions").document(transaction.id)
+
+            firestore.runTransaction { trans ->
+                // Get the account document and current balance
+                val account = trans.get(accountRef)
+                val currentBalance = account.getLong("amount") ?: 0L
+
+                // Calculate the amount to remove based on transaction type
+                val amountToRemove = if (transaction.transactionType == "Income") transaction.amount else -transaction.amount
+
+                // Delete the transaction document
+                trans.delete(transactionRef)
+
+                // Update the account's balance after deleting the transaction
+                trans.update(accountRef, "amount", currentBalance - amountToRemove)
+            }.await()
+
+            emit(Result.success(Unit))
+        } catch (e: Exception) {
+            Log.e("AccountRepository", "Error during transaction deletion", e)
+            emit(Result.failure(e))
+        }
+    }
+
+    // Get color for accounts
+    private fun getColorForAccount(accountName: String): Color {
         return when (accountName) {
-            "Nu" -> androidx.compose.ui.graphics.Color(0xFF9747FF)
-            "Bancolombia" -> androidx.compose.ui.graphics.Color(0xFFFFCC00)
-            "Nequi" -> androidx.compose.ui.graphics.Color(0xFF8B2F87)
-            else -> androidx.compose.ui.graphics.Color.Gray
+            "Nu" -> Color(0xFF9747FF)
+            "Bancolombia" -> Color(0xFFFFCC00)
+            "Nequi" -> Color(0xFF8B2F87)
+            else -> Color.Gray
         }
     }
 }

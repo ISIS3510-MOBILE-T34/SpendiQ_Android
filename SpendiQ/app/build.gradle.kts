@@ -86,6 +86,7 @@ dependencies {
 
     // Location Services
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("com.google.android.gms:play-services-auth:20.5.0")
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.play.services.maps)
 

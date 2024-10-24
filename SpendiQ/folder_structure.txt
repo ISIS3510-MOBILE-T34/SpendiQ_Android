@@ -1139,6 +1139,11 @@
                     android:theme="@style/Theme.SpendiQ"
                     tools:targetApi="31">
             
+                    <!-- Google Maps API Key -->
+                    <meta-data
+                        android:name="com.google.android.geo.API_KEY"
+                        android:value="AIzaSyAknJmX2ZYLzwoddFByZnpGXyDmmcqS8cI"/>
+            
                     <!-- MainActivity -->
                     <activity
                         android:name=".views.MainActivity"
@@ -1562,28 +1567,26 @@
                                 class AccountViewModel : ViewModel() {
                                     private val accountRepository = AccountRepository()
                                 
-                                    // Flow to observe the list of accounts
+                                    // State flows
                                     private val _accounts = MutableStateFlow<List<Account>>(emptyList())
                                     val accounts: StateFlow<List<Account>> = _accounts
                                 
-                                    // Flow to observe the list of transactions
                                     private val _transactions = MutableStateFlow<List<Transaction>>(emptyList())
                                     val transactions: StateFlow<List<Transaction>> = _transactions
                                 
-                                    // Flow to track the UI state
                                     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
                                     val uiState: StateFlow<UiState> = _uiState
                                 
-                                    // Flow to observe the current balance
                                     private val _currentMoney = MutableStateFlow(0L)
                                     val currentMoney: StateFlow<Long> = _currentMoney
                                 
+                                    private val _selectedTransaction = MutableStateFlow<Transaction?>(null)
+                                    val selectedTransaction: StateFlow<Transaction?> = _selectedTransaction
+                                
                                     init {
-                                        // Initialize by fetching the list of accounts when the ViewModel is created
                                         fetchAccounts()
                                     }
                                 
-                                    // Method to fetch all accounts from the repository
                                     fun fetchAccounts() {
                                         viewModelScope.launch {
                                             _uiState.value = UiState.Loading
@@ -1594,7 +1597,9 @@
                                                     _currentMoney.value = accountList.sumOf { it.amount }
                                                     _uiState.value = UiState.Success
                                                 } else {
-                                                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch accounts")
+                                                    _uiState.value = UiState.Error(
+                                                        result.exceptionOrNull()?.message ?: "Failed to fetch accounts"
+                                                    )
                                                 }
                                             }
                                         }
@@ -1604,62 +1609,137 @@
                                         viewModelScope.launch {
                                             _uiState.value = UiState.Loading
                                             accountRepository.createAccount(accountType).collect { result ->
-                                                if (result.isSuccess) {
-                                                    fetchAccounts()  // Refresh accounts after creation
-                                                    _uiState.value = UiState.Success
-                                                } else {
-                                                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to create account")
+                                                _uiState.value = when {
+                                                    result.isSuccess -> {
+                                                        fetchAccounts()
+                                                        UiState.Success
+                                                    }
+                                                    result.isFailure -> {
+                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to create account")
+                                                    }
+                                                    else -> UiState.Error("Unexpected error")
                                                 }
                                             }
                                         }
                                     }
                                 
-                                
-                                    // Method to add a transaction, which will create the account if it doesn't exist
-                                    fun addTransactionWithAccountCheck(transaction: Transaction) {
-                                        viewModelScope.launch {
-                                            _uiState.value = UiState.Loading
-                                            accountRepository.addTransactionWithAccountCheck(transaction).collect { result ->
-                                                if (result.isSuccess) {
-                                                    // Refresh the accounts and transactions after adding a transaction
-                                                    fetchAccounts()
-                                                    fetchTransactions(transaction.accountId)
-                                                    _uiState.value = UiState.Success
-                                                } else {
-                                                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to add transaction")
-                                                }
-                                            }
-                                        }
-                                    }
-                                
-                                    // Method to delete an account by account type
                                     fun deleteAccount(accountType: String) {
                                         viewModelScope.launch {
                                             _uiState.value = UiState.Loading
                                             accountRepository.deleteAccount(accountType).collect { result ->
-                                                if (result.isSuccess) {
-                                                    fetchAccounts()
-                                                    _uiState.value = UiState.Success
-                                                } else {
-                                                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete account")
+                                                _uiState.value = when {
+                                                    result.isSuccess -> {
+                                                        fetchAccounts()
+                                                        UiState.Success
+                                                    }
+                                                    result.isFailure -> {
+                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete account")
+                                                    }
+                                                    else -> UiState.Error("Unexpected error")
                                                 }
                                             }
                                         }
                                     }
                                 
-                                    // Method to fetch transactions for a specific account
                                     fun fetchTransactions(accountName: String) {
                                         viewModelScope.launch {
                                             _uiState.value = UiState.Loading
                                             accountRepository.getTransactions(accountName).collect { result ->
-                                                if (result.isSuccess) {
-                                                    _transactions.value = result.getOrNull() ?: emptyList()
-                                                    _uiState.value = UiState.Success
-                                                } else {
-                                                    _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch transactions")
+                                                _uiState.value = when {
+                                                    result.isSuccess -> {
+                                                        _transactions.value = result.getOrNull() ?: emptyList()
+                                                        UiState.Success
+                                                    }
+                                                    result.isFailure -> {
+                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch transactions")
+                                                    }
+                                                    else -> UiState.Error("Unexpected error")
                                                 }
                                             }
                                         }
+                                    }
+                                
+                                    fun addTransactionWithAccountCheck(transaction: Transaction) {
+                                        viewModelScope.launch {
+                                            _uiState.value = UiState.Loading
+                                            accountRepository.addTransactionWithAccountCheck(transaction).collect { result ->
+                                                _uiState.value = when {
+                                                    result.isSuccess -> {
+                                                        fetchAccounts() // Refresh accounts after adding transaction
+                                                        fetchTransactions(transaction.accountId) // Refresh transactions
+                                                        UiState.Success
+                                                    }
+                                                    result.isFailure -> {
+                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to add transaction")
+                                                    }
+                                                    else -> UiState.Error("Unexpected error")
+                                                }
+                                            }
+                                        }
+                                    }
+                                
+                                    fun getTransaction(accountId: String, transactionId: String) {
+                                        viewModelScope.launch {
+                                            _uiState.value = UiState.Loading
+                                            accountRepository.getTransaction(accountId, transactionId).collect { result ->
+                                                when {
+                                                    result.isSuccess -> {
+                                                        _selectedTransaction.value = result.getOrNull()
+                                                        _uiState.value = UiState.Success
+                                                    }
+                                                    result.isFailure -> {
+                                                        _uiState.value = UiState.Error(
+                                                            result.exceptionOrNull()?.message ?: "Failed to get transaction"
+                                                        )
+                                                        _selectedTransaction.value = null
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                
+                                    fun updateTransaction(oldTransaction: Transaction, newTransaction: Transaction) {
+                                        viewModelScope.launch {
+                                            _uiState.value = UiState.Loading
+                                            accountRepository.updateTransaction(oldTransaction, newTransaction).collect { result ->
+                                                _uiState.value = when {
+                                                    result.isSuccess -> {
+                                                        fetchAccounts() // Refresh accounts after update
+                                                        fetchTransactions(oldTransaction.accountId) // Refresh transactions
+                                                        _selectedTransaction.value = newTransaction // Update selected transaction
+                                                        UiState.Success
+                                                    }
+                                                    result.isFailure -> {
+                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to update transaction")
+                                                    }
+                                                    else -> UiState.Error("Unexpected error")
+                                                }
+                                            }
+                                        }
+                                    }
+                                
+                                    fun deleteTransaction(accountId: String, transaction: Transaction) {
+                                        viewModelScope.launch {
+                                            _uiState.value = UiState.Loading
+                                            accountRepository.deleteTransaction(accountId, transaction).collect { result ->
+                                                _uiState.value = when {
+                                                    result.isSuccess -> {
+                                                        fetchAccounts() // Refresh accounts after deletion
+                                                        fetchTransactions(accountId) // Refresh transactions
+                                                        _selectedTransaction.value = null // Clear selected transaction
+                                                        UiState.Success
+                                                    }
+                                                    result.isFailure -> {
+                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete transaction")
+                                                    }
+                                                    else -> UiState.Error("Unexpected error")
+                                                }
+                                            }
+                                        }
+                                    }
+                                
+                                    fun clearSelectedTransaction() {
+                                        _selectedTransaction.value = null
                                     }
                                 
                                     sealed class UiState {
@@ -1668,8 +1748,7 @@
                                         object Success : UiState()
                                         data class Error(val message: String) : UiState()
                                     }
-                                }
-                                ```
+                                }                                ```
                         - **utils/**
                             - BiometricHelper.kt
                                 ```
@@ -1719,15 +1798,25 @@
                                     import com.google.firebase.firestore.FirebaseFirestore
                                     import com.isis3510.spendiq.model.data.Account
                                     import com.isis3510.spendiq.model.data.Transaction
+                                    import com.isis3510.spendiq.model.data.Location
                                     import kotlinx.coroutines.flow.Flow
                                     import kotlinx.coroutines.flow.flow
                                     import kotlinx.coroutines.tasks.await
+                                    import com.google.firebase.Timestamp
+                                    import androidx.compose.ui.graphics.Color
                                     
                                     class AccountRepository {
                                         private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
                                         private val auth: FirebaseAuth = FirebaseAuth.getInstance()
                                     
-                                        // Method to get all accounts for the current user
+                                        companion object {
+                                            private val DEFAULT_LOCATION = Location(
+                                                latitude = 4.6097100,  // Bogota's coordinates
+                                                longitude = -74.0817500
+                                            )
+                                        }
+                                    
+                                        // Get all accounts for the current user
                                         fun getAccounts(): Flow<Result<List<Account>>> = flow {
                                             try {
                                                 val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -1751,7 +1840,7 @@
                                             }
                                         }
                                     
-                                        // Method to create a new account for the user
+                                        // Create a new account
                                         fun createAccount(accountType: String): Flow<Result<Unit>> = flow {
                                             try {
                                                 val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -1768,7 +1857,7 @@
                                             }
                                         }
                                     
-                                        // Method to delete an account
+                                        // Delete an account
                                         fun deleteAccount(accountType: String): Flow<Result<Unit>> = flow {
                                             try {
                                                 val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -1787,7 +1876,44 @@
                                             }
                                         }
                                     
-                                        // Method to get transactions for a specific account
+                                        // Get specific transaction
+                                        fun getTransaction(accountId: String, transactionId: String): Flow<Result<Transaction>> = flow {
+                                            try {
+                                                val transactionDoc = firestore.collection("accounts")
+                                                    .document(accountId)
+                                                    .collection("transactions")
+                                                    .document(transactionId)
+                                                    .get()
+                                                    .await()
+                                    
+                                                if (!transactionDoc.exists()) {
+                                                    emit(Result.failure(Exception("Transaction not found")))
+                                                    return@flow
+                                                }
+                                    
+                                                val transaction = Transaction(
+                                                    id = transactionDoc.id,
+                                                    accountId = accountId,
+                                                    transactionName = transactionDoc.getString("transactionName") ?: "",
+                                                    amount = transactionDoc.getLong("amount") ?: 0L,
+                                                    dateTime = transactionDoc.getTimestamp("dateTime") ?: Timestamp.now(),
+                                                    transactionType = transactionDoc.getString("transactionType") ?: "",
+                                                    location = transactionDoc.get("location")?.let { locationMap ->
+                                                        if (locationMap is Map<*, *>) {
+                                                            Location(
+                                                                latitude = (locationMap["latitude"] as? Double) ?: DEFAULT_LOCATION.latitude,
+                                                                longitude = (locationMap["longitude"] as? Double) ?: DEFAULT_LOCATION.longitude
+                                                            )
+                                                        } else null
+                                                    }
+                                                )
+                                                emit(Result.success(transaction))
+                                            } catch (e: Exception) {
+                                                emit(Result.failure(e))
+                                            }
+                                        }
+                                    
+                                        // Get transactions for an account
                                         fun getTransactions(accountName: String): Flow<Result<List<Transaction>>> = flow {
                                             try {
                                                 val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -1821,10 +1947,8 @@
                                                             if (locationMap is Map<*, *>) {
                                                                 val latitude = (locationMap["latitude"] as? Double) ?: return@mapNotNull null
                                                                 val longitude = (locationMap["longitude"] as? Double) ?: return@mapNotNull null
-                                                                com.isis3510.spendiq.model.data.Location(latitude, longitude)
-                                                            } else {
-                                                                null
-                                                            }
+                                                                Location(latitude, longitude)
+                                                            } else null
                                                         }
                                                     )
                                                 }
@@ -1834,7 +1958,7 @@
                                             }
                                         }
                                     
-                                        // Method to add a transaction and create the account if it doesn't exist
+                                        // Add transaction with account check
                                         fun addTransactionWithAccountCheck(transaction: Transaction): Flow<Result<Unit>> = flow {
                                             try {
                                                 val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -1847,7 +1971,7 @@
                                                     .await()
                                     
                                                 val accountId = if (accountSnapshot.documents.isEmpty()) {
-                                                    // If the account does not exist, create it
+                                                    // Create new account if it doesn't exist
                                                     val newAccountRef = firestore.collection("accounts").document()
                                                     val newAccountData = mapOf(
                                                         "name" to transaction.accountId,
@@ -1857,11 +1981,10 @@
                                                     newAccountRef.set(newAccountData).await()
                                                     newAccountRef.id
                                                 } else {
-                                                    // Use existing account ID
                                                     accountSnapshot.documents[0].id
                                                 }
                                     
-                                                // Add the transaction to the account
+                                                // Add the transaction
                                                 val transactionMap = hashMapOf(
                                                     "amount" to transaction.amount,
                                                     "dateTime" to transaction.dateTime,
@@ -1900,17 +2023,87 @@
                                             }
                                         }
                                     
-                                        // Utility method to get color for an account
-                                        private fun getColorForAccount(accountName: String): androidx.compose.ui.graphics.Color {
-                                            return when (accountName) {
-                                                "Nu" -> androidx.compose.ui.graphics.Color(0xFF9747FF)
-                                                "Bancolombia" -> androidx.compose.ui.graphics.Color(0xFFFFCC00)
-                                                "Nequi" -> androidx.compose.ui.graphics.Color(0xFF8B2F87)
-                                                else -> androidx.compose.ui.graphics.Color.Gray
+                                        // Update transaction
+                                        fun updateTransaction(oldTransaction: Transaction, newTransaction: Transaction): Flow<Result<Unit>> = flow {
+                                            try {
+                                                val accountRef = firestore.collection("accounts").document(oldTransaction.accountId)
+                                    
+                                                firestore.runTransaction { transaction ->
+                                                    // Get current account balance
+                                                    val account = transaction.get(accountRef)
+                                                    val currentBalance = account.getLong("amount") ?: 0L
+                                    
+                                                    // Calculate the balance adjustment
+                                                    val oldAmount = if (oldTransaction.transactionType == "Income")
+                                                        oldTransaction.amount else -oldTransaction.amount
+                                                    val newAmount = if (newTransaction.transactionType == "Income")
+                                                        newTransaction.amount else -newTransaction.amount
+                                                    val balanceAdjustment = newAmount - oldAmount
+                                    
+                                                    // Update the transaction
+                                                    val transactionRef = accountRef
+                                                        .collection("transactions")
+                                                        .document(oldTransaction.id)
+                                    
+                                                    transaction.set(transactionRef, mapOf(
+                                                        "transactionName" to newTransaction.transactionName,
+                                                        "amount" to newTransaction.amount,
+                                                        "dateTime" to newTransaction.dateTime,
+                                                        "transactionType" to newTransaction.transactionType,
+                                                        "location" to newTransaction.location?.let {
+                                                            mapOf(
+                                                                "latitude" to it.latitude,
+                                                                "longitude" to it.longitude
+                                                            )
+                                                        }
+                                                    ))
+                                    
+                                                    // Update account balance
+                                                    transaction.update(accountRef, "amount", currentBalance + balanceAdjustment)
+                                                }.await()
+                                    
+                                                emit(Result.success(Unit))
+                                            } catch (e: Exception) {
+                                                emit(Result.failure(e))
                                             }
                                         }
-                                    }
-                                    ```
+                                    
+                                        // Delete transaction
+                                        fun deleteTransaction(accountId: String, transaction: Transaction): Flow<Result<Unit>> = flow {
+                                            try {
+                                                val accountRef = firestore.collection("accounts").document(accountId)
+                                    
+                                                firestore.runTransaction { trans ->
+                                                    // Get current account balance
+                                                    val account = trans.get(accountRef)
+                                                    val currentBalance = account.getLong("amount") ?: 0L
+                                    
+                                                    // Calculate amount to remove
+                                                    val amountToRemove = if (transaction.transactionType == "Income")
+                                                        transaction.amount else -transaction.amount
+                                    
+                                                    // Delete the transaction
+                                                    trans.delete(accountRef.collection("transactions").document(transaction.id))
+                                    
+                                                    // Update account balance
+                                                    trans.update(accountRef, "amount", currentBalance - amountToRemove)
+                                                }.await()
+                                    
+                                                emit(Result.success(Unit))
+                                            } catch (e: Exception) {
+                                                emit(Result.failure(e))
+                                            }
+                                        }
+                                    
+                                        private fun getColorForAccount(accountName: String): Color {
+                                            return when (accountName) {
+                                                "Nu" -> Color(0xFF9747FF)
+                                                "Bancolombia" -> Color(0xFFFFCC00)
+                                                "Nequi" -> Color(0xFF8B2F87)
+                                                else -> Color.Gray
+                                            }
+                                        }
+                                    }                                    ```
                                 - PromoRepository.kt
                                     ```
                                     package com.isis3510.spendiq.model.repository
@@ -2172,10 +2365,10 @@
                                     import androidx.compose.ui.text.input.KeyboardType
                                     import androidx.compose.ui.unit.dp
                                     import com.isis3510.spendiq.model.data.Transaction
-                                    import com.isis3510.spendiq.model.data.Location // Import your custom Location class
+                                    import com.isis3510.spendiq.model.data.Location
                                     import com.isis3510.spendiq.viewmodel.AccountViewModel
-                                    import com.isis3510.spendiq.services.LocationService
                                     import com.google.firebase.Timestamp
+                                    import com.isis3510.spendiq.services.LocationService
                                     import kotlinx.coroutines.launch
                                     import java.util.*
                                     
@@ -2191,11 +2384,13 @@
                                         var selectedDate by remember { mutableStateOf(Timestamp.now()) }
                                         var selectedTransactionType by remember { mutableStateOf("Expense") }
                                         var expandedTransactionType by remember { mutableStateOf(false) }
-                                        var selectedAccountType by remember { mutableStateOf("Nu") }
+                                        var selectedAccountType by remember { mutableStateOf("") }
                                         var expandedAccountType by remember { mutableStateOf(false) }
-                                        var location by remember { mutableStateOf<android.location.Location?>(null) }
+                                        var showNoAccountsDialog by remember { mutableStateOf(false) }
                                         var isLocationEnabled by remember { mutableStateOf(false) }
+                                        var location by remember { mutableStateOf<android.location.Location?>(null) }
                                     
+                                        val accounts by accountViewModel.accounts.collectAsState()
                                         val context = LocalContext.current
                                         val calendar = Calendar.getInstance()
                                         val locationService = remember { LocationService(context) }
@@ -2211,6 +2406,27 @@
                                             calendar.get(Calendar.MONTH),
                                             calendar.get(Calendar.DAY_OF_MONTH)
                                         )
+                                    
+                                        // Show dialog when there are no accounts
+                                        if (showNoAccountsDialog) {
+                                            AlertDialog(
+                                                onDismissRequest = { showNoAccountsDialog = false },
+                                                title = { Text("No Accounts Available") },
+                                                text = { Text("Please create an account first in the Accounts section before making a transaction.") },
+                                                confirmButton = {
+                                                    Button(onClick = { showNoAccountsDialog = false }) {
+                                                        Text("OK")
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    
+                                        // Check if there are any accounts available
+                                        LaunchedEffect(Unit) {
+                                            if (accounts.isEmpty()) {
+                                                showNoAccountsDialog = true
+                                            }
+                                        }
                                     
                                         ModalBottomSheet(
                                             onDismissRequest = onDismiss
@@ -2282,92 +2498,105 @@
                                     
                                                 Spacer(modifier = Modifier.height(8.dp))
                                     
-                                                ExposedDropdownMenuBox(
-                                                    expanded = expandedAccountType,
-                                                    onExpandedChange = { expandedAccountType = !expandedAccountType }
-                                                ) {
-                                                    TextField(
-                                                        value = selectedAccountType,
-                                                        onValueChange = {},
-                                                        readOnly = true,
-                                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAccountType) },
-                                                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                                                    )
-                                                    ExposedDropdownMenu(
+                                                if (accounts.isNotEmpty()) {
+                                                    ExposedDropdownMenuBox(
                                                         expanded = expandedAccountType,
-                                                        onDismissRequest = { expandedAccountType = false }
+                                                        onExpandedChange = { expandedAccountType = !expandedAccountType }
                                                     ) {
-                                                        DropdownMenuItem(
-                                                            text = { Text("Nu") },
-                                                            onClick = {
-                                                                selectedAccountType = "Nu"
-                                                                expandedAccountType = false
-                                                            }
+                                                        TextField(
+                                                            value = selectedAccountType,
+                                                            onValueChange = {},
+                                                            readOnly = true,
+                                                            label = { Text("Select Account") },
+                                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAccountType) },
+                                                            modifier = Modifier.menuAnchor().fillMaxWidth()
                                                         )
-                                                        // You can add more account types here if necessary
-                                                    }
-                                                }
-                                    
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                    
-                                                // Location Switch
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.LocationOn,
-                                                        contentDescription = "Location",
-                                                        tint = if (isLocationEnabled) MaterialTheme.colorScheme.primary else Color.Gray
-                                                    )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text("Include Location")
-                                                    Spacer(modifier = Modifier.weight(1f))
-                                                    Switch(
-                                                        checked = isLocationEnabled,
-                                                        onCheckedChange = { enabled ->
-                                                            isLocationEnabled = enabled
-                                                            if (enabled) {
-                                                                scope.launch {
-                                                                    location = locationService.getCurrentLocation()
-                                                                }
-                                                            } else {
-                                                                location = null
+                                                        ExposedDropdownMenu(
+                                                            expanded = expandedAccountType,
+                                                            onDismissRequest = { expandedAccountType = false }
+                                                        ) {
+                                                            accounts.forEach { account ->
+                                                                DropdownMenuItem(
+                                                                    text = { Text(account.name) },
+                                                                    onClick = {
+                                                                        selectedAccountType = account.name
+                                                                        expandedAccountType = false
+                                                                    }
+                                                                )
                                                             }
                                                         }
-                                                    )
-                                                }
+                                                    }
                                     
-                                                Spacer(modifier = Modifier.height(16.dp))
+                                                    Spacer(modifier = Modifier.height(8.dp))
                                     
-                                                Button(
-                                                    onClick = {
-                                                        val transaction = Transaction(
-                                                            id = "",
-                                                            accountId = selectedAccountType,
-                                                            transactionName = transactionName,
-                                                            amount = amount.toLongOrNull() ?: 0L,
-                                                            dateTime = selectedDate,
-                                                            transactionType = selectedTransactionType,
-                                                            location = if (isLocationEnabled && location != null) {
-                                                                Location( // Correctly using the custom Location object
-                                                                    latitude = location!!.latitude,
-                                                                    longitude = location!!.longitude
-                                                                )
-                                                            } else null
+                                                    // Location Switch
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.LocationOn,
+                                                            contentDescription = "Location",
+                                                            tint = if (isLocationEnabled) MaterialTheme.colorScheme.primary else Color.Gray
                                                         )
-                                                        accountViewModel.addTransactionWithAccountCheck(transaction)
-                                                        onTransactionAdded()
-                                                        onDismiss()
-                                                    },
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Text("Add Transaction")
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text("Include Location")
+                                                        Spacer(modifier = Modifier.weight(1f))
+                                                        Switch(
+                                                            checked = isLocationEnabled,
+                                                            onCheckedChange = { enabled ->
+                                                                isLocationEnabled = enabled
+                                                                if (enabled) {
+                                                                    scope.launch {
+                                                                        location = locationService.getCurrentLocation()
+                                                                    }
+                                                                } else {
+                                                                    location = null
+                                                                }
+                                                            }
+                                                        )
+                                                    }
+                                    
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                    Button(
+                                                        onClick = {
+                                                            if (selectedAccountType.isNotEmpty()) {
+                                                                val transaction = Transaction(
+                                                                    id = "",
+                                                                    accountId = selectedAccountType,
+                                                                    transactionName = transactionName,
+                                                                    amount = amount.toLongOrNull() ?: 0L,
+                                                                    dateTime = selectedDate,
+                                                                    transactionType = selectedTransactionType,
+                                                                    location = if (isLocationEnabled && location != null) {
+                                                                        Location(
+                                                                            latitude = location!!.latitude,
+                                                                            longitude = location!!.longitude
+                                                                        )
+                                                                    } else null
+                                                                )
+                                                                accountViewModel.addTransactionWithAccountCheck(transaction)
+                                                                onTransactionAdded()
+                                                                onDismiss()
+                                                            }
+                                                        },
+                                                        enabled = amount.isNotEmpty() && transactionName.isNotEmpty() && selectedAccountType.isNotEmpty(),
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        Text("Add Transaction")
+                                                    }
+                                                } else {
+                                                    Text(
+                                                        "No accounts available. Please create an account first.",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.padding(vertical = 16.dp)
+                                                    )
                                                 }
                                             }
                                         }
-                                    }
-                                    ```
+                                    }                                    ```
                             - **offers/**
                                 - OffersScreen.kt
                                     ```
@@ -2851,7 +3080,7 @@
                                     }                                    ```
                             - MainActivity.kt
                                 ```
-                                package com.isis3510.spendiq.views // Adjusted to match the file location based on your screenshot
+                                package com.isis3510.spendiq.views
                                 
                                 import android.Manifest
                                 import android.content.Intent
@@ -2869,9 +3098,11 @@
                                 import androidx.compose.ui.Modifier
                                 import androidx.core.content.ContextCompat
                                 import androidx.lifecycle.viewmodel.compose.viewModel
+                                import androidx.navigation.NavType
                                 import androidx.navigation.compose.NavHost
                                 import androidx.navigation.compose.composable
                                 import androidx.navigation.compose.rememberNavController
+                                import androidx.navigation.navArgument
                                 import com.isis3510.spendiq.view.accounts.AccountsScreen
                                 import com.isis3510.spendiq.view.offers.SpecialSalesDetail
                                 import com.isis3510.spendiq.views.main.MainContent
@@ -2885,6 +3116,7 @@
                                 import com.isis3510.spendiq.viewmodel.AuthViewModel
                                 import com.isis3510.spendiq.viewmodel.OffersViewModel
                                 import com.isis3510.spendiq.views.accounts.AccountTransactionsScreen
+                                import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
                                 import com.isis3510.spendiq.views.offers.OffersScreen
                                 
                                 class MainActivity : ComponentActivity() {
@@ -2967,6 +3199,22 @@
                                                             } else {
                                                                 Log.e(TAG, "offerId is null")
                                                             }
+                                                        }
+                                                        composable(
+                                                            route = "transactionDetails/{accountName}/{transactionId}",
+                                                            arguments = listOf(
+                                                                navArgument("accountName") { type = NavType.StringType },
+                                                                navArgument("transactionId") { type = NavType.StringType }
+                                                            )
+                                                        ) { backStackEntry ->
+                                                            val accountName = backStackEntry.arguments?.getString("accountName") ?: ""
+                                                            val transactionId = backStackEntry.arguments?.getString("transactionId") ?: ""
+                                                            TransactionDetailsScreen(
+                                                                navController = navController,
+                                                                accountViewModel = accountViewModel,
+                                                                accountId = accountName,  // In this case accountName is used as accountId
+                                                                transactionId = transactionId
+                                                            )
                                                         }
                                                     }
                                                 }
@@ -4130,6 +4378,22 @@
                                     import java.text.SimpleDateFormat
                                     import java.util.*
                                     
+                                    data class Transaction(
+                                        val id: String,
+                                        val accountId: String,
+                                        val transactionName: String,
+                                        val description: String,
+                                        val amount: Double,
+                                        val date: Date,
+                                        val location: Location?,
+                                        val transactionType: String
+                                    )
+                                    
+                                    data class Location(
+                                        val latitude: Double,
+                                        val longitude: Double
+                                    )
+                                    
                                     @OptIn(ExperimentalMaterial3Api::class)
                                     @Composable
                                     fun AccountTransactionsScreen(navController: NavController, accountName: String) {
@@ -4198,7 +4462,11 @@
                                                             }
                                     
                                                             items(transactionsForDate.sortedByDescending { it.date }) { transaction ->
-                                                                TransactionItem(transaction)
+                                                                TransactionItem(
+                                                                    transaction = transaction,
+                                                                    accountName = accountName,
+                                                                    navController = navController
+                                                                )
                                                             }
                                                         }
                                                     }
@@ -4208,13 +4476,22 @@
                                     }
                                     
                                     @Composable
-                                    fun TransactionItem(transaction: Transaction) {
+                                    fun TransactionItem(
+                                        transaction: Transaction,
+                                        accountName: String,
+                                        navController: NavController
+                                    ) {
                                         val context = LocalContext.current
                                     
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
+                                                .clickable {
+                                                    navController.navigate(
+                                                        "transactionDetails/${accountName}/${transaction.id}"
+                                                    )
+                                                }
                                         ) {
                                             Row(
                                                 modifier = Modifier
@@ -4223,7 +4500,8 @@
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Icon(
-                                                    imageVector = if (transaction.amount > 0) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                                    imageVector = if (transaction.amount > 0) Icons.Default.KeyboardArrowUp
+                                                    else Icons.Default.KeyboardArrowDown,
                                                     contentDescription = if (transaction.amount > 0) "Income" else "Expense",
                                                     tint = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000)
                                                 )
@@ -4235,7 +4513,12 @@
                                                         Row(
                                                             verticalAlignment = Alignment.CenterVertically,
                                                             modifier = Modifier.clickable {
-                                                                val uri = Uri.parse("geo:${transaction.location.latitude},${transaction.location.longitude}?q=${transaction.location.latitude},${transaction.location.longitude}")
+                                                                val uri = Uri.parse(
+                                                                    "geo:${transaction.location.latitude}," +
+                                                                            "${transaction.location.longitude}?q=" +
+                                                                            "${transaction.location.latitude}," +
+                                                                            "${transaction.location.longitude}"
+                                                                )
                                                                 val intent = Intent(Intent.ACTION_VIEW, uri)
                                                                 context.startActivity(intent)
                                                             }
@@ -4263,19 +4546,6 @@
                                             }
                                         }
                                     }
-                                    
-                                    data class Transaction(
-                                        val transactionName: String,
-                                        val description: String,
-                                        val amount: Double,
-                                        val date: Date,
-                                        val location: Location?
-                                    )
-                                    
-                                    data class Location(
-                                        val latitude: Double,
-                                        val longitude: Double
-                                    )
                                     
                                     private fun normalizeDate(date: Date): Date {
                                         val calendar = Calendar.getInstance()
@@ -4347,24 +4617,14 @@
                                     
                                             return transactionsSnapshot.documents.mapNotNull { doc ->
                                                 try {
-                                                    Log.d("Firebase", "Processing document: ${doc.id}")
-                                                    Log.d("Firebase", "Document data: ${doc.data}")
-                                    
                                                     val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
-                                    
                                                     val amount = when (val amountValue = doc.get("amount")) {
                                                         is Long -> amountValue.toDouble()
                                                         is Double -> amountValue
                                                         else -> return@mapNotNull null
                                                     }
-                                    
                                                     val timestamp = doc.get("dateTime") as? Timestamp
-                                                    val date = timestamp?.toDate()
-                                                    if (date == null) {
-                                                        Log.e("Firebase", "Invalid date format for document: ${doc.id}")
-                                                        return@mapNotNull null
-                                                    }
-                                    
+                                                    val date = timestamp?.toDate() ?: return@mapNotNull null
                                                     val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
                                     
                                                     val locationMap = doc.get("location") as? Map<String, Any>
@@ -4377,11 +4637,14 @@
                                                     }
                                     
                                                     Transaction(
+                                                        id = doc.id,
+                                                        accountId = accountId,
                                                         transactionName = transactionName,
                                                         description = if (transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
                                                         amount = if (transactionType.equals("Income", ignoreCase = true)) amount else -amount,
                                                         date = date,
-                                                        location = location
+                                                        location = location,
+                                                        transactionType = transactionType
                                                     )
                                                 } catch (e: Exception) {
                                                     Log.e("Firebase", "Error parsing transaction document: ${doc.id}", e)
@@ -4398,6 +4661,368 @@
                                         val format = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
                                         return format.format(amount)
                                     }                                    ```
+                                - TransactionDetailsScreen.kt
+                                    ```
+                                    package com.isis3510.spendiq.views.accounts
+                                    
+                                    import android.app.DatePickerDialog
+                                    import android.widget.Toast
+                                    import androidx.compose.foundation.background
+                                    import androidx.compose.foundation.layout.*
+                                    import androidx.compose.foundation.rememberScrollState
+                                    import androidx.compose.foundation.verticalScroll
+                                    import androidx.compose.material.icons.Icons
+                                    import androidx.compose.material.icons.automirrored.filled.ArrowBack
+                                    import androidx.compose.material.icons.filled.Delete
+                                    import androidx.compose.material.icons.filled.LocationOn
+                                    import androidx.compose.material3.*
+                                    import androidx.compose.runtime.*
+                                    import androidx.compose.ui.Alignment
+                                    import androidx.compose.ui.Modifier
+                                    import androidx.compose.ui.graphics.Color
+                                    import androidx.compose.ui.platform.LocalContext
+                                    import androidx.compose.ui.text.font.FontWeight
+                                    import androidx.compose.ui.unit.dp
+                                    import androidx.navigation.NavController
+                                    import com.google.android.gms.maps.model.CameraPosition
+                                    import com.google.android.gms.maps.model.LatLng
+                                    import com.google.firebase.Timestamp
+                                    import com.google.maps.android.compose.*
+                                    import com.isis3510.spendiq.model.data.Location
+                                    import com.isis3510.spendiq.model.data.Transaction
+                                    import com.isis3510.spendiq.viewmodel.AccountViewModel
+                                    import kotlinx.coroutines.launch
+                                    import java.util.*
+                                    
+                                    @OptIn(ExperimentalMaterial3Api::class)
+                                    @Composable
+                                    fun TransactionDetailsScreen(
+                                        navController: NavController,
+                                        accountViewModel: AccountViewModel,
+                                        accountId: String,
+                                        transactionId: String
+                                    ) {
+                                        val context = LocalContext.current
+                                        val transaction by accountViewModel.selectedTransaction.collectAsState()
+                                    
+                                        var transactionName by remember { mutableStateOf("") }
+                                        var amount by remember { mutableStateOf("") }
+                                        var transactionType by remember { mutableStateOf("") }
+                                        var selectedDate by remember { mutableStateOf<Timestamp?>(null) }
+                                        var isLocationEnabled by remember { mutableStateOf(false) }
+                                        var location by remember { mutableStateOf<Location?>(null) }
+                                        var showDeleteConfirmation by remember { mutableStateOf(false) }
+                                        var expandedTransactionType by remember { mutableStateOf(false) }
+                                        var searchText by remember { mutableStateOf("") }
+                                    
+                                        val defaultLocation = LatLng(4.6097100, -74.0817500) // Bogota
+                                        var mapPosition by remember { mutableStateOf(defaultLocation) }
+                                        val cameraPositionState = rememberCameraPositionState {
+                                            position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
+                                        }
+                                    
+                                        val coroutineScope = rememberCoroutineScope()
+                                        val snackbarHostState = remember { SnackbarHostState() }
+                                    
+                                        // Load transaction data
+                                        LaunchedEffect(Unit) {
+                                            accountViewModel.getTransaction(accountId, transactionId)
+                                        }
+                                    
+                                        // Update local state when transaction loads
+                                        LaunchedEffect(transaction) {
+                                            transaction?.let {
+                                                transactionName = it.transactionName
+                                                amount = it.amount.toString()
+                                                transactionType = it.transactionType
+                                                selectedDate = it.dateTime
+                                                location = it.location
+                                                isLocationEnabled = it.location != null
+                                                location?.let { loc ->
+                                                    mapPosition = LatLng(loc.latitude, loc.longitude)
+                                                    cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                                                        LatLng(loc.latitude, loc.longitude), 15f
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    
+                                        val datePickerDialog = DatePickerDialog(
+                                            context,
+                                            { _, year, month, dayOfMonth ->
+                                                val calendar = Calendar.getInstance()
+                                                calendar.set(year, month, dayOfMonth)
+                                                selectedDate = Timestamp(calendar.time)
+                                            },
+                                            Calendar.getInstance().get(Calendar.YEAR),
+                                            Calendar.getInstance().get(Calendar.MONTH),
+                                            Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+                                        )
+                                    
+                                        Scaffold(
+                                            topBar = {
+                                                TopAppBar(
+                                                    title = { Text("Edit Transaction") },
+                                                    navigationIcon = {
+                                                        IconButton(onClick = { navController.popBackStack() }) {
+                                                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                                                        }
+                                                    },
+                                                    actions = {
+                                                        IconButton(onClick = { showDeleteConfirmation = true }) {
+                                                            Icon(Icons.Default.Delete, "Delete")
+                                                        }
+                                                    }
+                                                )
+                                            },
+                                            snackbarHost = { SnackbarHost(snackbarHostState) }
+                                        ) { padding ->
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(padding)
+                                                    .padding(16.dp)
+                                                    .verticalScroll(rememberScrollState())
+                                            ) {
+                                                OutlinedTextField(
+                                                    value = transactionName,
+                                                    onValueChange = { transactionName = it },
+                                                    label = { Text("Transaction Name") },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                    
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                OutlinedTextField(
+                                                    value = amount,
+                                                    onValueChange = { amount = it.filter { char -> char.isDigit() } },
+                                                    label = { Text("Amount") },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                    
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                ExposedDropdownMenuBox(
+                                                    expanded = expandedTransactionType,
+                                                    onExpandedChange = { expandedTransactionType = !expandedTransactionType }
+                                                ) {
+                                                    TextField(
+                                                        value = transactionType,
+                                                        onValueChange = { },
+                                                        readOnly = true,
+                                                        label = { Text("Type") },
+                                                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedTransactionType) },
+                                                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                                                    )
+                                                    ExposedDropdownMenu(
+                                                        expanded = expandedTransactionType,
+                                                        onDismissRequest = { expandedTransactionType = false }
+                                                    ) {
+                                                        DropdownMenuItem(
+                                                            text = { Text("Income") },
+                                                            onClick = {
+                                                                transactionType = "Income"
+                                                                expandedTransactionType = false
+                                                            }
+                                                        )
+                                                        DropdownMenuItem(
+                                                            text = { Text("Expense") },
+                                                            onClick = {
+                                                                transactionType = "Expense"
+                                                                expandedTransactionType = false
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                    
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                OutlinedButton(
+                                                    onClick = { datePickerDialog.show() },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Text(selectedDate?.toDate()?.toString() ?: "Select Date")
+                                                }
+                                    
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.LocationOn,
+                                                        contentDescription = "Location",
+                                                        tint = if (isLocationEnabled) MaterialTheme.colorScheme.primary else Color.Gray
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(
+                                                        "Include Location",
+                                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    )
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                    Switch(
+                                                        checked = isLocationEnabled,
+                                                        onCheckedChange = { enabled ->
+                                                            isLocationEnabled = enabled
+                                                            if (enabled && location == null) {
+                                                                location = Location(defaultLocation.latitude, defaultLocation.longitude)
+                                                                mapPosition = defaultLocation
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                    
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                // Google Maps
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(300.dp)
+                                                ) {
+                                                    GoogleMap(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        cameraPositionState = cameraPositionState,
+                                                        properties = MapProperties(isMyLocationEnabled = false),
+                                                        onMapClick = { latLng ->
+                                                            if (isLocationEnabled) {
+                                                                mapPosition = latLng
+                                                                location = Location(latLng.latitude, latLng.longitude)
+                                                            }
+                                                        }
+                                                    ) {
+                                                        if (location != null) {
+                                                            Marker(
+                                                                state = MarkerState(position = mapPosition),
+                                                                title = "Transaction Location"
+                                                            )
+                                                        }
+                                                    }
+                                    
+                                                    if (!isLocationEnabled) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .fillMaxSize()
+                                                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                "Location Disabled",
+                                                                style = MaterialTheme.typography.titleMedium,
+                                                                color = MaterialTheme.colorScheme.onSurface
+                                                            )
+                                                        }
+                                                    }
+                                    
+                                                    if (isLocationEnabled) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(16.dp)
+                                                                .align(Alignment.TopCenter)
+                                                        ) {
+                                                            OutlinedTextField(
+                                                                value = searchText,
+                                                                onValueChange = { searchText = it },
+                                                                placeholder = { Text("Search location") },
+                                                                modifier = Modifier.weight(1f),
+                                                                colors = TextFieldDefaults.outlinedTextFieldColors(
+                                                                    containerColor = MaterialTheme.colorScheme.surface
+                                                                )
+                                                            )
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            Button(
+                                                                onClick = {
+                                                                    val newLocation = geocodeLocation(searchText)
+                                                                    if (newLocation != null) {
+                                                                        mapPosition = newLocation
+                                                                        cameraPositionState.position = CameraPosition.fromLatLngZoom(newLocation, 15f)
+                                                                        location = Location(newLocation.latitude, newLocation.longitude)
+                                                                    } else {
+                                                                        Toast.makeText(context, "Location not found", Toast.LENGTH_SHORT).show()
+                                                                    }
+                                                                }
+                                                            ) {
+                                                                Text("Go")
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                    
+                                                Spacer(modifier = Modifier.height(24.dp))
+                                    
+                                                Button(
+                                                    onClick = {
+                                                        transaction?.let { currentTransaction ->
+                                                            val updatedTransaction = Transaction(
+                                                                id = currentTransaction.id,
+                                                                accountId = currentTransaction.accountId,
+                                                                transactionName = transactionName,
+                                                                amount = amount.toLongOrNull() ?: 0L,
+                                                                dateTime = selectedDate ?: Timestamp.now(),
+                                                                transactionType = transactionType,
+                                                                location = if (isLocationEnabled) location else null
+                                                            )
+                                                            coroutineScope.launch {
+                                                                accountViewModel.updateTransaction(currentTransaction, updatedTransaction)
+                                                                snackbarHostState.showSnackbar("Transaction updated successfully")
+                                                                navController.popBackStack()
+                                                            }
+                                                        }
+                                                    },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Text("Save Changes")
+                                                }
+                                            }
+                                    
+                                            if (showDeleteConfirmation) {
+                                                AlertDialog(
+                                                    onDismissRequest = { showDeleteConfirmation = false },
+                                                    title = { Text("Delete Transaction") },
+                                                    text = { Text("Are you sure you want to delete this transaction? This action cannot be undone.") },
+                                                    confirmButton = {
+                                                        Button(
+                                                            onClick = {
+                                                                transaction?.let {
+                                                                    coroutineScope.launch {
+                                                                        try {
+                                                                            accountViewModel.deleteTransaction(accountId, it)
+                                                                            snackbarHostState.showSnackbar("Transaction deleted successfully")
+                                                                            navController.popBackStack()
+                                                                        } catch (e: Exception) {
+                                                                            snackbarHostState.showSnackbar("Failed to delete transaction. Please try again.")
+                                                                        }
+                                                                    }
+                                                                    showDeleteConfirmation = false
+                                                                }
+                                                            },
+                                                            colors = ButtonDefaults.buttonColors(
+                                                                containerColor = MaterialTheme.colorScheme.error
+                                                            )
+                                                        ) {
+                                                            Text("Delete")
+                                                        }
+                                                    },
+                                                    dismissButton = {
+                                                        TextButton(onClick = { showDeleteConfirmation = false }) {
+                                                            Text("Cancel")
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Placeholder for geocodeLocation function
+                                    fun geocodeLocation(locationName: String): LatLng? {
+                                        // TODO: Implement geocoding logic here (e.g., use a geocoding API to convert location name to LatLng)
+                                        return null // Replace with actual implementation
+                                    }
+                                    ```
                                 - AccountsScreen.kt
                                     ```
                                     package com.isis3510.spendiq.view.accounts  // Ensure this matches the actual directory structure

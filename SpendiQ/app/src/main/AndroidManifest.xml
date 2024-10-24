@@ -19,6 +19,11 @@
         android:theme="@style/Theme.SpendiQ"
         tools:targetApi="31">
 
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyAknJmX2ZYLzwoddFByZnpGXyDmmcqS8cI"/>
+
         <!-- MainActivity -->
         <activity
             android:name=".views.MainActivity"
