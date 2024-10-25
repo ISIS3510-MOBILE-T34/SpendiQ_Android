@@ -2,7 +2,6 @@ package com.isis3510.spendiq.views.accounts
 
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,35 +23,28 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.google.firebase.Timestamp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.data.Transaction
-import com.isis3510.spendiq.model.data.Location
-import kotlinx.coroutines.tasks.await
+import com.isis3510.spendiq.viewmodel.AccountViewModel.TransactionViewModel
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountTransactionsScreen(navController: NavController, accountName: String) {
-    var transactions by remember { mutableStateOf<List<Transaction>>(emptyList()) }
+fun AccountTransactionsScreen(
+    navController: NavController,
+    accountName: String,
+    viewModel: TransactionViewModel = viewModel()
+) {
     var searchQuery by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val transactions by viewModel.transactions.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(accountName) {
-        isLoading = true
-        try {
-            transactions = fetchTransactions(accountName)
-        } catch (e: Exception) {
-            error = e.message
-            Log.e("AccountTransactions", "Error fetching transactions", e)
-        } finally {
-            isLoading = false
-        }
+        viewModel.fetchTransactions(accountName)
     }
 
     Scaffold(
@@ -67,8 +59,8 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
             )
         }
     ) { innerPadding ->
-        when {
-            isLoading -> {
+        when (uiState) {
+            is TransactionViewModel.UiState.Loading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -76,13 +68,13 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
                     CircularProgressIndicator()
                 }
             }
-            error != null -> {
+            is TransactionViewModel.UiState.Error -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Error: $error",
+                        text = "Error: ${(uiState as TransactionViewModel.UiState.Error).message}",
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -279,72 +271,6 @@ private fun normalizeDate(date: Date): Date {
     calendar.set(Calendar.SECOND, 0)
     calendar.set(Calendar.MILLISECOND, 0)
     return calendar.time
-}
-
-suspend fun fetchTransactions(accountName: String): List<Transaction> {
-    val firestore = FirebaseFirestore.getInstance()
-    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return emptyList()
-
-    try {
-        Log.d("Firebase", "Fetching accounts for user: $userId")
-        val accountSnapshot = firestore.collection("accounts")
-            .whereEqualTo("user_id", userId)
-            .whereEqualTo("name", accountName)
-            .get()
-            .await()
-
-        if (accountSnapshot.documents.isEmpty()) {
-            Log.w("Firebase", "No account found with name: $accountName for user: $userId")
-            return emptyList()
-        }
-
-        val accountId = accountSnapshot.documents[0].id
-        Log.d("Firebase", "Found account ID: $accountId")
-
-        val transactionsSnapshot = firestore.collection("accounts")
-            .document(accountId)
-            .collection("transactions")
-            .get()
-            .await()
-
-        return transactionsSnapshot.documents.mapNotNull { doc ->
-            try {
-                val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
-                val amount = doc.getLong("amount") ?: return@mapNotNull null
-                val timestamp = doc.getTimestamp("dateTime") ?: return@mapNotNull null
-                val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
-                val locationMap = doc.get("location") as? Map<String, Any>
-                val amountAnomaly = doc.getBoolean("amountAnomaly") ?: false
-                val locationAnomaly = doc.getBoolean("locationAnomaly") ?: false
-
-                val location = locationMap?.let {
-                    val latitude = it["latitude"] as? Double
-                    val longitude = it["longitude"] as? Double
-                    if (latitude != null && longitude != null) {
-                        Location(latitude, longitude)
-                    } else null
-                }
-
-                Transaction(
-                    id = doc.id,
-                    accountId = accountId,
-                    transactionName = transactionName,
-                    amount = amount,
-                    dateTime = timestamp,
-                    transactionType = transactionType,
-                    location = location,
-                    amountAnomaly = amountAnomaly,
-                    locationAnomaly = locationAnomaly
-                )
-            } catch (e: Exception) {
-                Log.e("Firebase", "Error parsing transaction document", e)
-                null
-            }
-        }.sortedByDescending { it.dateTime.toDate() }
-    } catch (e: Exception) {
-        Log.e("Firebase", "Error fetching transactions", e)
-        throw e
-    }
 }
 
 private fun formatDate(date: Date): String {
