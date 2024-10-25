@@ -189,7 +189,7 @@ class AccountRepository {
                     )
                 },
                 "locationAnomaly" to transactionWithId.locationAnomaly,
-                "ammountAnomaly" to transactionWithId.amountAnomaly
+                "amountAnomaly" to transactionWithId.amountAnomaly
             )
 
             // Save the transaction
@@ -267,12 +267,22 @@ class AccountRepository {
                 transaction.update(accountRef, "amount", currentBalance + balanceAdjustment)
             }.await()
 
+            // Re-analyze for anomalies after the transaction update
+            coroutineScope {
+                launch {
+                    auth.currentUser?.uid?.let { userId ->
+                        anomalyRepository.analyzeTransaction(userId, newTransaction.id)
+                    }
+                }
+            }
+
             emit(Result.success(Unit))
         } catch (e: Exception) {
             Log.e("AccountRepository", "Error updating transaction", e)
             emit(Result.failure(e))
         }
     }
+
 
     fun deleteTransaction(accountId: String, transaction: Transaction): Flow<Result<Unit>> = flow {
         try {

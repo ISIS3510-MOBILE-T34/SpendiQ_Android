@@ -130,6 +130,10 @@
         androidTestImplementation(libs.androidx.ui.test.junit4)
         debugImplementation(libs.androidx.ui.tooling)
         debugImplementation(libs.androidx.ui.test.manifest)
+    
+        implementation("com.squareup.retrofit2:retrofit:2.9.0")
+        implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+        implementation("com.squareup.okhttp3:okhttp:4.11.0")
     }    ```
 - google-services.json
     ```
@@ -820,6 +824,14 @@
                         
                     </vector>
                     ```
+                - baseline_map_24.xml
+                    ```
+                    <vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="24dp" android:tint="#000000" android:viewportHeight="24" android:viewportWidth="24" android:width="24dp">
+                          
+                        <path android:fillColor="@android:color/white" android:pathData="M20.5,3l-0.16,0.03L15,5.1 9,3 3.36,4.9c-0.21,0.07 -0.36,0.25 -0.36,0.48V20.5c0,0.28 0.22,0.5 0.5,0.5l0.16,-0.03L9,18.9l6,2.1 5.64,-1.9c0.21,-0.07 0.36,-0.25 0.36,-0.48V3.5c0,-0.28 -0.22,-0.5 -0.5,-0.5zM15,19l-6,-2.11V5l6,2.11V19z"/>
+                        
+                    </vector>
+                    ```
                 - gift24.xml
                     ```
                     <vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="24dp" android:tint="#000000" android:viewportHeight="24" android:viewportWidth="24" android:width="24dp">
@@ -1074,6 +1086,15 @@
                        <exclude domain="sharedpref" path="device.xml"/>
                     -->
                     </full-backup-content>                    ```
+                - network_security_config.xml
+                    ```
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <network-security-config>
+                        <domain-config cleartextTrafficPermitted="true">
+                            <domain includeSubdomains="true">148.113.204.223</domain>
+                        </domain-config>
+                    </network-security-config>
+                    ```
                 - data_extraction_rules.xml
                     ```
                     <?xml version="1.0" encoding="utf-8"?><!--
@@ -1140,7 +1161,8 @@
                     android:roundIcon="@mipmap/ic_launcher_round"
                     android:supportsRtl="true"
                     android:theme="@style/Theme.SpendiQ"
-                    tools:targetApi="31">
+                    tools:targetApi="31"
+                    android:networkSecurityConfig="@xml/network_security_config"> <!-- Added line -->
             
                     <!-- Google Maps API Key -->
                     <meta-data
@@ -1458,42 +1480,64 @@
                                     }
                                 }
                                 ```
-                            - PromoViewModel.kt
+                            - OffersViewModel.kt
                                 ```
                                 package com.isis3510.spendiq.viewmodel
                                 
                                 import androidx.lifecycle.ViewModel
                                 import androidx.lifecycle.viewModelScope
-                                import com.isis3510.spendiq.model.data.Promo
-                                import com.isis3510.spendiq.model.repository.PromoRepository
+                                import com.isis3510.spendiq.model.data.Offer
+                                import com.isis3510.spendiq.model.repository.OffersRepository
                                 import kotlinx.coroutines.flow.MutableStateFlow
                                 import kotlinx.coroutines.flow.StateFlow
                                 import kotlinx.coroutines.launch
                                 
-                                class PromoViewModel : ViewModel() {
-                                    private val promoRepository = PromoRepository()
+                                class OffersViewModel : ViewModel() {
+                                    private val repository = OffersRepository()
                                 
-                                    private val _promos = MutableStateFlow<List<Promo>>(emptyList())
-                                    val promos: StateFlow<List<Promo>> = _promos
+                                    private val _offers = MutableStateFlow<List<Offer>>(emptyList())
+                                    val offers: StateFlow<List<Offer>> = _offers
+                                
+                                    private val _selectedOffer = MutableStateFlow<Offer?>(null)
+                                    val selectedOffer: StateFlow<Offer?> = _selectedOffer
                                 
                                     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
                                     val uiState: StateFlow<UiState> = _uiState
                                 
-                                    init {
-                                        fetchPromos()
-                                    }
-                                
-                                    fun fetchPromos() {
+                                    fun fetchOffers() {
                                         viewModelScope.launch {
                                             _uiState.value = UiState.Loading
-                                            promoRepository.getPromos().collect { result ->
-                                                when {
+                                            repository.getOffers().collect { result ->
+                                                _uiState.value = when {
                                                     result.isSuccess -> {
-                                                        _promos.value = result.getOrNull() ?: emptyList()
-                                                        _uiState.value = UiState.Success
+                                                        _offers.value = result.getOrNull() ?: emptyList()
+                                                        UiState.Success
                                                     }
                                                     result.isFailure -> {
-                                                        _uiState.value = UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch promos")
+                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch offers")
+                                                    }
+                                                    else -> {
+                                                        UiState.Error("Unknown error occurred")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                
+                                    fun getOfferById(offerId: String) {
+                                        viewModelScope.launch {
+                                            _uiState.value = UiState.Loading
+                                            repository.getOfferById(offerId).collect { result ->
+                                                _uiState.value = when {
+                                                    result.isSuccess -> {
+                                                        _selectedOffer.value = result.getOrNull()
+                                                        UiState.Success
+                                                    }
+                                                    result.isFailure -> {
+                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch offer")
+                                                    }
+                                                    else -> {
+                                                        UiState.Error("Unknown error occurred")
                                                     }
                                                 }
                                             }
@@ -1506,52 +1550,6 @@
                                         object Success : UiState()
                                         data class Error(val message: String) : UiState()
                                     }
-                                }                                ```
-                            - OffersViewModel.kt
-                                ```
-                                package com.isis3510.spendiq.viewmodel
-                                
-                                import android.util.Log
-                                import androidx.lifecycle.ViewModel
-                                import androidx.lifecycle.viewModelScope
-                                import com.google.firebase.firestore.FirebaseFirestore
-                                import com.isis3510.spendiq.model.data.Offer
-                                import kotlinx.coroutines.flow.MutableStateFlow
-                                import kotlinx.coroutines.flow.StateFlow
-                                import kotlinx.coroutines.launch
-                                import kotlinx.coroutines.tasks.await
-                                
-                                class OffersViewModel : ViewModel() {
-                                    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-                                
-                                    private val _offers = MutableStateFlow<List<Offer>>(emptyList())
-                                    val offers: StateFlow<List<Offer>> = _offers
-                                
-                                    fun fetchOffers() {
-                                        viewModelScope.launch {
-                                            try {
-                                                Log.d("OffersViewModel", "Fetching offers...")
-                                                val snapshot = firestore.collection("offers").get().await()
-                                                val offerList = snapshot.documents.mapNotNull { doc ->
-                                                    try {
-                                                        val offer = doc.toObject(Offer::class.java)
-                                                        Log.d("OffersViewModel", "Successfully deserialized offer: $offer")
-                                                        offer
-                                                    } catch (e: Exception) {
-                                                        Log.e("OffersViewModel", "Error deserializing document: ${doc.data} - ${e.message}")
-                                                        null
-                                                    }
-                                                }
-                                                _offers.value = offerList
-                                                Log.d("OffersViewModel", "Fetched offers: $offerList")
-                                            } catch (e: Exception) {
-                                                Log.e("OffersViewModel", "Error fetching offers: ${e.message}")
-                                                _offers.value = emptyList()
-                                            }
-                                        }
-                                    }
-                                
-                                
                                 }
                                 ```
                             - AccountViewModel.kt
@@ -1809,10 +1807,13 @@
                                     import com.google.firebase.Timestamp
                                     import android.util.Log
                                     import androidx.compose.ui.graphics.Color
+                                    import kotlinx.coroutines.coroutineScope
+                                    import kotlinx.coroutines.launch
                                     
                                     class AccountRepository {
                                         private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
                                         private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+                                        private val anomalyRepository = AnomalyRepository()
                                     
                                         companion object {
                                             private val DEFAULT_LOCATION = Location(
@@ -1915,7 +1916,9 @@
                                                                 longitude = (locationMap["longitude"] as? Double) ?: DEFAULT_LOCATION.longitude
                                                             )
                                                         } else null
-                                                    }
+                                                    },
+                                                    amountAnomaly = transactionDoc.getBoolean("amountAnomaly") ?: false,
+                                                    locationAnomaly = transactionDoc.getBoolean("locationAnomaly") ?: false
                                                 )
                                                 emit(Result.success(transaction))
                                             } catch (e: Exception) {
@@ -1947,7 +1950,9 @@
                                                                 val longitude = (locationMap["longitude"] as? Double) ?: return@mapNotNull null
                                                                 Location(latitude, longitude)
                                                             } else null
-                                                        }
+                                                        },
+                                                        amountAnomaly = doc.getBoolean("amountAnomaly") ?: false,
+                                                        locationAnomaly = doc.getBoolean("locationAnomaly") ?: false
                                                     )
                                                 }
                                     
@@ -1960,20 +1965,15 @@
                                         // Add transaction with account check and ensure transaction ID is stored correctly
                                         fun addTransactionWithAccountCheck(transaction: Transaction): Flow<Result<Unit>> = flow {
                                             try {
-                                                val accountId = transaction.accountId
-                                    
-                                                // Generate a new document reference for the transaction (this will generate a unique ID)
-                                                val transactionRef = firestore.collection("accounts")
-                                                    .document(accountId)
+                                                val accountRef = firestore.collection("accounts")
+                                                    .document(transaction.accountId)
                                                     .collection("transactions")
-                                                    .document() // This creates a unique ID
+                                                    .document()
                                     
-                                                // Update the transaction object with the generated transaction ID
-                                                val transactionWithId = transaction.copy(id = transactionRef.id)
+                                                val transactionWithId = transaction.copy(id = accountRef.id)
                                     
-                                                // Prepare the transaction data to be stored, including the generated transaction ID
                                                 val transactionMap = hashMapOf(
-                                                    "transactionId" to transactionWithId.id, // Storing the Firestore-generated transaction ID
+                                                    "transactionId" to transactionWithId.id,
                                                     "amount" to transactionWithId.amount,
                                                     "dateTime" to transactionWithId.dateTime,
                                                     "transactionName" to transactionWithId.transactionName,
@@ -1983,18 +1983,27 @@
                                                             "latitude" to it.latitude,
                                                             "longitude" to it.longitude
                                                         )
-                                                    }
+                                                    },
+                                                    "locationAnomaly" to transactionWithId.locationAnomaly,
+                                                    "ammountAnomaly" to transactionWithId.amountAnomaly
                                                 )
                                     
-                                                // Save the transaction data to Firestore using the generated ID
-                                                transactionRef.set(transactionMap).await()
+                                                // Save the transaction
+                                                accountRef.set(transactionMap).await()
+                                                updateAccountBalance(transaction.accountId, transactionWithId)
                                     
-                                                // Update account balance
-                                                updateAccountBalance(accountId, transactionWithId)
+                                                // Make the anomaly analysis call
+                                                coroutineScope {
+                                                    launch {
+                                                        auth.currentUser?.uid?.let { userId ->
+                                                            anomalyRepository.analyzeTransaction(userId, accountRef.id)
+                                                        }
+                                                    }
+                                                }
                                     
                                                 emit(Result.success(Unit))
                                             } catch (e: Exception) {
-                                                Log.e("AccountRepository", "Error adding transaction with account check", e)
+                                                Log.e("AccountRepository", "Error adding transaction", e)
                                                 emit(Result.failure(e))
                                             }
                                         }
@@ -2099,42 +2108,70 @@
                                         }
                                     }
                                     ```
-                                - PromoRepository.kt
+                                - OffersRepository.kt
                                     ```
                                     package com.isis3510.spendiq.model.repository
                                     
+                                    import android.util.Log
                                     import com.google.firebase.firestore.FirebaseFirestore
-                                    import com.isis3510.spendiq.model.data.Promo
+                                    import com.isis3510.spendiq.model.data.Offer
                                     import kotlinx.coroutines.flow.Flow
                                     import kotlinx.coroutines.flow.flow
                                     import kotlinx.coroutines.tasks.await
-                                    import java.util.Date
                                     
-                                    class PromoRepository {
+                                    class OffersRepository {
                                         private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
                                     
-                                        fun getPromos(): Flow<Result<List<Promo>>> = flow {
+                                        fun getOffers(): Flow<Result<List<Offer>>> = flow {
                                             try {
-                                                val currentDate = Date()
-                                                val snapshot = firestore.collection("promos")
-                                                    .whereGreaterThan("expirationDate", currentDate)
-                                                    .get()
-                                                    .await()
-                                    
-                                                val promos = snapshot.documents.mapNotNull { doc ->
-                                                    Promo(
-                                                        id = doc.id,
-                                                        title = doc.getString("title") ?: return@mapNotNull null,
-                                                        description = doc.getString("description") ?: return@mapNotNull null,
-                                                        imageUrl = doc.getString("imageUrl") ?: return@mapNotNull null,
-                                                        discountCode = doc.getString("discountCode") ?: return@mapNotNull null,
-                                                        restaurantName = doc.getString("restaurantName") ?: return@mapNotNull null,
-                                                        expirationDate = doc.getDate("expirationDate") ?: return@mapNotNull null
-                                                    )
+                                                Log.d(TAG, "Fetching offers...")
+                                                val snapshot = firestore.collection("offers").get().await()
+                                                val offerList = snapshot.documents.mapNotNull { doc ->
+                                                    try {
+                                                        doc.toObject(Offer::class.java)?.copy(id = doc.id)
+                                                    } catch (e: Exception) {
+                                                        Log.e(TAG, "Error deserializing document: ${doc.id} - ${e.message}")
+                                                        null
+                                                    }
                                                 }
-                                                emit(Result.success(promos))
+                                                emit(Result.success(offerList))
                                             } catch (e: Exception) {
+                                                Log.e(TAG, "Error fetching offers", e)
                                                 emit(Result.failure(e))
+                                            }
+                                        }
+                                    
+                                        fun getOfferById(offerId: String): Flow<Result<Offer?>> = flow {
+                                            try {
+                                                val doc = firestore.collection("offers").document(offerId).get().await()
+                                                val offer = doc.toObject(Offer::class.java)?.copy(id = doc.id)
+                                                emit(Result.success(offer))
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Error fetching offer by id: $offerId", e)
+                                                emit(Result.failure(e))
+                                            }
+                                        }
+                                    
+                                        companion object {
+                                            private const val TAG = "OffersRepository"
+                                        }
+                                    }                                    ```
+                                - AnomalyRepository.kt
+                                    ```
+                                    package com.isis3510.spendiq.model.repository
+                                    
+                                    import android.util.Log
+                                    import com.isis3510.spendiq.Services.AnomalyApiService
+                                    
+                                    class AnomalyRepository {
+                                        private val apiService = AnomalyApiService.create()
+                                    
+                                        suspend fun analyzeTransaction(userId: String, transactionId: String) {
+                                            try {
+                                                apiService.analyzeTransaction(userId, transactionId)
+                                            } catch (e: Exception) {
+                                                Log.e("AnomalyRepository", "Error analyzing transaction", e)
+                                                // We're not handling the error since we just want to make the call
                                             }
                                         }
                                     }                                    ```
@@ -2263,6 +2300,7 @@
                                             }
                                         }
                                     }                                    ```
+                            - **config/**
                             - **data/**
                                 - Account.kt
                                     ```
@@ -2282,16 +2320,15 @@
                                     package com.isis3510.spendiq.model.data
                                     
                                     data class Offer(
-                                        val id: String? = null, // Added ID for navigation purposes
-                                        val distance: Int? = null,
+                                        val id: String? = null,
+                                        val placeName: String? = null,
+                                        val offerDescription: String? = null,
+                                        val shopImage: String? = null,
+                                        val recommendationReason: String? = null,
                                         val latitude: Double? = null,
                                         val longitude: Double? = null,
-                                        val offerDescription: String? = null,
-                                        val placeName: String? = null,
-                                        val recommendationReason: String? = null,
-                                        val shopImage: String? = null
-                                    )
-                                    ```
+                                        val distance: Int? = null
+                                    )                                    ```
                                 - Promo.kt
                                     ```
                                     package com.isis3510.spendiq.model.data
@@ -2332,7 +2369,9 @@
                                         val amount: Long,
                                         val dateTime: Timestamp,
                                         val transactionType: String,
-                                        val location: Location?
+                                        val location: Location?,
+                                        val amountAnomaly: Boolean = false,
+                                        val locationAnomaly: Boolean = false,
                                     )
                                     
                                     data class Location(
@@ -2613,64 +2652,149 @@
                             - **offers/**
                                 - OffersScreen.kt
                                     ```
-                                    package com.isis3510.spendiq.views.offers // Adjusted to match file location
+                                    package com.isis3510.spendiq.views.offers
                                     
-                                    import androidx.compose.foundation.Image
+                                    import android.Manifest
+                                    import android.content.Context
+                                    import android.content.Intent
+                                    import android.location.Location
+                                    import android.net.Uri
                                     import androidx.compose.foundation.clickable
                                     import androidx.compose.foundation.layout.*
                                     import androidx.compose.foundation.lazy.LazyColumn
                                     import androidx.compose.foundation.lazy.items
+                                    import androidx.compose.foundation.shape.RoundedCornerShape
+                                    import androidx.compose.material.icons.Icons
+                                    import androidx.compose.material.icons.filled.LocationOn
                                     import androidx.compose.material3.*
                                     import androidx.compose.runtime.*
+                                    import androidx.compose.ui.Alignment
                                     import androidx.compose.ui.Modifier
                                     import androidx.compose.ui.graphics.Color
                                     import androidx.compose.ui.layout.ContentScale
-                                    import androidx.compose.ui.text.font.FontWeight // Added import for FontWeight
+                                    import androidx.compose.ui.platform.LocalContext
+                                    import androidx.compose.ui.text.font.FontWeight
                                     import androidx.compose.ui.unit.dp
                                     import androidx.compose.ui.unit.sp
                                     import androidx.navigation.NavController
-                                    import coil.compose.AsyncImage // Updated from deprecated rememberImagePainter
+                                    import coil.compose.AsyncImage
+                                    import com.google.android.gms.location.LocationServices
                                     import com.isis3510.spendiq.model.data.Offer
                                     import com.isis3510.spendiq.viewmodel.AccountViewModel
                                     import com.isis3510.spendiq.viewmodel.OffersViewModel
                                     import com.isis3510.spendiq.views.common.BottomNavigation
+                                    import kotlinx.coroutines.launch
+                                    import android.content.pm.PackageManager
+                                    import androidx.activity.compose.rememberLauncherForActivityResult
+                                    import androidx.activity.result.contract.ActivityResultContracts
+                                    import androidx.compose.material.icons.automirrored.filled.ArrowBack
+                                    import androidx.compose.ui.text.style.TextAlign
+                                    import androidx.core.content.ContextCompat
+                                    import kotlinx.coroutines.tasks.await
+                                    import java.text.DecimalFormat
                                     
+                                    @OptIn(ExperimentalMaterial3Api::class)
                                     @Composable
-                                    fun OffersScreen(navController: NavController, viewModel: OffersViewModel, accountViewModel: AccountViewModel) {
+                                    fun OffersScreen(
+                                        navController: NavController,
+                                        viewModel: OffersViewModel,
+                                        accountViewModel: AccountViewModel
+                                    ) {
+                                        val context = LocalContext.current
+                                        val scope = rememberCoroutineScope()
                                         val offers by viewModel.offers.collectAsState()
+                                        var currentLocation by remember { mutableStateOf<Location?>(null) }
+                                        var sortedOffers by remember { mutableStateOf<List<Pair<Offer, Float?>>>(emptyList()) }
+                                    
+                                        var hasLocationPermission by remember {
+                                            mutableStateOf(
+                                                ContextCompat.checkSelfPermission(
+                                                    context,
+                                                    Manifest.permission.ACCESS_FINE_LOCATION
+                                                ) == PackageManager.PERMISSION_GRANTED
+                                            )
+                                        }
+                                    
+                                        val locationPermissionLauncher = rememberLauncherForActivityResult(
+                                            ActivityResultContracts.RequestPermission()
+                                        ) { isGranted ->
+                                            hasLocationPermission = isGranted
+                                            if (isGranted) {
+                                                scope.launch {
+                                                    getCurrentLocation(context)?.let { location ->
+                                                        currentLocation = location
+                                                        sortedOffers = sortOffersByDistance(offers, location)
+                                                    }
+                                                }
+                                            }
+                                        }
                                     
                                         LaunchedEffect(Unit) {
                                             viewModel.fetchOffers()
+                                            if (hasLocationPermission) {
+                                                getCurrentLocation(context)?.let { location ->
+                                                    currentLocation = location
+                                                    sortedOffers = sortOffersByDistance(offers, location)
+                                                }
+                                            } else {
+                                                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                            }
+                                        }
+                                    
+                                        LaunchedEffect(offers, currentLocation) {
+                                            sortedOffers = sortOffersByDistance(offers, currentLocation)
                                         }
                                     
                                         Scaffold(
-                                            bottomBar = {
-                                                BottomNavigation(
-                                                    navController = navController,
-                                                    accountViewModel
+                                            topBar = {
+                                                TopAppBar(
+                                                    title = { Text("Special Sales in your Area") },
                                                 )
+                                            },
+                                            bottomBar = {
+                                                BottomNavigation(navController = navController, accountViewModel)
                                             }
-                                        ) { innerPadding ->
-                                            Column(
+                                        ) { paddingValues ->
+                                            Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
-                                                    .padding(innerPadding)
-                                                    .padding(16.dp)
+                                                    .padding(paddingValues)
                                             ) {
-                                                Text(
-                                                    "Special Offers in Your Area",
-                                                    fontSize = 24.sp,
-                                                    fontWeight = FontWeight.Bold // Added FontWeight here
-                                                )
-                                                Spacer(modifier = Modifier.height(16.dp))
-                                    
-                                                LazyColumn(
-                                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .padding(horizontal = 16.dp)
                                                 ) {
-                                                    items(offers) { offer ->
-                                                        OfferItem(offer = offer, onClick = {
-                                                            offer.id?.let { id -> navController.navigate("specialSalesDetail/$id") }
-                                                        })
+                                                    if (!hasLocationPermission) {
+                                                        LocationPermissionCard(
+                                                            onEnableClick = {
+                                                                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                                            }
+                                                        )
+                                                    }
+                                    
+                                                    Text(
+                                                        "Based on the shops where you have purchased before, we think these sales near to your location may interest you",
+                                                        fontSize = 14.sp,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                                        modifier = Modifier.padding(vertical = 8.dp)
+                                                    )
+                                    
+                                                    LazyColumn(
+                                                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                                                        contentPadding = PaddingValues(vertical = 8.dp)
+                                                    ) {
+                                                        items(sortedOffers) { (offer, distance) ->
+                                                            OfferCard(
+                                                                offer = offer,
+                                                                distance = distance,
+                                                                onClick = {
+                                                                    offer.id?.let { id ->
+                                                                        navController.navigate("specialSalesDetail/$id")
+                                                                    }
+                                                                }
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
@@ -2678,347 +2802,320 @@
                                     }
                                     
                                     @Composable
-                                    fun OfferItem(offer: Offer, onClick: () -> Unit) {
+                                    private fun LocationPermissionCard(onEnableClick: () -> Unit) {
+                                        Card(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 8.dp),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.errorContainer
+                                            )
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .padding(16.dp)
+                                                    .fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.LocationOn,
+                                                    contentDescription = "Location",
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    "Enable location for better offers",
+                                                    color = MaterialTheme.colorScheme.error,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                TextButton(onClick = onEnableClick) {
+                                                    Text("Enable")
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    @Composable
+                                    fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
                                         Card(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clickable(onClick = onClick),
-                                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                            shape = RoundedCornerShape(12.dp),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                                         ) {
-                                            Column(modifier = Modifier.padding(16.dp)) {
-                                                offer.placeName?.let {
-                                                    Text(
-                                                        text = it,
-                                                        fontSize = 18.sp,
-                                                        fontWeight = FontWeight.Bold
+                                            Column {
+                                                // Store Image
+                                                offer.shopImage?.let { imageUrl ->
+                                                    AsyncImage(
+                                                        model = imageUrl,
+                                                        contentDescription = "Store Image",
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(180.dp),
+                                                        contentScale = ContentScale.Crop
                                                     )
                                                 }
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                offer.offerDescription?.let { Text(it, fontSize = 14.sp) }
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                offer.shopImage?.let {
+                                    
+                                                Column(
+                                                    modifier = Modifier.padding(16.dp)
+                                                ) {
+                                                    // Store Name and Distance
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        offer.placeName?.let {
+                                                            Text(
+                                                                text = it,
+                                                                fontSize = 18.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                    
+                                                        distance?.let {
+                                                            Surface(
+                                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                                shape = RoundedCornerShape(16.dp)
+                                                            ) {
+                                                                Text(
+                                                                    text = "${formatDistance(it)} away",
+                                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                                    fontSize = 12.sp
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                    
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                                    // Offer Description
+                                                    offer.offerDescription?.let {
+                                                        Text(
+                                                            text = it,
+                                                            fontSize = 14.sp,
+                                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        )
+                                                    }
+                                    
+                                    //                offer.recommendationReason?.let {
+                                    //                    Spacer(modifier = Modifier.height(8.dp))
+                                    //                    Text(
+                                    //                        text = it,
+                                    //                        fontSize = 12.sp,
+                                    //                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                    //                        textAlign = TextAlign.Start
+                                    //                    )
+                                    //                }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    private suspend fun getCurrentLocation(context: Context): Location? {
+                                        return try {
+                                            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                                            if (ContextCompat.checkSelfPermission(
+                                                    context,
+                                                    Manifest.permission.ACCESS_FINE_LOCATION
+                                                ) == PackageManager.PERMISSION_GRANTED
+                                            ) {
+                                                fusedLocationClient.lastLocation.await()
+                                            } else null
+                                        } catch (e: Exception) {
+                                            null
+                                        }
+                                    }
+                                    
+                                    private fun sortOffersByDistance(offers: List<Offer>, currentLocation: Location?): List<Pair<Offer, Float?>> {
+                                        return offers.map { offer ->
+                                            if (currentLocation != null && offer.latitude != null && offer.longitude != null) {
+                                                val offerLocation = Location("").apply {
+                                                    latitude = offer.latitude
+                                                    longitude = offer.longitude
+                                                }
+                                                val distance = currentLocation.distanceTo(offerLocation)
+                                                offer to distance
+                                            } else {
+                                                offer to null
+                                            }
+                                        }.sortedBy { it.second ?: Float.MAX_VALUE }
+                                    }
+                                    
+                                    private fun formatDistance(meters: Float): String {
+                                        val df = DecimalFormat("#.#")
+                                        return when {
+                                            meters < 1000 -> "${df.format(meters)}m"
+                                            else -> "${df.format(meters / 1000)}km"
+                                        }
+                                    }                                    ```
+                                - SpecialSalesDetail.kt
+                                    ```
+                                    package com.isis3510.spendiq.views.offers
+                                    
+                                    import androidx.compose.foundation.layout.*
+                                    import androidx.compose.foundation.rememberScrollState
+                                    import androidx.compose.foundation.verticalScroll
+                                    import androidx.compose.material.icons.Icons
+                                    import androidx.compose.material.icons.automirrored.filled.ArrowBack
+                                    import androidx.compose.material.icons.filled.LocationOn
+                                    import androidx.compose.material3.*
+                                    import androidx.compose.runtime.Composable
+                                    import androidx.compose.ui.Modifier
+                                    import androidx.compose.ui.layout.ContentScale
+                                    import androidx.compose.ui.text.font.FontWeight
+                                    import androidx.compose.ui.unit.dp
+                                    import androidx.compose.ui.unit.sp
+                                    import coil.compose.AsyncImage
+                                    import com.google.android.gms.maps.model.CameraPosition
+                                    import com.google.android.gms.maps.model.LatLng
+                                    import com.google.maps.android.compose.*
+                                    import com.isis3510.spendiq.model.data.Offer
+                                    import androidx.navigation.NavController
+                                    import android.content.Intent
+                                    import android.net.Uri
+                                    import androidx.compose.runtime.*
+                                    import androidx.compose.ui.platform.LocalContext
+                                    import androidx.compose.ui.text.style.TextAlign
+                                    
+                                    @OptIn(ExperimentalMaterial3Api::class)
+                                    @Composable
+                                    fun SpecialSalesDetail(
+                                        offer: Offer,
+                                        navController: NavController
+                                    ) {
+                                        val context = LocalContext.current
+                                    
+                                        Scaffold(
+                                            topBar = {
+                                                TopAppBar(
+                                                    title = { Text("Special Sales") },
+                                                    navigationIcon = {
+                                                        IconButton(onClick = { navController.popBackStack() }) {
+                                                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        ) { padding ->
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(padding)
+                                                    .verticalScroll(rememberScrollState())
+                                            ) {
+                                                // Store Logo and Name
+                                                offer.shopImage?.let { imageUrl ->
                                                     AsyncImage(
-                                                        model = it,
-                                                        contentDescription = "Offer Image",
+                                                        model = imageUrl,
+                                                        contentDescription = "Store Image",
                                                         modifier = Modifier
                                                             .fillMaxWidth()
                                                             .height(200.dp),
                                                         contentScale = ContentScale.Crop
                                                     )
                                                 }
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    text = "Reason: ${offer.recommendationReason}",
-                                                    fontSize = 12.sp,
-                                                    color = Color.Gray
-                                                )
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                            }
-                                        }
-                                    }
-                                    ```
-                                - SpecialSalesDetail.kt
-                                    ```
-                                    package com.isis3510.spendiq.view.offers
                                     
-                                    import androidx.compose.foundation.BorderStroke
-                                    import androidx.compose.foundation.Image
-                                    import androidx.compose.foundation.background
-                                    import androidx.compose.foundation.border
-                                    import androidx.compose.foundation.layout.*
-                                    import androidx.compose.foundation.shape.RoundedCornerShape
-                                    import androidx.compose.material3.*
-                                    import androidx.compose.runtime.Composable
-                                    import androidx.compose.ui.Alignment
-                                    import androidx.compose.ui.Modifier
-                                    import androidx.compose.ui.draw.clip
-                                    import androidx.compose.ui.graphics.Color
-                                    import androidx.compose.ui.layout.ContentScale
-                                    import androidx.compose.ui.res.painterResource
-                                    import androidx.compose.ui.text.SpanStyle
-                                    import androidx.compose.ui.text.TextStyle
-                                    import androidx.compose.ui.text.buildAnnotatedString
-                                    import androidx.compose.ui.text.font.FontWeight
-                                    import androidx.compose.ui.text.withStyle
-                                    import androidx.compose.ui.unit.dp
-                                    import androidx.compose.ui.unit.sp
-                                    import coil.compose.rememberImagePainter
-                                    import com.google.android.gms.maps.model.CameraPosition
-                                    import com.google.maps.android.compose.*
-                                    import com.google.type.LatLng
-                                    import com.isis3510.spendiq.model.data.Offer
-                                    import com.isis3510.spendiq.R
-                                    
-                                    @Composable
-                                    fun SpecialSalesDetail(offer: Offer) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(color = Color.White)
-                                        ) {
-                                            // Background Box for overall UI
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .clip(shape = RoundedCornerShape(7.dp))
-                                                    .background(color = Color(0xfffcf5f3))
-                                            )
-                                    
-                                            // Offer Image at the top
-                                            offer.shopImage?.let {
-                                                Image(
-                                                    painter = rememberImagePainter(it),
-                                                    contentDescription = "Offer Image",
+                                                Column(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .height(300.dp)
-                                                        .clip(shape = RoundedCornerShape(7.dp))
-                                                        .border(
-                                                            border = BorderStroke(1.dp, Color.Black),
-                                                            shape = RoundedCornerShape(7.dp)
-                                                        ),
-                                                    contentScale = ContentScale.Crop
-                                                )
-                                            }
+                                                        .padding(16.dp)
+                                                ) {
+                                                    offer.placeName?.let {
+                                                        Text(
+                                                            text = it,
+                                                            fontSize = 24.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
                                     
-                                            // Content and Details
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                                verticalArrangement = Arrangement.Top,
-                                                horizontalAlignment = Alignment.Start
-                                            ) {
-                                                Text(
-                                                    text = "Special Sales in your Area",
-                                                    color = Color.Black,
-                                                    style = TextStyle(
-                                                        fontSize = 19.sp,
-                                                        fontWeight = FontWeight.Medium
-                                                    ),
-                                                    modifier = Modifier.padding(top = 8.dp)
-                                                )
-                                    
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                    
-                                                // Offer Details Section
-                                                offer.placeName?.let {
-                                                    Text(
-                                                        text = it,
-                                                        color = Color.Black,
-                                                        style = TextStyle(
-                                                            fontSize = 19.sp,
-                                                            fontWeight = FontWeight.Medium
-                                                        ),
-                                                        modifier = Modifier.padding(top = 8.dp)
-                                                    )
-                                                }
-                                    
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                    
-                                                Text(
-                                                    text = buildAnnotatedString {
-                                                        withStyle(
-                                                            style = SpanStyle(
-                                                                color = Color.Black,
-                                                                fontSize = 16.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        ) {
-                                                            append("Sales\n")
-                                                        }
-                                                        withStyle(
-                                                            style = SpanStyle(
-                                                                color = Color.Black,
-                                                                fontSize = 14.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        ) {
-                                                            append("\n${offer.offerDescription}\n")
-                                                        }
-                                                        withStyle(
-                                                            style = SpanStyle(
-                                                                color = Color.Black,
-                                                                fontSize = 14.sp
-                                                            )
-                                                        ) {
-                                                            append("Recommended for: ${offer.recommendationReason}")
-                                                        }
-                                                    },
-                                                    modifier = Modifier.padding(vertical = 8.dp)
-                                                )
-                                    
-                                                // Google Map to show the location of the offer
-                                                if (offer.latitude != null && offer.longitude != null) {
                                                     Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                    // Map
+                                                    if (offer.latitude != null && offer.longitude != null) {
+                                                        Card(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(200.dp)
+                                                        ) {
+                                                            GoogleMap(
+                                                                modifier = Modifier.fillMaxSize(),
+                                                                cameraPositionState = rememberCameraPositionState {
+                                                                    position = CameraPosition.fromLatLngZoom(
+                                                                        LatLng(offer.latitude, offer.longitude),
+                                                                        15f
+                                                                    )
+                                                                }
+                                                            ) {
+                                                                Marker(
+                                                                    state = MarkerState(position = LatLng(offer.latitude, offer.longitude)),
+                                                                    title = offer.placeName
+                                                                )
+                                                            }
+                                                        }
+                                    
+                                                        Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                        Button(
+                                                            onClick = {
+                                                                val uri = Uri.parse("geo:${offer.latitude},${offer.longitude}?q=${offer.latitude},${offer.longitude}(${offer.placeName})")
+                                                                val mapIntent = Intent(Intent.ACTION_VIEW, uri)
+                                                                mapIntent.setPackage("com.google.android.apps.maps")
+                                                                if (mapIntent.resolveActivity(context.packageManager) != null) {
+                                                                    context.startActivity(mapIntent)
+                                                                }
+                                                            },
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        ) {
+                                                            Icon(Icons.Default.LocationOn, contentDescription = null)
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            Text("Open in Maps")
+                                                        }
+                                                    }
+                                    
+                                                    Spacer(modifier = Modifier.height(24.dp))
+                                    
+                                                    // Sales Section
                                                     Text(
-                                                        text = "Offer Location",
-                                                        color = Color.Black,
-                                                        style = TextStyle(
-                                                            fontSize = 16.sp,
-                                                            fontWeight = FontWeight.Medium
-                                                        )
+                                                        text = "Sales",
+                                                        fontSize = 20.sp,
+                                                        fontWeight = FontWeight.Bold
                                                     )
                                     
-                                                    GoogleMap(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .height(300.dp)
-                                                            .padding(vertical = 8.dp),
-                                                        cameraPositionState = rememberCameraPositionState {
-                                                            position = CameraPosition.fromLatLngZoom(
-                                                                com.google.android.gms.maps.model.LatLng(
-                                                                    offer.latitude,
-                                                                    offer.longitude
-                                                                ),
-                                                                15f
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                                    offer.offerDescription?.let {
+                                                        Text(
+                                                            text = it,
+                                                            fontSize = 16.sp,
+                                                            textAlign = TextAlign.Start,
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        )
+                                                    }
+                                    
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                                    // Recommendation reason in a card
+                                                    offer.recommendationReason?.let {
+                                                        Card(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            colors = CardDefaults.cardColors(
+                                                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                                            )
+                                                        ) {
+                                                            Text(
+                                                                text = "Recommended because: $it",
+                                                                modifier = Modifier.padding(16.dp),
+                                                                color = MaterialTheme.colorScheme.onPrimaryContainer
                                                             )
                                                         }
-                                                    ) {
-                                                        Marker(
-                                                            state = MarkerState(
-                                                                position = com.google.android.gms.maps.model.LatLng(
-                                                                    offer.latitude,
-                                                                    offer.longitude
-                                                                )
-                                                            ),
-                                                            title = offer.placeName,
-                                                            snippet = "Special Offer Location"
-                                                        )
                                                     }
                                                 }
                                             }
                                         }
-                                    }
-                                    ```
-                                - SpecialSalesMap1.kt
-                                    ```
-                                    package com.isis3510.spendiq.view.offers
-                                    
-                                    import androidx.compose.foundation.BorderStroke
-                                    import androidx.compose.foundation.Image
-                                    import androidx.compose.foundation.background
-                                    import androidx.compose.foundation.border
-                                    import androidx.compose.foundation.layout.*
-                                    import androidx.compose.foundation.shape.RoundedCornerShape
-                                    import androidx.compose.material3.*
-                                    import androidx.compose.runtime.Composable
-                                    import androidx.compose.ui.Alignment
-                                    import androidx.compose.ui.Modifier
-                                    import androidx.compose.ui.draw.clip
-                                    import androidx.compose.ui.graphics.Color
-                                    import androidx.compose.ui.layout.ContentScale
-                                    import androidx.compose.ui.res.painterResource
-                                    import androidx.compose.ui.text.SpanStyle
-                                    import androidx.compose.ui.text.TextStyle
-                                    import androidx.compose.ui.text.buildAnnotatedString
-                                    import androidx.compose.ui.text.font.FontWeight
-                                    import androidx.compose.ui.text.withStyle
-                                    import androidx.compose.ui.unit.dp
-                                    import androidx.compose.ui.unit.sp
-                                    import coil.compose.rememberImagePainter
-                                    import com.isis3510.spendiq.model.data.Offer
-                                    
-                                    @OptIn(ExperimentalMaterial3Api::class)
-                                    @Composable
-                                    fun SpecialSalesMap1(modifier: Modifier = Modifier, offer: Offer, onDismiss: () -> Unit) {
-                                        ModalBottomSheet(onDismissRequest = onDismiss) {
-                                            Box(
-                                                modifier = modifier
-                                                    .fillMaxWidth()
-                                                    .requiredHeight(height = 852.dp)
-                                                    .background(color = Color.White)
-                                            ) {
-                                                // Background Box
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .clip(shape = RoundedCornerShape(7.dp))
-                                                        .background(color = Color(0xfffcf5f3))
-                                                )
-                                    
-                                                // Offer Image
-                                                offer.shopImage?.let {
-                                                    Image(
-                                                        painter = rememberImagePainter(it),
-                                                        contentDescription = "Offer Image",
-                                                        modifier = Modifier
-                                                            .fillMaxSize()
-                                                            .clip(shape = RoundedCornerShape(7.dp))
-                                                            .border(
-                                                                border = BorderStroke(1.dp, Color.Black),
-                                                                shape = RoundedCornerShape(7.dp)
-                                                            ),
-                                                        contentScale = ContentScale.Crop
-                                                    )
-                                                }
-                                    
-                                                // Title Text
-                                                Text(
-                                                    text = "Special Sales in your Area",
-                                                    color = Color.Black,
-                                                    style = TextStyle(
-                                                        fontSize = 19.sp,
-                                                        fontWeight = FontWeight.Medium
-                                                    ),
-                                                    modifier = Modifier
-                                                        .align(alignment = Alignment.TopStart)
-                                                        .offset(x = 16.dp, y = 78.dp)
-                                                )
-                                    
-                                                // Place Name
-                                                Text(
-                                                    text = offer.placeName ?: "",
-                                                    color = Color.Black,
-                                                    style = TextStyle(
-                                                        fontSize = 19.sp,
-                                                        fontWeight = FontWeight.Medium
-                                                    ),
-                                                    modifier = Modifier
-                                                        .align(alignment = Alignment.TopStart)
-                                                        .offset(x = 96.dp, y = 162.dp)
-                                                        .requiredWidth(width = 197.dp)
-                                                )
-                                    
-                                                // Offer Description
-                                                Text(
-                                                    text = buildAnnotatedString {
-                                                        withStyle(
-                                                            style = SpanStyle(
-                                                                color = Color.Black,
-                                                                fontSize = 16.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        ) {
-                                                            append("Sales\n")
-                                                        }
-                                                        withStyle(
-                                                            style = SpanStyle(
-                                                                color = Color.Black,
-                                                                fontSize = 14.sp,
-                                                                fontWeight = FontWeight.Bold
-                                                            )
-                                                        ) {
-                                                            append("\n${offer.offerDescription}\n")
-                                                        }
-                                                        withStyle(
-                                                            style = SpanStyle(
-                                                                color = Color.Black,
-                                                                fontSize = 14.sp
-                                                            )
-                                                        ) {
-                                                            append("Recommended for: ${offer.recommendationReason}")
-                                                        }
-                                                    },
-                                                    modifier = Modifier
-                                                        .align(alignment = Alignment.TopStart)
-                                                        .offset(x = 27.dp, y = 636.dp)
-                                                        .requiredWidth(width = 353.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                    ```
+                                    }                                    ```
                             - **splash/**
                                 - SplashScreen.kt
                                     ```
@@ -3101,14 +3198,14 @@
                                 import android.os.Bundle
                                 import android.provider.Settings
                                 import android.util.Log
-                                import androidx.activity.ComponentActivity
                                 import androidx.activity.compose.setContent
                                 import androidx.activity.result.contract.ActivityResultContracts
-                                import androidx.compose.foundation.layout.fillMaxSize
-                                import androidx.compose.material3.MaterialTheme
-                                import androidx.compose.material3.Surface
-                                import androidx.compose.runtime.collectAsState
+                                import androidx.compose.foundation.layout.*
+                                import androidx.compose.material3.*
+                                import androidx.compose.runtime.*
+                                import androidx.compose.ui.Alignment
                                 import androidx.compose.ui.Modifier
+                                import androidx.compose.ui.unit.dp
                                 import androidx.core.content.ContextCompat
                                 import androidx.fragment.app.FragmentActivity
                                 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -3118,7 +3215,6 @@
                                 import androidx.navigation.compose.rememberNavController
                                 import androidx.navigation.navArgument
                                 import com.isis3510.spendiq.view.accounts.AccountsScreen
-                                import com.isis3510.spendiq.view.offers.SpecialSalesDetail
                                 import com.isis3510.spendiq.views.main.MainContent
                                 import com.isis3510.spendiq.view.splash.SplashScreen
                                 import com.isis3510.spendiq.views.auth.AuthenticationScreen
@@ -3132,82 +3228,119 @@
                                 import com.isis3510.spendiq.views.accounts.AccountTransactionsScreen
                                 import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
                                 import com.isis3510.spendiq.views.offers.OffersScreen
+                                import com.isis3510.spendiq.views.offers.SpecialSalesDetail
                                 
                                 class MainActivity : FragmentActivity() {
-                                
                                     companion object {
                                         private const val TAG = "MainActivity"
                                     }
                                 
-                                    // ActivityResultLauncher for requesting location permissions
                                     private val requestLocationPermissionLauncher =
                                         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
                                             if (isGranted) {
-                                                // Permission granted, do something with location
-                                                // TODO: Implement logic for when location permission is granted
+                                                Log.d(TAG, "Location permission granted")
                                             } else {
-                                                // Permission denied, show a message to the user
-                                                // TODO: Implement logic for when location permission is denied
+                                                Log.d(TAG, "Location permission denied")
                                             }
                                         }
                                 
                                     override fun onCreate(savedInstanceState: Bundle?) {
                                         super.onCreate(savedInstanceState)
                                 
-                                        // Ensure notification service is enabled
                                         if (!isNotificationServiceEnabled()) {
                                             requestNotificationPermission()
                                         }
                                 
-                                        // Request location permission
                                         requestLocationPermission()
                                 
-                                        // Set the main content view
                                         setContent {
                                             SpendiQTheme {
                                                 Surface(
                                                     modifier = Modifier.fillMaxSize(),
                                                     color = MaterialTheme.colorScheme.background
                                                 ) {
-                                                    // Create navigation controller and ViewModels
                                                     val navController = rememberNavController()
                                                     val authViewModel: AuthViewModel = viewModel()
                                                     val accountViewModel: AccountViewModel = viewModel()
                                                     val offersViewModel: OffersViewModel = viewModel()
                                 
-                                                    // Set up the navigation host
                                                     NavHost(navController = navController, startDestination = "splash") {
-                                                        composable("splash") { SplashScreen(navController, authViewModel) }
-                                                        composable("authentication") { AuthenticationScreen(navController) }
-                                                        composable("login") { LoginScreen(navController, authViewModel) }
-                                                        composable("register") { RegisterScreen(navController, authViewModel) }
+                                                        composable("splash") {
+                                                            SplashScreen(navController, authViewModel)
+                                                        }
+                                                        composable("authentication") {
+                                                            AuthenticationScreen(navController)
+                                                        }
+                                                        composable("login") {
+                                                            LoginScreen(navController, authViewModel)
+                                                        }
+                                                        composable("register") {
+                                                            RegisterScreen(navController, authViewModel)
+                                                        }
                                                         composable("main") {
                                                             MainContent(navController, authViewModel, accountViewModel, offersViewModel)
                                                         }
-                                                        composable("promos") { OffersScreen(navController, offersViewModel, accountViewModel) }
-                                                        composable("profile") { ProfileScreen(navController, authViewModel, accountViewModel) }
-                                                        composable("accounts") { AccountsScreen(navController, accountViewModel) }
-                                                        composable("accountTransactions/{accountId}") { backStackEntry ->
-                                                            val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
-                                                            AccountTransactionsScreen(navController, accountId)
+                                                        composable("promos") {
+                                                            OffersScreen(navController, offersViewModel, accountViewModel)
                                                         }
-                                                        // Special sales detail route
-                                                        composable("SpecialSalesDetail/{offerId}") { backStackEntry ->
+                                                        composable("profile") {
+                                                            ProfileScreen(navController, authViewModel, accountViewModel)
+                                                        }
+                                                        composable("accounts") {
+                                                            AccountsScreen(navController, accountViewModel)
+                                                        }
+                                                        composable(
+                                                            route = "accountTransactions/{accountId}",
+                                                            arguments = listOf(navArgument("accountId") { type = NavType.StringType })
+                                                        ) { backStackEntry ->
+                                                            AccountTransactionsScreen(
+                                                                navController,
+                                                                backStackEntry.arguments?.getString("accountId") ?: ""
+                                                            )
+                                                        }
+                                                        composable(
+                                                            route = "specialSalesDetail/{offerId}",
+                                                            arguments = listOf(navArgument("offerId") { type = NavType.StringType })
+                                                        ) { backStackEntry ->
                                                             val offerId = backStackEntry.arguments?.getString("offerId")
                                                             if (offerId != null) {
-                                                                Log.d(TAG, "Navigating to SpecialSalesDetailScreen with offerId: $offerId")
-                                
-                                                                val offers = offersViewModel.offers.collectAsState().value
-                                                                val offer = offers.find { it.id == offerId }
-                                
-                                                                if (offer != null) {
-                                                                    Log.d(TAG, "Offer found: ${offer.placeName}")
-                                                                    SpecialSalesDetail(offer = offer)
-                                                                } else {
-                                                                    Log.e(TAG, "Offer not found for offerId: $offerId")
+                                                                LaunchedEffect(offerId) {
+                                                                    offersViewModel.getOfferById(offerId)
                                                                 }
-                                                            } else {
-                                                                Log.e(TAG, "offerId is null")
+                                
+                                                                val selectedOffer by offersViewModel.selectedOffer.collectAsState()
+                                                                val uiState by offersViewModel.uiState.collectAsState()
+                                
+                                                                when (uiState) {
+                                                                    is OffersViewModel.UiState.Loading -> {
+                                                                        Box(modifier = Modifier.fillMaxSize()) {
+                                                                            CircularProgressIndicator(
+                                                                                modifier = Modifier.align(Alignment.Center)
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                    is OffersViewModel.UiState.Error -> {
+                                                                        Box(
+                                                                            modifier = Modifier
+                                                                                .fillMaxSize()
+                                                                                .padding(16.dp)
+                                                                        ) {
+                                                                            Text(
+                                                                                text = (uiState as OffersViewModel.UiState.Error).message,
+                                                                                modifier = Modifier.align(Alignment.Center)
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                    is OffersViewModel.UiState.Success -> {
+                                                                        selectedOffer?.let { offer ->
+                                                                            SpecialSalesDetail(
+                                                                                offer = offer,
+                                                                                navController = navController
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                    else -> { }
+                                                                }
                                                             }
                                                         }
                                                         composable(
@@ -3219,11 +3352,10 @@
                                                         ) { backStackEntry ->
                                                             val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
                                                             val transactionId = backStackEntry.arguments?.getString("transactionId") ?: ""
-                                                            Log.d(TAG, "Navigating to TransactionDetailsScreen with accountId: $accountId and transactionId: $transactionId")
                                                             TransactionDetailsScreen(
                                                                 navController = navController,
                                                                 accountViewModel = accountViewModel,
-                                                                accountId = accountId,  // Corrected to use the accountId (Firestore document ID)
+                                                                accountId = accountId,
                                                                 transactionId = transactionId
                                                             )
                                                         }
@@ -3233,20 +3365,17 @@
                                         }
                                     }
                                 
-                                    // Method to request notification access permission
                                     private fun requestNotificationPermission() {
                                         val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                                         startActivity(intent)
                                     }
                                 
-                                    // Check if notification listener service is enabled
                                     private fun isNotificationServiceEnabled(): Boolean {
                                         val packageName = applicationContext.packageName
                                         val enabledListeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
                                         return enabledListeners?.contains(packageName) == true
                                     }
                                 
-                                    // Request location permission if not granted
                                     private fun requestLocationPermission() {
                                         if (ContextCompat.checkSelfPermission(
                                                 this,
@@ -3256,8 +3385,7 @@
                                             requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                                         }
                                     }
-                                }
-                                ```
+                                }                                ```
                             - **auth/**
                                 - AuthenticationScreen.kt
                                     ```
@@ -6118,6 +6246,43 @@
                                             .build()
                                 
                                         notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+                                    }
+                                }                                ```
+                            - AnomalyApiService.kt
+                                ```
+                                package com.isis3510.spendiq.Services
+                                
+                                import retrofit2.Retrofit
+                                import retrofit2.converter.gson.GsonConverterFactory
+                                import retrofit2.http.POST
+                                import retrofit2.http.Path
+                                import okhttp3.OkHttpClient
+                                import java.util.concurrent.TimeUnit
+                                
+                                interface AnomalyApiService {
+                                    @POST("api/analyze-transaction-complete/{user_id}/{transaction_id}")
+                                    suspend fun analyzeTransaction(
+                                        @Path("user_id") userId: String,
+                                        @Path("transaction_id") transactionId: String
+                                    )
+                                
+                                    companion object {
+                                        private const val BASE_URL = "http://148.113.204.223:8000/"
+                                
+                                        fun create(): AnomalyApiService {
+                                            val client = OkHttpClient.Builder()
+                                                .connectTimeout(30, TimeUnit.SECONDS)
+                                                .readTimeout(30, TimeUnit.SECONDS)
+                                                .writeTimeout(30, TimeUnit.SECONDS)
+                                                .build()
+                                
+                                            return Retrofit.Builder()
+                                                .baseUrl(BASE_URL)
+                                                .client(client)
+                                                .addConverterFactory(GsonConverterFactory.create())
+                                                .build()
+                                                .create(AnomalyApiService::class.java)
+                                        }
                                     }
                                 }                                ```
                             - AuthenticationService.kt
