@@ -42,26 +42,33 @@ import com.isis3510.spendiq.views.offers.SpecialSalesDetail
 class MainActivity : FragmentActivity() {
     companion object {
         private const val TAG = "MainActivity"
+        private const val LOCATION_PERMISSION_REQUEST = 123
     }
 
-    private val requestLocationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) {
-                Log.d(TAG, "Location permission granted")
-            } else {
-                Log.d(TAG, "Location permission denied")
-            }
+    private val REQUIRED_PERMISSIONS = arrayOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.POST_NOTIFICATIONS
+    )
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.all { it.value }) {
+            Log.d(TAG, "All required permissions granted")
+        } else {
+            Log.d(TAG, "Some permissions were denied")
         }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (!isNotificationServiceEnabled()) {
-            requestNotificationPermission()
+        // Check and request permissions if needed
+        if (!hasRequiredPermissions()) {
+            requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
         }
 
-        requestLocationPermission()
-
+        // Initialize the content view with Jetpack Compose and navigation
         setContent {
             SpendiQTheme {
                 Surface(
@@ -176,6 +183,12 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    private fun hasRequiredPermissions(): Boolean {
+        return REQUIRED_PERMISSIONS.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     private fun requestNotificationPermission() {
         val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
         startActivity(intent)
@@ -185,15 +198,5 @@ class MainActivity : FragmentActivity() {
         val packageName = applicationContext.packageName
         val enabledListeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
         return enabledListeners?.contains(packageName) == true
-    }
-
-    private fun requestLocationPermission() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
     }
 }

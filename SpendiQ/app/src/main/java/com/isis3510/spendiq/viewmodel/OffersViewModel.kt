@@ -1,15 +1,18 @@
 package com.isis3510.spendiq.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.isis3510.spendiq.Services.LocationBasedOfferService
 import com.isis3510.spendiq.model.data.Offer
 import com.isis3510.spendiq.model.repository.OffersRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class OffersViewModel : ViewModel() {
+class OffersViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = OffersRepository()
+    private val locationBasedOfferService = LocationBasedOfferService(application)
 
     private val _offers = MutableStateFlow<List<Offer>>(emptyList())
     val offers: StateFlow<List<Offer>> = _offers
@@ -26,7 +29,10 @@ class OffersViewModel : ViewModel() {
             repository.getOffers().collect { result ->
                 _uiState.value = when {
                     result.isSuccess -> {
-                        _offers.value = result.getOrNull() ?: emptyList()
+                        val offersList = result.getOrNull() ?: emptyList()
+                        _offers.value = offersList
+                        // Start monitoring for nearby offers
+                        locationBasedOfferService.startMonitoring(offersList)
                         UiState.Success
                     }
                     result.isFailure -> {
@@ -58,6 +64,11 @@ class OffersViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        locationBasedOfferService.stopMonitoring()
     }
 
     sealed class UiState {
