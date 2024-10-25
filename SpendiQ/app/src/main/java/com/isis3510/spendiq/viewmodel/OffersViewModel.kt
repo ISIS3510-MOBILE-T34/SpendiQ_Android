@@ -3,9 +3,9 @@ package com.isis3510.spendiq.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.isis3510.spendiq.Services.LocationBasedOfferService
 import com.isis3510.spendiq.model.data.Offer
 import com.isis3510.spendiq.model.repository.OffersRepository
+import com.isis3510.spendiq.services.LocationBasedOfferService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch

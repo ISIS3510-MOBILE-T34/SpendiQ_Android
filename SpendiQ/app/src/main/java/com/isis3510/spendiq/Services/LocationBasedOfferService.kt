@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.Services
+package com.isis3510.spendiq.services
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -24,7 +24,12 @@ class LocationBasedOfferService(private val context: Context) {
     private val channelId = "OfferNotificationChannel"
     private val scope = CoroutineScope(Dispatchers.IO)
     private var activeOffers = listOf<Offer>()
-    private val notifiedOffers = mutableSetOf<String>()
+
+    // Track last notification time and last notified offer
+    private var lastNotificationTime: Long = 0
+    private var lastNotifiedOfferId: String? = null
+    private val NOTIFICATION_COOLDOWN = 15 * 60 * 1000 // 15 minutes in milliseconds
+    private val MAX_NOTIFICATION_DISTANCE = 1000.0 // 1km in meters
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(locationResult: LocationResult) {
@@ -66,25 +71,38 @@ class LocationBasedOfferService(private val context: Context) {
     fun stopMonitoring() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
         activeOffers = emptyList()
-        notifiedOffers.clear()
     }
 
     private fun checkNearbyOffers(currentLat: Double, currentLon: Double) {
         scope.launch {
-            activeOffers.forEach { offer ->
-                if (offer.id != null && !notifiedOffers.contains(offer.id) &&
-                    offer.latitude != null && offer.longitude != null) {
+            val currentTime = System.currentTimeMillis()
 
-                    val distance = calculateDistance(
-                        currentLat, currentLon,
-                        offer.latitude, offer.longitude
-                    )
+            // Check if enough time has passed since last notification
+            if (currentTime - lastNotificationTime < NOTIFICATION_COOLDOWN) {
+                return@launch
+            }
 
-                    if (distance <= 1000) { // 1km in meters
-                        sendOfferNotification(offer)
-                        notifiedOffers.add(offer.id)
-                    }
+            // Find the closest offer within range
+            val closestOffer = activeOffers
+                .filter { offer ->
+                    offer.id != null &&
+                            offer.latitude != null &&
+                            offer.longitude != null &&
+                            offer.id != lastNotifiedOfferId // Exclude last notified offer
                 }
+                .map { offer ->
+                    Pair(offer, calculateDistance(
+                        currentLat, currentLon,
+                        offer.latitude!!, offer.longitude!!
+                    ))
+                }
+                .filter { (_, distance) -> distance <= MAX_NOTIFICATION_DISTANCE }
+                .minByOrNull { (_, distance) -> distance }
+
+            closestOffer?.let { (offer, distance) ->
+                sendOfferNotification(offer, distance.toInt())
+                lastNotificationTime = currentTime
+                lastNotifiedOfferId = offer.id
             }
         }
     }
@@ -104,16 +122,25 @@ class LocationBasedOfferService(private val context: Context) {
         return r * c
     }
 
-    private fun sendOfferNotification(offer: Offer) {
+    private fun sendOfferNotification(offer: Offer, distance: Int) {
+        val distanceText = when {
+            distance < 100 -> "less than 100 meters"
+            distance < 1000 -> "${(distance / 100) * 100} meters"
+            else -> "${distance / 1000.0} km"
+        }
+
         val notification = NotificationCompat.Builder(context, channelId)
-            .setContentTitle("Nearby Offer!")
-            .setContentText("${offer.placeName}: ${offer.offerDescription}")
+            .setContentTitle("Special Offer Nearby!")
+            .setContentText("${offer.placeName} (${distanceText} away): ${offer.offerDescription}")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("${offer.placeName} (${distanceText} away): ${offer.offerDescription}\n${offer.recommendationReason ?: ""}")
+            )
             .setSmallIcon(R.drawable.notification)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
 
-        notificationManager.notify(offer.id.hashCode(), notification)
+        notificationManager.notify(OFFER_NOTIFICATION_ID, notification)
     }
 
     private fun createNotificationChannel() {
@@ -133,5 +160,9 @@ class LocationBasedOfferService(private val context: Context) {
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    companion object {
+        private const val OFFER_NOTIFICATION_ID = 1001
     }
 }

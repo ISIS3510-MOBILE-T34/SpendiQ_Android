@@ -3,11 +3,13 @@ package com.isis3510.spendiq.views
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,14 +44,16 @@ import com.isis3510.spendiq.views.offers.SpecialSalesDetail
 class MainActivity : FragmentActivity() {
     companion object {
         private const val TAG = "MainActivity"
-        private const val LOCATION_PERMISSION_REQUEST = 123
     }
 
+    // Permissions required for the app
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private val REQUIRED_PERMISSIONS = arrayOf(
         Manifest.permission.ACCESS_FINE_LOCATION,
         Manifest.permission.POST_NOTIFICATIONS
     )
 
+    // Location permission launcher
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -60,8 +64,27 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    // Launcher for location permission request
+    private val requestLocationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (isGranted) {
+                Log.d(TAG, "Location permission granted")
+            } else {
+                Log.d(TAG, "Location permission denied")
+            }
+        }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Check if notifications service is enabled, if not, request
+        if (!isNotificationServiceEnabled()) {
+            requestNotificationPermission()
+        }
+
+        // Request location permission
+        requestLocationPermission()
 
         // Check and request permissions if needed
         if (!hasRequiredPermissions()) {
@@ -183,20 +206,35 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    // Function to check if all required permissions are granted
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun hasRequiredPermissions(): Boolean {
         return REQUIRED_PERMISSIONS.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
 
+    // Function to request notification listener permission
     private fun requestNotificationPermission() {
         val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
         startActivity(intent)
     }
 
+    // Function to check if notification service is enabled
     private fun isNotificationServiceEnabled(): Boolean {
         val packageName = applicationContext.packageName
         val enabledListeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
         return enabledListeners?.contains(packageName) == true
+    }
+
+    // Function to request location permission
+    private fun requestLocationPermission() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
     }
 }
