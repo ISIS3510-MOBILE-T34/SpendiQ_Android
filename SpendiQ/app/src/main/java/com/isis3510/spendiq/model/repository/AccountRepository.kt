@@ -5,13 +5,14 @@ import androidx.compose.ui.graphics.Color
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.data.Account
+import com.isis3510.spendiq.model.singleton.FirebaseManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
 class AccountRepository {
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseManager.getFirestore()
+    private val auth = FirebaseManager.getAuth()
 
     // Get all accounts for the current user
     fun getAccounts(): Flow<Result<List<Account>>> = flow {

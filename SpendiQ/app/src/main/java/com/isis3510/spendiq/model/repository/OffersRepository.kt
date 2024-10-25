@@ -3,12 +3,13 @@ package com.isis3510.spendiq.model.repository
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.data.Offer
+import com.isis3510.spendiq.model.singleton.FirebaseManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
 class OffersRepository {
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestore = FirebaseManager.getFirestore()
 
     fun getOffers(): Flow<Result<List<Offer>>> = flow {
         try {

@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.data.Location
 import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.model.singleton.FirebaseManager
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -12,8 +13,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class TransactionRepository {
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseManager.getFirestore()
+    private val auth = FirebaseManager.getAuth()
     private val anomalyRepository = AnomalyRepository()
     private val accountRepository = AccountRepository()
 

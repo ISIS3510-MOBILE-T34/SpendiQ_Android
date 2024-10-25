@@ -6,14 +6,15 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.isis3510.spendiq.model.data.User
+import com.isis3510.spendiq.model.singleton.FirebaseManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
 class AuthRepository(private val context: Context) {
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+    private val auth = FirebaseManager.getAuth()
+    private val firestore = FirebaseManager.getFirestore()
+    private val storage = FirebaseManager.getStorage()
 
     fun login(email: String, password: String): Flow<Result<User>> = flow {
         try {
