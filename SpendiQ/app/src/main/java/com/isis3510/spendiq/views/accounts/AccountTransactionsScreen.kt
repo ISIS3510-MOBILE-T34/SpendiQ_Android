@@ -177,10 +177,10 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = if (transaction.amount > 0) Icons.Default.KeyboardArrowUp
+                    imageVector = if (transaction.transactionType == "Income") Icons.Default.KeyboardArrowUp
                     else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (transaction.amount > 0) "Income" else "Expense",
-                    tint = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000)
+                    tint = if (transaction.transactionType == "Income") Color(0xFF2196F3) else Color(0xFFFF0000)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
