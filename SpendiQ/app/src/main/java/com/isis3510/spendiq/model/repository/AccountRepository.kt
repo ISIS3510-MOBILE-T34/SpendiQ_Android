@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
 class AccountRepository {
-    private val firestore = FirebaseManager.getFirestore()
-    private val auth = FirebaseManager.getAuth()
+    private val firestore = FirebaseManager.firestore
+    private val auth = FirebaseManager.auth
 
     // Get all accounts for the current user
     fun getAccounts(): Flow<Result<List<Account>>> = flow {

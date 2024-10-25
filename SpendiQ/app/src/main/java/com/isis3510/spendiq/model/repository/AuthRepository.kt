@@ -12,9 +12,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
 class AuthRepository(private val context: Context) {
-    private val auth = FirebaseManager.getAuth()
-    private val firestore = FirebaseManager.getFirestore()
-    private val storage = FirebaseManager.getStorage()
+    private val auth = FirebaseManager.auth
+    private val firestore = FirebaseManager.firestore
+    private val storage = FirebaseManager.storage
 
     fun login(email: String, password: String): Flow<Result<User>> = flow {
         try {

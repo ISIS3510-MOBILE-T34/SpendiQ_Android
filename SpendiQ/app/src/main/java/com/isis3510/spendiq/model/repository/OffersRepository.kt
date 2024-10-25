@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 
 class OffersRepository {
-    private val firestore = FirebaseManager.getFirestore()
+    private val firestore = FirebaseManager.firestore
 
     fun getOffers(): Flow<Result<List<Offer>>> = flow {
         try {

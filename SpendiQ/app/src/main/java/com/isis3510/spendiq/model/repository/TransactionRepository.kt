@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 class TransactionRepository {
-    private val firestore = FirebaseManager.getFirestore()
-    private val auth = FirebaseManager.getAuth()
+    private val auth = FirebaseManager.auth
+    private val firestore = FirebaseManager.firestore
     private val anomalyRepository = AnomalyRepository()
     private val accountRepository = AccountRepository()
 
