@@ -29,6 +29,7 @@ import com.google.maps.android.compose.*
 import com.isis3510.spendiq.model.data.Location
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.*
@@ -38,11 +39,13 @@ import java.util.*
 fun TransactionDetailsScreen(
     navController: NavController,
     accountViewModel: AccountViewModel,
+    transactionViewModel: TransactionViewModel,
     accountId: String,
     transactionId: String
 ) {
     val context = LocalContext.current
-    val transaction by accountViewModel.selectedTransaction.collectAsState()
+    val transaction by transactionViewModel.selectedTransaction.collectAsState()
+    val uiState by transactionViewModel.uiState.collectAsState()
 
     var transactionName by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
@@ -52,7 +55,6 @@ fun TransactionDetailsScreen(
     var location by remember { mutableStateOf<Location?>(null) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var expandedTransactionType by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
 
     val defaultLocation = LatLng(4.6097100, -74.0817500) // Bogota
     var mapPosition by remember { mutableStateOf(defaultLocation) }
@@ -63,17 +65,20 @@ fun TransactionDetailsScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var isTransactionLoaded by remember { mutableStateOf(false) } // Add a new state to track loading
-
     // Load transaction data
     LaunchedEffect(Unit) {
-        accountViewModel.getTransaction(accountId, transactionId)
-        delay(5000) // Timeout for loading (5 seconds)
-        if (transaction == null) {
-            isTransactionLoaded = false
-            snackbarHostState.showSnackbar("Failed to load transaction.")
-        } else {
-            isTransactionLoaded = true
+        transactionViewModel.getTransaction(accountId, transactionId)
+    }
+
+    // Handle UI state
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is TransactionViewModel.UiState.Error -> {
+                snackbarHostState.showSnackbar(
+                    (uiState as TransactionViewModel.UiState.Error).message
+                )
+            }
+            else -> {}
         }
     }
 
@@ -92,7 +97,6 @@ fun TransactionDetailsScreen(
                     LatLng(loc.latitude, loc.longitude), 15f
                 )
             }
-            isTransactionLoaded = true // Set as loaded
         }
     }
 
@@ -120,7 +124,7 @@ fun TransactionDetailsScreen(
                 actions = {
                     IconButton(
                         onClick = { showDeleteConfirmation = true },
-                        enabled = isTransactionLoaded // Disable button if transaction is not loaded
+                        enabled = transaction != null
                     ) {
                         Icon(Icons.Default.Delete, "Delete")
                     }
@@ -136,8 +140,14 @@ fun TransactionDetailsScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            if (!isTransactionLoaded) {
+            if (uiState is TransactionViewModel.UiState.Loading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            } else if (transaction == null) {
+                Text(
+                    text = "Transaction not found",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
             } else {
                 OutlinedTextField(
                     value = transactionName,
@@ -292,7 +302,11 @@ fun TransactionDetailsScreen(
                             )
                             coroutineScope.launch {
                                 try {
-                                    accountViewModel.updateTransaction(currentTransaction.accountId, currentTransaction, updatedTransaction)
+                                    transactionViewModel.updateTransaction(
+                                        currentTransaction.accountId,
+                                        currentTransaction,
+                                        updatedTransaction
+                                    )
                                     snackbarHostState.showSnackbar("Transaction updated successfully")
                                     navController.popBackStack()
                                 } catch (e: Exception) {
@@ -303,7 +317,7 @@ fun TransactionDetailsScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = isTransactionLoaded // Disable button if transaction is not loaded
+                    enabled = transaction != null
                 ) {
                     Text("Save Changes")
                 }
@@ -321,7 +335,7 @@ fun TransactionDetailsScreen(
                             transaction?.let {
                                 coroutineScope.launch {
                                     try {
-                                        accountViewModel.deleteTransaction(accountId, it)
+                                        transactionViewModel.deleteTransaction(accountId, it)
                                         snackbarHostState.showSnackbar("Transaction deleted successfully")
                                         navController.popBackStack()
                                     } catch (e: Exception) {
@@ -347,10 +361,4 @@ fun TransactionDetailsScreen(
             )
         }
     }
-}
-
-// Placeholder for geocodeLocation function
-fun geocodeLocation(locationName: String): LatLng? {
-    // TODO: Implement geocoding logic here (e.g., use a geocoding API to convert location name to LatLng)
-    return null // Replace with actual implementation
 }

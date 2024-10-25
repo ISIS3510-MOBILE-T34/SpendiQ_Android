@@ -29,13 +29,14 @@ import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AuthViewModel
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController, viewModel: AuthViewModel, accountViewModel: AccountViewModel) {
+fun ProfileScreen(navController: NavController, viewModel: AuthViewModel, transactionViewModel: TransactionViewModel, accountViewModel: AccountViewModel) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -88,6 +89,7 @@ fun ProfileScreen(navController: NavController, viewModel: AuthViewModel, accoun
         bottomBar = {
             BottomNavigation(
                 navController = navController,
+                transactionViewModel = transactionViewModel,
                 accountViewModel
             )
         }

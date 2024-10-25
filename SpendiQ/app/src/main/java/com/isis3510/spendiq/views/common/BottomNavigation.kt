@@ -18,11 +18,13 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.transaction.AddTransactionModal
 
 @Composable
 fun BottomNavigation(
     navController: NavController,
+    transactionViewModel: TransactionViewModel,
     accountViewModel: AccountViewModel // Add AccountViewModel parameter
 ) {
     var showAddTransactionModal by remember { mutableStateOf(false) }
@@ -74,6 +76,7 @@ fun BottomNavigation(
     if (showAddTransactionModal) {
         AddTransactionModal(
             accountViewModel = accountViewModel,
+            transactionViewModel = transactionViewModel,
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false

@@ -33,6 +33,7 @@ import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.accounts.AccountTransactionsScreen
 import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
 import com.isis3510.spendiq.views.offers.OffersScreen
@@ -70,6 +71,7 @@ class MainActivity : FragmentActivity() {
                     val navController = rememberNavController()
                     val authViewModel: AuthViewModel = viewModel()
                     val accountViewModel: AccountViewModel = viewModel()
+                    val transactionViewModel: TransactionViewModel = viewModel()
                     val offersViewModel: OffersViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = "splash") {
@@ -86,16 +88,16 @@ class MainActivity : FragmentActivity() {
                             RegisterScreen(navController, authViewModel)
                         }
                         composable("main") {
-                            MainContent(navController, authViewModel, accountViewModel, offersViewModel)
+                            MainContent(navController, authViewModel, accountViewModel, offersViewModel, transactionViewModel)
                         }
                         composable("promos") {
-                            OffersScreen(navController, offersViewModel, accountViewModel)
+                            OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel)
                         }
                         composable("profile") {
-                            ProfileScreen(navController, authViewModel, accountViewModel)
+                            ProfileScreen(navController, authViewModel, transactionViewModel, accountViewModel)
                         }
                         composable("accounts") {
-                            AccountsScreen(navController, accountViewModel)
+                            AccountsScreen(navController, accountViewModel, transactionViewModel)
                         }
                         composable(
                             route = "accountTransactions/{accountId}",
@@ -164,7 +166,8 @@ class MainActivity : FragmentActivity() {
                                 navController = navController,
                                 accountViewModel = accountViewModel,
                                 accountId = accountId,
-                                transactionId = transactionId
+                                transactionId = transactionId,
+                                transactionViewModel = transactionViewModel
                             )
                         }
                     }

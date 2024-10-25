@@ -18,9 +18,10 @@ import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 
 @Composable
-fun AccountsScreen(navController: NavController, accountViewModel: AccountViewModel) {  // Make sure the parameter name is consistent
+fun AccountsScreen(navController: NavController, accountViewModel: AccountViewModel, transactionViewModel: TransactionViewModel) {  // Make sure the parameter name is consistent
     val accounts by accountViewModel.accounts.collectAsState()
     val uiState by accountViewModel.uiState.collectAsState()
     var showEditModal by remember { mutableStateOf(false) }
@@ -32,7 +33,7 @@ fun AccountsScreen(navController: NavController, accountViewModel: AccountViewMo
     Scaffold(
         bottomBar = {
             BottomNavigation(
-                navController = navController,
+                navController = navController, transactionViewModel = transactionViewModel,
                 accountViewModel)
         }
     ) { innerPadding ->
@@ -102,6 +103,7 @@ fun AccountsScreen(navController: NavController, accountViewModel: AccountViewMo
     if (showAddTransactionModal) {
         AddTransactionModal(
             accountViewModel = accountViewModel,
+            transactionViewModel = transactionViewModel,
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false

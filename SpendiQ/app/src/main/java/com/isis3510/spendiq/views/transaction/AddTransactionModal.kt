@@ -17,15 +17,17 @@ import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.model.data.Location
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.google.firebase.Timestamp
-import com.isis3510.spendiq.services.LocationService
 import kotlinx.coroutines.launch
 import java.util.*
 import com.isis3510.spendiq.model.data.Account
+import com.isis3510.spendiq.services.LocationService
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionModal(
     accountViewModel: AccountViewModel,
+    transactionViewModel: TransactionViewModel,
     onDismiss: () -> Unit,
     onTransactionAdded: () -> Unit
 ) {
@@ -240,7 +242,7 @@ fun AddTransactionModal(
                                     )
                                 } else null
                             )
-                            accountViewModel.addTransactionWithAccountCheck(transaction)
+                            transactionViewModel.addTransactionWithAccountCheck(transaction)
                             onTransactionAdded()
                             onDismiss()
                         }
