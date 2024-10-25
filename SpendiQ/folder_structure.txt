@@ -1830,13 +1830,14 @@
                                     import com.google.firebase.auth.FirebaseAuth
                                     import com.google.firebase.firestore.FirebaseFirestore
                                     import com.isis3510.spendiq.model.data.Account
+                                    import com.isis3510.spendiq.model.singleton.FirebaseManager
                                     import kotlinx.coroutines.flow.Flow
                                     import kotlinx.coroutines.flow.flow
                                     import kotlinx.coroutines.tasks.await
                                     
                                     class AccountRepository {
-                                        private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-                                        private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+                                        private val firestore = FirebaseManager.firestore
+                                        private val auth = FirebaseManager.auth
                                     
                                         // Get all accounts for the current user
                                         fun getAccounts(): Flow<Result<List<Account>>> = flow {
@@ -1929,12 +1930,13 @@
                                     import android.util.Log
                                     import com.google.firebase.firestore.FirebaseFirestore
                                     import com.isis3510.spendiq.model.data.Offer
+                                    import com.isis3510.spendiq.model.singleton.FirebaseManager
                                     import kotlinx.coroutines.flow.Flow
                                     import kotlinx.coroutines.flow.flow
                                     import kotlinx.coroutines.tasks.await
                                     
                                     class OffersRepository {
-                                        private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+                                        private val firestore = FirebaseManager.firestore
                                     
                                         fun getOffers(): Flow<Result<List<Offer>>> = flow {
                                             try {
@@ -1999,14 +2001,15 @@
                                     import com.google.firebase.firestore.FirebaseFirestore
                                     import com.google.firebase.storage.FirebaseStorage
                                     import com.isis3510.spendiq.model.data.User
+                                    import com.isis3510.spendiq.model.singleton.FirebaseManager
                                     import kotlinx.coroutines.flow.Flow
                                     import kotlinx.coroutines.flow.flow
                                     import kotlinx.coroutines.tasks.await
                                     
                                     class AuthRepository(private val context: Context) {
-                                        private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-                                        private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-                                        private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+                                        private val auth = FirebaseManager.auth
+                                        private val firestore = FirebaseManager.firestore
+                                        private val storage = FirebaseManager.storage
                                     
                                         fun login(email: String, password: String): Flow<Result<User>> = flow {
                                             try {
@@ -2123,6 +2126,7 @@
                                     import com.google.firebase.firestore.FirebaseFirestore
                                     import com.isis3510.spendiq.model.data.Location
                                     import com.isis3510.spendiq.model.data.Transaction
+                                    import com.isis3510.spendiq.model.singleton.FirebaseManager
                                     import kotlinx.coroutines.coroutineScope
                                     import kotlinx.coroutines.flow.Flow
                                     import kotlinx.coroutines.flow.flow
@@ -2130,8 +2134,8 @@
                                     import kotlinx.coroutines.tasks.await
                                     
                                     class TransactionRepository {
-                                        private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-                                        private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+                                        private val auth = FirebaseManager.auth
+                                        private val firestore = FirebaseManager.firestore
                                         private val anomalyRepository = AnomalyRepository()
                                         private val accountRepository = AccountRepository()
                                     
@@ -2331,6 +2335,20 @@
                                         }
                                     }                                    ```
                             - **config/**
+                            - **singleton/**
+                                - FirebaseManager.kt
+                                    ```
+                                    package com.isis3510.spendiq.model.singleton
+                                    
+                                    import com.google.firebase.auth.FirebaseAuth
+                                    import com.google.firebase.firestore.FirebaseFirestore
+                                    import com.google.firebase.storage.FirebaseStorage
+                                    
+                                    object FirebaseManager {
+                                        val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+                                        val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+                                        val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
+                                    }                                    ```
                             - **data/**
                                 - Account.kt
                                     ```
