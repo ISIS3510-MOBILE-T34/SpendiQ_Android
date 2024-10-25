@@ -179,7 +179,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                 Icon(
                     imageVector = if (transaction.transactionType == "Income") Icons.Default.KeyboardArrowUp
                     else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (transaction.amount > 0) "Income" else "Expense",
+                    contentDescription = if (transaction.transactionType == "Income") "Income" else "Expense",
                     tint = if (transaction.transactionType == "Income") Color(0xFF2196F3) else Color(0xFFFF0000)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
@@ -193,7 +193,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                 }
                 Text(
                     formatCurrency(transaction.amount.toDouble()),
-                    color = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000),
+                    color = if (transaction.transactionType == "Income") Color(0xFF2196F3) else Color(0xFFFF0000),
                     fontWeight = FontWeight.Bold
                 )
             }
