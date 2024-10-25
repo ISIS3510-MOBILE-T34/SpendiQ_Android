@@ -3,10 +3,12 @@ package com.isis3510.spendiq.views.accounts
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -147,64 +149,125 @@ fun AccountTransactionsScreen(navController: NavController, accountName: String)
 fun TransactionItem(transaction: Transaction, navController: NavController, accountName: String) {
     val context = LocalContext.current
 
+    // Determine background color based on anomalies
+    val backgroundColor = when {
+        transaction.locationAnomaly && transaction.amountAnomaly -> Color(0xFFFFE0E0) // Light red
+        transaction.locationAnomaly || transaction.amountAnomaly -> Color(0xFFFFECB3) // Light orange
+        else -> Color(0xFFF5F5F5) // Light grey
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable {
-                // Navigate to TransactionDetailsScreen when a transaction is clicked
                 navController.navigate("transactionDetails/${transaction.accountId}/${transaction.id}")
-            }
+            },
+        colors = CardDefaults.cardColors(
+            containerColor = backgroundColor
+        )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            Icon(
-                imageVector = if (transaction.amount > 0) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = if (transaction.amount > 0) "Income" else "Expense",
-                tint = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(transaction.transactionName, fontWeight = FontWeight.Bold)
-                Text(
-                    if (transaction.transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
-                    color = Color.Gray,
-                    fontSize = 14.sp
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (transaction.amount > 0) Icons.Default.KeyboardArrowUp
+                    else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (transaction.amount > 0) "Income" else "Expense",
+                    tint = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000)
                 )
-                if (transaction.location != null) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable {
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(transaction.transactionName, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (transaction.transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                }
+                Text(
+                    formatCurrency(transaction.amount.toDouble()),
+                    color = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Anomaly indicators
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                AnomalyIndicator(
+                    label = "Ubicación",
+                    isAnomaly = transaction.locationAnomaly
+                )
+                AnomalyIndicator(
+                    label = "Monto",
+                    isAnomaly = transaction.amountAnomaly
+                )
+            }
+
+            // Location button (if available)
+            if (transaction.location != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable {
                             val uri = Uri.parse("geo:${transaction.location.latitude},${transaction.location.longitude}?q=${transaction.location.latitude},${transaction.location.longitude}")
                             val intent = Intent(Intent.ACTION_VIEW, uri)
                             context.startActivity(intent)
                         }
-                    ) {
-                        Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = "Location",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            "Ver ubicación",
-                            color = Color.Gray,
-                            fontSize = 12.sp
-                        )
-                    }
+                        .padding(top = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = "Location",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        "Ver ubicación",
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
                 }
             }
-            Text(
-                formatCurrency(transaction.amount.toDouble()),
-                color = if (transaction.amount > 0) Color(0xFF2196F3) else Color(0xFFFF0000),
-                fontWeight = FontWeight.Bold
-            )
         }
+    }
+}
+
+@Composable
+private fun AnomalyIndicator(
+    label: String,
+    isAnomaly: Boolean
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .background(
+                    color = if (isAnomaly) Color(0xFFFF0000) else Color(0xFF4CAF50),
+                    shape = CircleShape
+                )
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = Color.Gray
+        )
     }
 }
 
@@ -251,6 +314,8 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
                 val timestamp = doc.getTimestamp("dateTime") ?: return@mapNotNull null
                 val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
                 val locationMap = doc.get("location") as? Map<String, Any>
+                val amountAnomaly = doc.getBoolean("amountAnomaly") ?: false
+                val locationAnomaly = doc.getBoolean("locationAnomaly") ?: false
 
                 val location = locationMap?.let {
                     val latitude = it["latitude"] as? Double
@@ -267,7 +332,9 @@ suspend fun fetchTransactions(accountName: String): List<Transaction> {
                     amount = amount,
                     dateTime = timestamp,
                     transactionType = transactionType,
-                    location = location
+                    location = location,
+                    amountAnomaly = amountAnomaly,
+                    locationAnomaly = locationAnomaly
                 )
             } catch (e: Exception) {
                 Log.e("Firebase", "Error parsing transaction document", e)
