@@ -5,13 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 
 object FirebaseManager {
-    // Firebase instances
-    private val auth by lazy { FirebaseAuth.getInstance() }
-    private val firestore by lazy { FirebaseFirestore.getInstance() }
-    private val storage by lazy { FirebaseStorage.getInstance() }
-
-    // Getter methods
-    fun getAuth(): FirebaseAuth = auth
-    fun getFirestore(): FirebaseFirestore = firestore
-    fun getStorage(): FirebaseStorage = storage
+    val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
 }
