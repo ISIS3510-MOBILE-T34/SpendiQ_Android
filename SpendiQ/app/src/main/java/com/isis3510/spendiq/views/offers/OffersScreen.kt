@@ -36,6 +36,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import kotlinx.coroutines.tasks.await
 import java.text.DecimalFormat
 
@@ -44,6 +45,7 @@ import java.text.DecimalFormat
 fun OffersScreen(
     navController: NavController,
     viewModel: OffersViewModel,
+    transactionViewModel: TransactionViewModel,
     accountViewModel: AccountViewModel
 ) {
     val context = LocalContext.current
@@ -98,7 +100,7 @@ fun OffersScreen(
             )
         },
         bottomBar = {
-            BottomNavigation(navController = navController, accountViewModel)
+            BottomNavigation(navController = navController, transactionViewModel = transactionViewModel, accountViewModel)
         }
     ) { paddingValues ->
         Box(

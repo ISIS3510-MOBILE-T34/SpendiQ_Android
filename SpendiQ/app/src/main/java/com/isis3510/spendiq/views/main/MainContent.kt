@@ -25,6 +25,7 @@ import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.google.firebase.Timestamp
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -33,7 +34,8 @@ fun MainContent(
     navController: NavController,
     authViewModel: AuthViewModel,
     accountViewModel: AccountViewModel,
-    promoViewModel: OffersViewModel
+    promoViewModel: OffersViewModel,
+    transactionViewModel: TransactionViewModel
 ) {
     val accounts by accountViewModel.accounts.collectAsState()
     val promos by promoViewModel.offers.collectAsState()
@@ -49,6 +51,7 @@ fun MainContent(
         bottomBar = {
             BottomNavigation(
                 navController = navController,
+                transactionViewModel,
                 accountViewModel
             )
         }
@@ -120,6 +123,7 @@ fun MainContent(
         if (showAddTransactionModal) {
             AddTransactionModal(
                 accountViewModel = accountViewModel,
+                transactionViewModel,
                 accounts = accounts,
                 onDismiss = { showAddTransactionModal = false },
                 onTransactionAdded = {
@@ -196,6 +200,7 @@ fun PromoItem(promo: Offer, onClick: () -> Unit) {
 @Composable
 fun AddTransactionModal(
     accountViewModel: AccountViewModel,
+    transactionViewModel: TransactionViewModel,
     accounts: List<Account>,
     onDismiss: () -> Unit,
     onTransactionAdded: () -> Unit
@@ -332,7 +337,7 @@ fun AddTransactionModal(
                         transactionType = selectedTransactionType,
                         location = null
                     )
-                    accountViewModel.addTransactionWithAccountCheck(transaction)
+                    transactionViewModel.addTransactionWithAccountCheck(transaction)
                     onTransactionAdded()
                     onDismiss()
                 },
