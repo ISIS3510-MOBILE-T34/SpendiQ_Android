@@ -166,6 +166,76 @@ class AccountRepository {
             emit(Result.failure(e))
         }
     }
+
+    suspend fun fetchTransactions_repo(accountName: String): List<Transaction> {
+        val firestore = FirebaseFirestore.getInstance()
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return emptyList()
+
+        try {
+            Log.d("Firebase", "Fetching accounts for user: $userId")
+            val accountSnapshot = firestore.collection("accounts")
+                .whereEqualTo("user_id", userId)
+                .whereEqualTo("name", accountName)
+                .get()
+                .await()
+
+            if (accountSnapshot.documents.isEmpty()) {
+                Log.w("Firebase", "No account found with name: $accountName for user: $userId")
+                return emptyList()
+            }
+
+            val accountId = accountSnapshot.documents[0].id
+            Log.d("Firebase", "Found account ID: $accountId")
+
+            val transactionsSnapshot = firestore.collection("accounts")
+                .document(accountId)
+                .collection("transactions")
+                .get()
+                .await()
+
+            return transactionsSnapshot.documents.mapNotNull { doc ->
+                try {
+                    val transactionName = doc.getString("transactionName") ?: return@mapNotNull null
+                    val amount = doc.getLong("amount") ?: return@mapNotNull null
+                    val timestamp = doc.getTimestamp("dateTime") ?: return@mapNotNull null
+                    val transactionType = doc.getString("transactionType") ?: return@mapNotNull null
+                    val locationMap = doc.get("location") as? Map<String, Any>
+                    val amountAnomaly = doc.getBoolean("amountAnomaly") ?: false
+                    val locationAnomaly = doc.getBoolean("locationAnomaly") ?: false
+
+                    val location = locationMap?.let {
+                        val latitude = it["latitude"] as? Double
+                        val longitude = it["longitude"] as? Double
+                        if (latitude != null && longitude != null) {
+                            Location(latitude, longitude)
+                        } else null
+                    }
+
+                    Transaction(
+                        id = doc.id,
+                        accountId = accountId,
+                        transactionName = transactionName,
+                        amount = amount,
+                        dateTime = timestamp,
+                        transactionType = transactionType,
+                        location = location,
+                        amountAnomaly = amountAnomaly,
+                        locationAnomaly = locationAnomaly
+                    )
+                } catch (e: Exception) {
+                    Log.e("Firebase", "Error parsing transaction document", e)
+                    null
+                }
+            }.sortedByDescending { it.dateTime.toDate() }
+        } catch (e: Exception) {
+            Log.e("Firebase", "Error fetching transactions", e)
+            throw e
+        }
+    }
+
+
+
+
     // Add transaction with account check and ensure transaction ID is stored correctly
     fun addTransactionWithAccountCheck(transaction: Transaction): Flow<Result<Unit>> = flow {
         try {
