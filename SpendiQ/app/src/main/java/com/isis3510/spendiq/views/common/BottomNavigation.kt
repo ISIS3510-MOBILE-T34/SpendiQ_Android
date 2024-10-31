@@ -3,6 +3,7 @@ package com.isis3510.spendiq.views.common
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -12,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -33,6 +35,7 @@ fun BottomNavigation(
         modifier = Modifier
             .fillMaxWidth()
             .height(77.dp)
+            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             .background(Color.White)
     ) {
         Row(
@@ -42,14 +45,14 @@ fun BottomNavigation(
         ) {
             NavItem(
                 "Home",
-                R.drawable.home24,
+                R.drawable.rounded_home_24,
                 isSelected = navController.isCurrentRoute("main"),
                 navController,
                 "main"
             )
             NavItem(
                 "Promos",
-                R.drawable.gift24,
+                R.drawable.rounded_gifts_24,
                 isSelected = navController.isCurrentRoute("promos"),
                 navController,
                 "promos"
@@ -72,7 +75,6 @@ fun BottomNavigation(
         }
     }
 
-    // Show AddTransactionModal when showAddTransactionModal is true
     if (showAddTransactionModal) {
         AddTransactionModal(
             accountViewModel = accountViewModel,
@@ -80,8 +82,7 @@ fun BottomNavigation(
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false
-                // Optionally refresh the current screen or navigate to transactions
-                // navController.navigate("transactions")
+
             }
         )
     }
