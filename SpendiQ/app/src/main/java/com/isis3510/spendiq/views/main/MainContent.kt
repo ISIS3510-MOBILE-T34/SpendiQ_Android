@@ -37,16 +37,18 @@ fun MainContent(
     authViewModel: AuthViewModel,
     accountViewModel: AccountViewModel,
     promoViewModel: OffersViewModel,
-    transactionViewModel: TransactionViewModel
+    transactionViewModel: TransactionViewModel,
 ) {
     val accounts by accountViewModel.accounts.collectAsState()
     val promos by promoViewModel.offers.collectAsState()
     val currentMoney by accountViewModel.currentMoney.collectAsState()
     var showAddTransactionModal by remember { mutableStateOf(false) }
+    var isIncome by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
         promoViewModel.fetchOffers()
+        accounts.firstOrNull()?.let { transactionViewModel.fetchTransactions(it.name) }
     }
 
     Scaffold(
@@ -58,7 +60,7 @@ fun MainContent(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -66,59 +68,86 @@ fun MainContent(
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.Top
         ) {
-            Text(
-                text = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date()),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-            Text(
-                text = "Summary",
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Medium)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Take a look at your finances",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Current available money",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
-            )
-            Text(
-                text = "$ $currentMoney",
-                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Accounts",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyColumn {
-                items(accounts) { account ->
-                    AccountItem(account, navController)
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+            item {
+                Text(
+                    text = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date()),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    text = "Summary",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Medium)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Take a look at your finances",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Current available money",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+                )
+                Text(
+                    text = "$ $currentMoney",
+                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Save with these promotions",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyColumn {
-                items(promos.take(3)) { promo ->
-                    PromoItem(promo) {}
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+
+            item {
+                Text(
+                    text = "Accounts",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
-            Button(
-                onClick = { navController.navigate("promos") },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("See More Promotions")
+
+            items(accounts) { account ->
+                AccountItem(account, navController)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Income/Expenses", style = MaterialTheme.typography.headlineMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row {
+                    Button(onClick = { isIncome = true }) {
+                        Text("Income")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = { isIncome = false }) {
+                        Text("Expenses")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Here will be a Graph"
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Save with these promotions",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            items(promos.take(3)) { promo ->
+                PromoItem(promo) {}
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            item {
+                Button(
+                    onClick = { navController.navigate("promos") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("See More Promotions")
+                }
             }
         }
 

@@ -1,5 +1,6 @@
 package com.isis3510.spendiq.views
 
+import ConnectivityViewModel
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -111,8 +112,8 @@ class MainActivity : FragmentActivity() {
                     val accountViewModel: AccountViewModel = viewModel()
                     val transactionViewModel: TransactionViewModel = viewModel()
                     val offersViewModel: OffersViewModel = viewModel()
+                    val connectivityViewModel: ConnectivityViewModel = viewModel()
                     val profileViewModel: ProfileViewModel = viewModel()
-
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {
@@ -122,7 +123,7 @@ class MainActivity : FragmentActivity() {
                             AuthenticationScreen(navController)
                         }
                         composable("login") {
-                            LoginScreen(navController, authViewModel)
+                            LoginScreen(navController, authViewModel, connectivityViewModel)
                         }
                         composable("register") {
                             RegisterScreen(navController, authViewModel)
