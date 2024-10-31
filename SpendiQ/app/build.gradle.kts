@@ -85,6 +85,7 @@ dependencies {
 
     // Image Loading
     implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation("io.coil-kt.coil3:coil-compose:3.0.0-rc01")
 
     // Location Services
     implementation("com.google.android.gms:play-services-location:21.0.1")

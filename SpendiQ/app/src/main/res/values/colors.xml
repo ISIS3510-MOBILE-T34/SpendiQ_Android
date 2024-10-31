@@ -9,4 +9,6 @@
     <color name="white">#FFFFFFFF</color>
     <color name="lavender">#8692f7</color>
     <color name="grey">#ff424242</color>
+    <color name="greenSpendiQ">#B3CB54</color>
+    <color name="pinkSpendiQ">#C33BA5</color>
 </resources>
