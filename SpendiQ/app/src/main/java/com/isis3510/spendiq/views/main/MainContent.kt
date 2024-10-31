@@ -1,4 +1,4 @@
-package com.isis3510.spendiq.views.main
+    package com.isis3510.spendiq.views.main
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -28,6 +29,7 @@ import com.google.firebase.Timestamp
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+
 
 @Composable
 fun MainContent(

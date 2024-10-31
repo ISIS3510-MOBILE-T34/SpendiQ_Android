@@ -32,15 +32,23 @@ import com.isis3510.spendiq.views.auth.AuthenticationScreen
 import com.isis3510.spendiq.views.auth.LoginScreen
 import com.isis3510.spendiq.views.auth.RegisterScreen
 import com.isis3510.spendiq.views.profile.ProfileScreen
+import com.isis3510.spendiq.views.profile.ProfileAccountScreen
+import com.isis3510.spendiq.views.profile.ProfileHelpScreen
+import com.isis3510.spendiq.views.profile.ProfileInfoScreen
+import com.isis3510.spendiq.views.profile.ProfileLaGScreen
+import com.isis3510.spendiq.views.profile.ProfileNotificationsScreen
+import com.isis3510.spendiq.views.profile.ProfileStatisticsScreen
 import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import com.isis3510.spendiq.viewmodel.ProfileViewModel
 import com.isis3510.spendiq.views.accounts.AccountTransactionsScreen
 import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
 import com.isis3510.spendiq.views.offers.OffersScreen
 import com.isis3510.spendiq.views.offers.SpecialSalesDetail
+import com.isis3510.spendiq.views.profile.ProfileSecurityScreen
 
 class MainActivity : FragmentActivity() {
     companion object {
@@ -105,6 +113,7 @@ class MainActivity : FragmentActivity() {
                     val transactionViewModel: TransactionViewModel = viewModel()
                     val offersViewModel: OffersViewModel = viewModel()
                     val connectivityViewModel: ConnectivityViewModel = viewModel()
+                    val profileViewModel: ProfileViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {
@@ -126,10 +135,31 @@ class MainActivity : FragmentActivity() {
                             OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel)
                         }
                         composable("profile") {
-                            ProfileScreen(navController, authViewModel, transactionViewModel, accountViewModel)
+                            ProfileScreen(navController, authViewModel, transactionViewModel, accountViewModel, profileViewModel)
                         }
                         composable("accounts") {
                             AccountsScreen(navController, accountViewModel, transactionViewModel)
+                        }
+                        composable("profileNotificationsScreen") {
+                            ProfileNotificationsScreen(navController)
+                        }
+                        composable("profileSecurityScreen") {
+                            ProfileSecurityScreen(navController)
+                        }
+                        composable("profileAccountScreen") {
+                            ProfileAccountScreen(navController)
+                        }
+                        composable("profileLaGScreen") {
+                            ProfileLaGScreen(navController)
+                        }
+                        composable("profileStatisticsScreen") {
+                            ProfileStatisticsScreen(navController, transactionViewModel, accountViewModel)
+                        }
+                        composable("profileHelpScreen") {
+                            ProfileHelpScreen(navController)
+                        }
+                        composable("profileInfoScreen") {
+                            ProfileInfoScreen(navController)
                         }
                         composable(
                             route = "accountTransactions/{accountId}",
