@@ -149,7 +149,7 @@ class MainActivity : FragmentActivity() {
                             ProfileAccountScreen(navController)
                         }
                         composable("profileLaGScreen") {
-                            ProfileLaGScreen(navController)
+                            ProfileLaGScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileStatisticsScreen") {
                             ProfileStatisticsScreen(navController, transactionViewModel, accountViewModel)

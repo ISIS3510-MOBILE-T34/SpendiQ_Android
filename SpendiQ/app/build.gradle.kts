@@ -92,6 +92,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:20.5.0")
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.play.services.maps)
+    implementation(libs.androidx.espresso.core)
 
     // Testing
     testImplementation(libs.junit)

@@ -9,6 +9,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
@@ -21,13 +23,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -40,6 +47,7 @@ import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.views.theme.Purple40
 import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     navController: NavController,
@@ -47,6 +55,8 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
 
@@ -64,9 +74,10 @@ fun LoginScreen(
             painter = painterResource(id = R.drawable.logo_log_in),
             contentDescription = "Background Logo",
             modifier = Modifier
-                .fillMaxWidth() // La imagen llena todo el ancho del Box
-                .aspectRatio(1f) // Mantiene la proporción de la imagen
-                .align(alignment = Alignment.Center)
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .align(Alignment.TopCenter) // Alinea la imagen en la parte superior central del Box
+                .offset(y = 80.dp) // Ajusta la distancia vertical desde la parte superior
         )
 
         // Back Button
@@ -86,86 +97,111 @@ fun LoginScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(93.dp))
+            Spacer(modifier = Modifier.height(110.dp))
 
             // App Title
             Text(
                 text = "SpendiQ",
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.onPrimary,
                 textAlign = TextAlign.Center,
                 style = TextStyle(
                     fontSize = 73.sp,
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.padding(bottom = 48.dp)
+                )
+
             )
 
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(200.dp))
 
             // Email Field
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Email") },
-                singleLine = true,
+                placeholder = { Text("Email") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .border(
-                        BorderStroke(width = 2.dp, color = Purple40),
-                        shape = RoundedCornerShape(50)
-                    ),
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Email,
-                        contentDescription = "Email Icon"
-                    )
-                }
+                    .padding(vertical = 4.dp),
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xFFD9D9D9)) },
+                shape = RoundedCornerShape(50),
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    focusedBorderColor = Purple40,
+                    unfocusedBorderColor = Purple40
+                ),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Password Field
+
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password") },
+                placeholder = { Text("Password") },
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .border(
-                        BorderStroke(width = 2.dp, color = Purple40),
-                        shape = RoundedCornerShape(50)
-                    ),
+                    .padding(vertical = 4.dp),
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Lock,
-                        contentDescription = "Password Icon"
+                        contentDescription = "Password Icon",
+                        tint = Color(0xFFD9D9D9)
                     )
                 },
                 trailingIcon = {
-                    IconButton(
-                        onClick = {
-                            viewModel.setupBiometricPrompt(
-                                context as FragmentActivity,
-                                onSuccess = { viewModel.loginWithBiometrics() },
-                                onError = { /* Handle error */ }
+                    Row {
+
+                        IconButton(
+                            onClick = { passwordVisible = !passwordVisible }
+                        ) {
+                            Icon(
+                                painter = painterResource(id = if (passwordVisible) R.drawable.round_visibility_24 else R.drawable.baseline_visibility_off_24),
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                                tint = Color.Gray
                             )
-                            viewModel.showBiometricPrompt()
                         }
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.fingerprint),
-                            contentDescription = "Fingerprint",
-                            modifier = Modifier.size(24.dp),
-                            tint = Color.Gray
-                        )
+
+                        IconButton(
+                            onClick = {
+                                viewModel.setupBiometricPrompt(
+                                    context as FragmentActivity,
+                                    onSuccess = { viewModel.loginWithBiometrics() },
+                                    onError = { /* Manejar error */ }
+                                )
+                                viewModel.showBiometricPrompt()
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.fingerprint),
+                                contentDescription = "Fingerprint",
+                                modifier = Modifier.size(24.dp),
+                                tint = Color.Gray
+                            )
+                        }
                     }
-                }
+                },
+                shape = RoundedCornerShape(50),
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    focusedBorderColor = Purple40,
+                    unfocusedBorderColor = Purple40
+                ),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { focusManager.moveFocus(FocusDirection.Down) }
+                )
             )
+
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -190,7 +226,7 @@ fun LoginScreen(
             // Forgot Password
             Text(
                 text = "Forgot your password?",
-                color = Color(0xff5875dd),
+                color = Color(0xff589ddd),
                 modifier = Modifier.clickable { showResetPasswordDialog = true },
                 style = TextStyle(fontSize = 16.sp)
             )
