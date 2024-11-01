@@ -1,12 +1,15 @@
 package com.isis3510.spendiq.views.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -15,8 +18,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -35,7 +40,7 @@ fun ProfileLaGScreen(
     val isDarkTheme = isSystemInDarkTheme()
     val backgroundColor = if (isDarkTheme) Color.DarkGray else Color(0xFFEEEEEE)
     val textColor = if (isDarkTheme) Color.White else Color.Black
-    
+
     // Checkbox states
     var byExpenseChecked by remember { mutableStateOf(true) }
     var byQuantityChecked by remember { mutableStateOf(false) }
@@ -97,7 +102,7 @@ fun ProfileLaGScreen(
             ) {
                 if (byExpenseChecked) {
                     LazyColumn(
-                        modifier = Modifier.heightIn(max = 200.dp) // Altura máxima de la lista de gastos
+                        modifier = Modifier.heightIn(max = 240.dp)
                     ) {
                         items(expenses) { expense ->
                             ExpenseCategoryCard(
@@ -114,26 +119,41 @@ fun ProfileLaGScreen(
                     // Botón para añadir nuevo gasto, limitado a 4 elementos visibles en pantalla
                     if (expenses.size < 4) {
                         Spacer(modifier = Modifier.height(8.dp))
-
                     }
-
                 }
-                Button(
+
+                // Botón Personalizado
+                CustomButton(
                     onClick = {
                         expenses = expenses.toMutableList().apply {
                             add(Expense("New Expense", "0"))
                         }
                     },
+                    backgroundColor = Color(0xFFCCCCCC),
+                    contentColor = Color(0xFF707070),
                     shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCCCCCC)),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp) // Ajusta la altura según tus necesidades
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.add24),
-                        contentDescription = "Add",
-                        tint = Color(0xFF707070),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.add24),
+                            contentDescription = "Add",
+                            tint = Color(0xFF707070),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Add Expense",
+                            color = Color(0xFF707070),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
 
@@ -187,61 +207,101 @@ fun ProfileLaGScreen(
 
 data class Expense(var name: String, var amount: String)
 
+@Composable
+fun CustomButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = Color(0xFFCCCCCC),
+    contentColor: Color = Color.Black,
+    shape: Shape = RoundedCornerShape(50),
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .background(color = backgroundColor, shape = shape)
+            .clickable(onClick = onClick, indication = null, interactionSource = remember { MutableInteractionSource() })
+            .padding(vertical = 12.dp, horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseCategoryCard(expense: Expense, onValueChange: (String, String) -> Unit) {
+    val isDarkTheme = isSystemInDarkTheme()
+    val textColor = if (isDarkTheme) Color.White else Color.Black
+    val fieldBackground = if (isDarkTheme) Color.Gray else Color(0xFFD9D9D9)
+
     var name by remember { mutableStateOf(expense.name) }
     var amount by remember { mutableStateOf(expense.amount) }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(50.dp) // Altura fija para cada gasto
-            .background(Color(0xFFD9D9D9), RoundedCornerShape(50)) // Fondo gris claro
-            .padding(8.dp),
+            .height(50.dp)
+            .background(fieldBackground, RoundedCornerShape(25.dp))
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // Campo de nombre del gasto
         OutlinedTextField(
             value = name,
             onValueChange = {
                 name = it
                 onValueChange(it, amount)
             },
-            placeholder = { Text("Expense Name", color = Color.Gray, fontSize = 16.sp) },
-            textStyle = LocalTextStyle.current.copy(fontSize = 16.sp, color = Color.Black),
-            modifier = Modifier
-                .weight(1f)
-                .background(Color.Transparent),
+            textStyle = LocalTextStyle.current.copy(fontSize = 16.sp, color = textColor),
             singleLine = true,
+            placeholder = { Text("New Expense", color = textColor.copy(alpha = 0.5f), fontSize = 16.sp) },
             colors = TextFieldDefaults.outlinedTextFieldColors(
-                unfocusedBorderColor = Color.LightGray,
-                focusedBorderColor = Color.Gray,
-                cursorColor = Color.Black
-            )
+                cursorColor = textColor,
+                focusedTextColor = textColor,
+                unfocusedTextColor = textColor,
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent
+            ),
+            modifier = Modifier.weight(1f)
         )
+
         Spacer(modifier = Modifier.width(8.dp))
-        Box(
+
+        // Contenedor para el ícono de edición y el campo de cantidad
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
-                .width(80.dp)
-                .background(Color.White, RoundedCornerShape(20.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .background(if (isDarkTheme) Color.DarkGray else Color.White, RoundedCornerShape(50))
+                .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_edit_24),
+                contentDescription = "Edit",
+                tint = Color.Gray,
+                modifier = Modifier.size(16.dp)
+            )
+
+            // Campo de cantidad
             OutlinedTextField(
                 value = amount,
                 onValueChange = {
                     amount = it.filter { char -> char.isDigit() }
                     onValueChange(name, amount)
                 },
-                placeholder = { Text("Amount", color = Color.Black) },
+                textStyle = LocalTextStyle.current.copy(fontSize = 16.sp, color = textColor),
                 singleLine = true,
+                placeholder = { Text("0000", color = textColor.copy(alpha = 0.5f), fontSize = 16.sp) },
                 colors = TextFieldDefaults.outlinedTextFieldColors(
-                    unfocusedBorderColor = Color.Transparent,
+                    cursorColor = textColor,
+                    focusedTextColor = textColor,
+                    unfocusedTextColor = textColor,
                     focusedBorderColor = Color.Transparent,
-                    cursorColor = Color.Black // Color del cursor
-
+                    unfocusedBorderColor = Color.Transparent
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.width(70.dp),
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
             )
         }
     }
