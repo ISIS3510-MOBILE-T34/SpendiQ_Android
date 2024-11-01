@@ -1,36 +1,35 @@
 package com.isis3510.spendiq.utils
 
 import android.content.Context
-import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
+
 import androidx.fragment.app.FragmentActivity
+import com.isis3510.spendiq.model.facade.ExternalServicesFacade
+import com.isis3510.spendiq.model.facade.LDServicesFacade
+import java.util.Base64
 
 class BiometricHelper(private val context: Context) {
-    private lateinit var biometricPrompt: BiometricPrompt
-    private lateinit var promptInfo: BiometricPrompt.PromptInfo
+    private val externalServicesFacade = ExternalServicesFacade(context)
+    private val ldServicesFacade = LDServicesFacade(context)
 
     fun setupBiometricPrompt(activity: FragmentActivity, onSuccess: () -> Unit, onError: (String) -> Unit) {
-        biometricPrompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(context),
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    onSuccess()
-                }
-
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                    onError(errString.toString())
-                }
-            })
-
-        promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Autenticación biométrica")
-            .setSubtitle("Inicia sesión usando tu huella dactilar")
-            .setNegativeButtonText("Cancelar")
-            .build()
+        externalServicesFacade.setupBiometricPrompt(activity, onSuccess, onError)
     }
 
     fun showBiometricPrompt() {
-        biometricPrompt.authenticate(promptInfo)
+        externalServicesFacade.showBiometricPrompt()
+    }
+
+    fun storeCredentials(email: String, password: String) {
+        ldServicesFacade.storeCredentials(email, password)
+    }
+
+    fun getStoredCredentials(): Pair<String?, String?> {
+        val encryptedEmail = ldServicesFacade.getEncryptedEmail()
+        val encryptedPassword = ldServicesFacade.getEncryptedPassword()
+
+        return Pair(
+            encryptedEmail,
+            encryptedPassword
+        )
     }
 }
