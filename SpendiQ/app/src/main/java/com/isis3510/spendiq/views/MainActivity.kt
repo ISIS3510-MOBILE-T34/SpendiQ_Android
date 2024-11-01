@@ -1,5 +1,6 @@
 package com.isis3510.spendiq.views
 
+import ConnectivityViewModel
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -125,7 +126,7 @@ class MainActivity : FragmentActivity() {
                             AuthenticationScreen(navController)
                         }
                         composable("login") {
-                            LoginScreen(navController, authViewModel)
+                            LoginScreen(navController, authViewModel, connectivityViewModel)
                         }
                         composable("register") {
                             RegisterScreen(navController, authViewModel)

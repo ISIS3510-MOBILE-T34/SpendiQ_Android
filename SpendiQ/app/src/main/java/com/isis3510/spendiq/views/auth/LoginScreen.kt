@@ -1,6 +1,8 @@
 package com.isis3510.spendiq.views.auth
 
+import ConnectivityViewModel
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,7 +54,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun LoginScreen(
     navController: NavController,
-    viewModel: AuthViewModel
+    viewModel: AuthViewModel,
+    connectivityViewModel: ConnectivityViewModel
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -59,6 +63,8 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
+    val isLogInButtonEnable by connectivityViewModel.isConnected.observeAsState(true)
+    var previousConnectionState by remember { mutableStateOf(isLogInButtonEnable) }
 
     // State variables for the reset password dialog
     var showResetPasswordDialog by remember { mutableStateOf(false) }
@@ -212,7 +218,8 @@ fun LoginScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(48.dp),
+                enabled = isLogInButtonEnable
             ) {
                 Text(
                     text = "Log In",
@@ -290,8 +297,13 @@ fun LoginScreen(
                     )
                 }
                 is AuthState.Error -> {
+                    val errorMessage = if ((authState as AuthState.Error).message.contains("network", ignoreCase = true)) {
+                        "It looks like you're offline. Please check your network connection and try again to log in."
+                    } else {
+                        (authState as AuthState.Error).message
+                    }
                     Text(
-                        text = (authState as AuthState.Error).message,
+                        text = errorMessage,
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,
                         style = TextStyle(fontSize = 16.sp),
@@ -357,6 +369,15 @@ fun LoginScreen(
                     style = TextStyle(fontSize = 16.sp)
                 )
             }
+        }
+
+        if (isLogInButtonEnable != previousConnectionState) {
+            if (isLogInButtonEnable) {
+                Toast.makeText(context, "Back Online!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "It looks like you're offline. Please check your network connection", Toast.LENGTH_SHORT).show()
+            }
+            previousConnectionState = isLogInButtonEnable
         }
 
         // Handle Loading State
