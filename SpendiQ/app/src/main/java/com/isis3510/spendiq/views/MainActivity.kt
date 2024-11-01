@@ -43,6 +43,7 @@ import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.viewmodel.ProfileViewModel
+import UserViewModel
 import com.isis3510.spendiq.views.accounts.AccountTransactionsScreen
 import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
 import com.isis3510.spendiq.views.offers.OffersScreen
@@ -112,6 +113,8 @@ class MainActivity : FragmentActivity() {
                     val transactionViewModel: TransactionViewModel = viewModel()
                     val offersViewModel: OffersViewModel = viewModel()
                     val profileViewModel: ProfileViewModel = viewModel()
+                    val userViewModel: UserViewModel = viewModel()
+                    val userData by userViewModel.userData.collectAsState()
 
 
                     NavHost(navController = navController, startDestination = "splash") {
@@ -143,10 +146,10 @@ class MainActivity : FragmentActivity() {
                             ProfileNotificationsScreen(navController)
                         }
                         composable("profileSecurityScreen") {
-                            ProfileSecurityScreen(navController)
+                            ProfileSecurityScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileAccountScreen") {
-                            ProfileAccountScreen(navController)
+                            ProfileAccountScreen(navController, userData, transactionViewModel, accountViewModel)
                         }
                         composable("profileLaGScreen") {
                             ProfileLaGScreen(navController, transactionViewModel, accountViewModel)
