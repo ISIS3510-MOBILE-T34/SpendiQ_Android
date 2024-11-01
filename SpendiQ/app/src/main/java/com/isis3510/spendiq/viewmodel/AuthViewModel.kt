@@ -43,7 +43,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val userData: StateFlow<UserDataState> = _userData
 
     private val biometricHelper = BiometricHelper(application)
-    private val encryptedPrefs by lazy { createEncryptedSharedPreferences() }
 
     init {
         _user.value = authRepository.getCurrentUser()
@@ -215,7 +214,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val user = result.getOrNull()
                         user?.let {
                             Log.d("AuthViewModel", "Login successful, storing credentials")
-                            storeCredentials(email, password)
+                            biometricHelper.storeCredentials(email, password)
                             _authState.value = AuthState.BiometricEnabled
                         }
                     }
@@ -227,8 +226,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     // Perform login using stored biometric credentials
     fun loginWithBiometrics() {
-        val encryptedEmail = encryptedPrefs.getString("user_email", null)
-        val encryptedPassword = encryptedPrefs.getString("user_password", null)
+        val (encryptedEmail, encryptedPassword) = biometricHelper.getStoredCredentials()
 
         if (encryptedEmail == null || encryptedPassword == null) {
             _authState.value = AuthState.Error("No stored credentials found")
@@ -244,31 +242,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Store credentials securely for biometric login
-    private fun storeCredentials(email: String, password: String) {
-        val encryptedEmail = Base64.encodeToString(email.toByteArray(), Base64.DEFAULT)
-        val encryptedPassword = Base64.encodeToString(password.toByteArray(), Base64.DEFAULT)
-        encryptedPrefs.edit().apply {
-            putString("user_email", encryptedEmail)
-            putString("user_password", encryptedPassword)
-            apply()
-        }
-    }
-
-    // Create encrypted SharedPreferences to store biometric login credentials
-    private fun createEncryptedSharedPreferences(): SharedPreferences {
-        val masterKey = MasterKey.Builder(getApplication())
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-
-        return EncryptedSharedPreferences.create(
-            getApplication(),
-            "secret_shared_prefs",
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    }
 
     // Reset authentication state
     fun resetAuthState() {

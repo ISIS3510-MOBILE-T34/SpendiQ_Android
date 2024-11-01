@@ -13,10 +13,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.isis3510.spendiq.R
+
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
@@ -99,6 +101,7 @@ fun ProfileStatisticsScreen(navController: NavController, transactionViewModel: 
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
+
                     SummaryCard(
                         title = "8 PM",
                         subtitle = "Highest spending time",
@@ -113,6 +116,7 @@ fun ProfileStatisticsScreen(navController: NavController, transactionViewModel: 
                         textColor = textColor,
                         iconResId = R.drawable.calendar24 // Puedes cambiarlo por cualquier ícono que desees
                     )
+
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -180,6 +184,7 @@ fun SegmentedButton(
         }
     }
 }
+
 
 @Composable
 fun SummaryCard(title: String, subtitle: String, backgroundColor: Color, textColor: Color, iconResId: Int) {
