@@ -62,11 +62,10 @@ fun AuthenticationScreen(navController: NavController) {
                     fontSize = 73.sp,
                     fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.padding(bottom = 32.dp)
+                )
             )
 
-            Spacer(modifier = Modifier.height(73.dp))
+            Spacer(modifier = Modifier.height(96.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,

@@ -92,6 +92,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:20.5.0")
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.play.services.maps)
+    implementation(libs.androidx.espresso.core)
 
     // Testing
     testImplementation(libs.junit)
@@ -106,4 +107,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0") // Retrofit library
     implementation("com.squareup.retrofit2:converter-gson:2.9.0") // Gson converter for Retrofit
     implementation("com.squareup.okhttp3:okhttp:4.11.0") // OkHttp for networking
+
+    // Graphs
+    implementation("io.github.ehsannarmani:compose-charts:0.0.14")
 }

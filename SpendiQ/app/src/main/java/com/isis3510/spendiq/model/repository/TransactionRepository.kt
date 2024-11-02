@@ -83,6 +83,36 @@ class TransactionRepository {
         }
     }
 
+    fun getAllTransactions(): Flow<Result<List<Transaction>>> = flow {
+        try {
+            val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+            val accountsSnapshot = firestore.collection("accounts")
+                .whereEqualTo("user_id", userId)
+                .get()
+                .await()
+
+            val transactions = mutableListOf<Transaction>()
+
+            for (accountDoc in accountsSnapshot.documents) {
+                val accountId = accountDoc.id
+                val transactionsSnapshot = firestore.collection("accounts")
+                    .document(accountId)
+                    .collection("transactions")
+                    .get()
+                    .await()
+
+                transactions.addAll(transactionsSnapshot.documents.mapNotNull { doc ->
+                    parseTransactionDocument(doc, accountId)
+                })
+            }
+
+            emit(Result.success(transactions))
+        } catch (e: Exception) {
+            Log.e("TransactionRepository", "Error fetching all transactions", e)
+            emit(Result.failure(e))
+        }
+    }
+
     // Add transaction
     fun addTransaction(transaction: Transaction): Flow<Result<Unit>> = flow {
         try {

@@ -13,8 +13,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.isis3510.spendiq.R
+
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
@@ -97,8 +101,22 @@ fun ProfileStatisticsScreen(navController: NavController, transactionViewModel: 
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    SummaryCard(title = "8 PM", subtitle = "Highest spending time", backgroundColor = cardBackgroundColor, textColor = textColor)
-                    SummaryCard(title = "Saturday", subtitle = "Highest spending day", backgroundColor = cardBackgroundColor, textColor = textColor)
+
+                    SummaryCard(
+                        title = "8 PM",
+                        subtitle = "Highest spending time",
+                        backgroundColor = cardBackgroundColor,
+                        textColor = textColor,
+                        iconResId = R.drawable.round_clock_24 // Puedes cambiarlo por cualquier ícono que desees
+                    )
+                    SummaryCard(
+                        title = "Saturday",
+                        subtitle = "Highest spending day",
+                        backgroundColor = cardBackgroundColor,
+                        textColor = textColor,
+                        iconResId = R.drawable.calendar24 // Puedes cambiarlo por cualquier ícono que desees
+                    )
+
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -166,3 +184,41 @@ fun SegmentedButton(
         }
     }
 }
+
+
+@Composable
+fun SummaryCard(title: String, subtitle: String, backgroundColor: Color, textColor: Color, iconResId: Int) {
+    Surface(
+        modifier = Modifier
+            .width(140.dp)
+            .height(100.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = backgroundColor
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Icon in the top right corner, larger size
+            Icon(
+                painter = painterResource(id = iconResId),
+                contentDescription = null,
+                tint = textColor,
+                modifier = Modifier
+                    .size(48.dp)  // Increase the size for better visibility
+                    .align(Alignment.TopEnd)
+                    .padding(10.dp)
+            )
+
+            // Content of the card
+            Column(
+                modifier = Modifier
+                    .padding(start = 12.dp, top = 12.dp, end = 8.dp, bottom = 12.dp)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium, color = textColor)
+                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = textColor)
+            }
+        }
+    }
+}
+
+

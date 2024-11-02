@@ -66,7 +66,9 @@ fun ProfileScreen(
     val profileImageUri by profileViewModel.profileImageUri.collectAsState()
     var isLoading by remember { mutableStateOf(true) }
     val context = LocalContext.current
-    var locationText by remember { mutableStateOf("Ubicación no disponible") }
+
+    var locationText by remember { mutableStateOf("Location not available") }
+
 
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { newUri ->
@@ -91,7 +93,9 @@ fun ProfileScreen(
             is AuthViewModel.UserDataState.Error -> {
                 Toast.makeText(
                     context,
-                    "Error al cargar datos: ${(userDataState as AuthViewModel.UserDataState.Error).message}",
+
+                    "Error loading data: ${(userDataState as AuthViewModel.UserDataState.Error).message}",
+
                     Toast.LENGTH_LONG
                 ).show()
                 isLoading = false
@@ -106,8 +110,10 @@ fun ProfileScreen(
             TopAppBar(
                 title = { Text("Perfil") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
+
+                    IconButton(onClick = { navController.navigate("main") { launchSingleTop = true } }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+
                     }
                 }
             )
@@ -130,7 +136,8 @@ fun ProfileScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(16.dp)
-                    .verticalScroll(rememberScrollState()), // Agregado para hacer scroll
+                    .verticalScroll(rememberScrollState()),
+
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
@@ -171,15 +178,7 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Sección de botones
                 SectionWithButtons(navController)
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                ProfileField("Full Name", (userData?.get("fullName") as? String) ?: "", R.drawable.person24)
-                ProfileField("Email Address", (userData?.get("email") as? String) ?: "", R.drawable.email24)
-                ProfileField("Phone Number", (userData?.get("phoneNumber") as? String) ?: "", R.drawable.phone24)
-                ProfileField("Birth Date", (userData?.get("birthDate") as? String) ?: "", R.drawable.calendar24)
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -221,6 +220,7 @@ fun SectionWithButtons(navController: NavController) {
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
                 ActionButtonWithArrow("Cuenta", R.drawable.person24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
                     navController.navigate("profileAccountScreen") { launchSingleTop = true }
+
                 }
             }
         }
@@ -382,32 +382,187 @@ fun ActionButton(text: String) {
 }
 
 @Composable
-fun ProfileField(label: String, value: String, iconResId: Int) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+fun SectionWithButtons(navController: NavController) {
+    Column {
+        // Notifications, Security, and Account Section
+        Box(modifier = Modifier.padding(vertical = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFEEEEEE))
+                    .padding(16.dp)
+            ) {
+                ActionButtonWithArrow("Notifications", R.drawable.baseline_notifications_24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
+                    navController.navigate("profileNotificationsScreen") { launchSingleTop = true }
+                }
+                Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
+                ActionButtonWithArrow("Security", R.drawable.baseline_shield_24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
+                    navController.navigate("profileSecurityScreen") { launchSingleTop = true }
+                }
+                Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
+                ActionButtonWithArrow("Account", R.drawable.person24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
+                    navController.navigate("profileAccountScreen") { launchSingleTop = true }
+                }
+            }
+        }
+
+        // Limits and Goals, Statistics Section
+        Box(modifier = Modifier.padding(vertical = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFEEEEEE))
+                    .padding(16.dp)
+            ) {
+                ActionButtonWithArrow("Limits and Goals", R.drawable.baseline_adjust_24, navController, backgroundColor = Color(0xFFB3CB54), textColor = Color.Black) {
+                    navController.navigate("profileLaGScreen") { launchSingleTop = true }
+                }
+                Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
+                ActionButtonWithArrow("Statistics", R.drawable.round_equalizer_24, navController, backgroundColor = Color(0xFFB3CB54), textColor = Color.Black) {
+                    navController.navigate("profileStatisticsScreen") { launchSingleTop = true }
+                }
+            }
+        }
+
+        // Help and Information Section
+        Box(modifier = Modifier.padding(vertical = 8.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFEEEEEE))
+                    .padding(16.dp)
+            ) {
+                ActionButtonWithArrow("Help", R.drawable.outline_question_mark_24, navController, backgroundColor = Color(0xFF5875DD), textColor = Color.Black) {
+                    navController.navigate("profileHelpScreen") { launchSingleTop = true }
+                }
+                Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
+                ActionButtonWithArrow("Information", R.drawable.sharp_info_outline_24, navController, backgroundColor = Color(0xFF5875DD), textColor = Color.Black) {
+                    navController.navigate("profileInfoScreen") { launchSingleTop = true }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActionButtonWithArrow(text: String, iconResId: Int, navController: NavController, backgroundColor: Color = Color(0xFFB3CB54), textColor: Color = Color.Black, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(backgroundColor), // Circular background for the icon
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(id = iconResId),
-                contentDescription = label,
-                tint = Color.Gray,
+                contentDescription = text,
+                tint = Color.White,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyLarge
-            )
         }
-        Divider(modifier = Modifier.padding(top = 8.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = textColor,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            painter = painterResource(id = R.drawable.round_arrow_forward_ios_24),
+            contentDescription = "Arrow",
+            tint = Color.Black,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
+
+@SuppressLint("ResourceAsColor")
+@Composable
+fun ProfileImageWithMultiColorBorder(profileImageUri: Uri?) {
+    Box(
+        modifier = Modifier
+            .size(106.dp) // Ajuste para dar espacio a los bordes
+            .clip(CircleShape)
+    ) {
+        // Dibujo de los arcos de colores
+        Canvas(modifier = Modifier.matchParentSize()) {
+            drawArc(
+                color = Color(0xFFB3CB54),
+                startAngle = 0f,
+                sweepAngle = 90f,
+                useCenter = false,
+                style = Stroke(8.dp.toPx(), cap = StrokeCap.Round)
+            )
+            drawArc(
+                color = Color(0xFFC33BA5),
+                startAngle = 90f,
+                sweepAngle = 90f,
+                useCenter = false,
+                style = Stroke(8.dp.toPx(), cap = StrokeCap.Round)
+            )
+            drawArc(
+                color = Color(0xFFB3CB54),
+                startAngle = 180f,
+                sweepAngle = 90f,
+                useCenter = false,
+                style = Stroke(8.dp.toPx(), cap = StrokeCap.Round)
+            )
+            drawArc(
+                color = Color(0xFFC33BA5),
+                startAngle = 270f,
+                sweepAngle = 90f,
+                useCenter = false,
+                style = Stroke(8.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
+
+        // Imagen de perfil (si existe)
+        Box(
+            modifier = Modifier
+                .size(100.dp) // Tamaño más pequeño para la imagen de perfil, respetando los bordes
+                .clip(CircleShape)
+                .align(Alignment.Center)
+                .background(Color.Gray), // Fondo gris por defecto
+            contentAlignment = Alignment.Center
+        ) {
+            if (profileImageUri != null) {
+                Image(
+                    painter = rememberAsyncImagePainter(profileImageUri),
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.baseline_add_a_photo_24),
+                    contentDescription = "Add Photo",
+                    modifier = Modifier.size(50.dp),
+                    colorFilter = ColorFilter.tint(Color.White)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ActionButton(text: String) {
+    Button(onClick = { /* Acciones de botón */ }) {
+        Text(text)
+    }
+}
+
 
 @OptIn(UiToolingDataApi::class)
 @SuppressLint("MissingPermission") // Asegúrate de manejar permisos en el nivel de actividad
@@ -430,6 +585,7 @@ suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit
         }
     }
 }
+
 
 fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap): Uri? {
     val filename = "profile_image.png"

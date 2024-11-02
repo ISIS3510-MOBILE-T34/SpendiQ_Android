@@ -94,6 +94,9 @@ class AccountRepository {
             "Nu" -> Color(0xFF9747FF)
             "Bancolombia" -> Color(0xFFFFCC00)
             "Nequi" -> Color(0xFF8B2F87)
+            "Lulo" -> Color(0xFFE8FF00)
+            "Davivienda" -> Color(0xFFed1c27)
+            "BBVA" -> Color(0xFF072146)
             else -> Color.Gray
         }
     }
