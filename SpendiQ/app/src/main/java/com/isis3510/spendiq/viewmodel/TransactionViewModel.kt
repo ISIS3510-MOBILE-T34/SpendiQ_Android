@@ -1,5 +1,6 @@
 package com.isis3510.spendiq.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isis3510.spendiq.model.data.Transaction
@@ -107,6 +108,48 @@ class TransactionViewModel(
                     }
                     result.isFailure -> {
                         UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete transaction")
+                    }
+                    else -> UiState.Error("Unexpected error")
+                }
+            }
+        }
+    }
+
+    fun getIncomeAndExpenses(): Pair<Long, Long> {
+        var totalIncome = 0L
+        var totalExpenses = 0L
+
+        transactions.value.forEach { transaction ->
+            if (transaction.transactionType == "Income") {
+                totalIncome += transaction.amount
+            } else if (transaction.transactionType == "Expense") {
+                totalExpenses += transaction.amount
+            }
+        }
+
+        Log.d("TransactionViewModel", "Expenses: $totalExpenses")
+        Log.d("TransactionViewModel", "Income: $totalIncome")
+
+        return Pair(totalIncome, totalExpenses)
+    }
+
+    fun fetchAllTransactions() {
+        Log.d("TransactionViewModel", "fetchAllTransactions called")
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            transactionRepository.getAllTransactions().collect { result ->
+                _uiState.value = when {
+                    result.isSuccess -> {
+                        val transactionsList = result.getOrNull() ?: emptyList()
+                        _transactions.value = transactionsList
+
+                        Log.d("TransactionViewModel", "Transacciones obtenidas: $transactionsList")
+
+                        UiState.Success
+                    }
+                    result.isFailure -> {
+                        Log.e("TransactionViewModel", "Error al obtener transacciones: ${result.exceptionOrNull()?.message}")
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch transactions")
                     }
                     else -> UiState.Error("Unexpected error")
                 }
