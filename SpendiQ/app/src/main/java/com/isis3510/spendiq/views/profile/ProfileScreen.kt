@@ -36,6 +36,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.data.UiToolingDataApi
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -43,8 +44,8 @@ import com.google.android.gms.location.LocationServices
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
-import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.viewmodel.ProfileViewModel
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -69,11 +70,15 @@ fun ProfileScreen(
 
     var locationText by remember { mutableStateOf("Location not available") }
 
-
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { newUri ->
-            saveImageToInternalStorage(context, newUri)
-            profileViewModel.saveProfileImage(context, newUri)
+            val savedUri = saveImageToInternalStorage(context, newUri)
+            if (savedUri != null) {
+                profileViewModel.saveProfileImage(context, savedUri)
+                Toast.makeText(context, "Imagen guardada correctamente", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Error al guardar la imagen", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -93,9 +98,7 @@ fun ProfileScreen(
             is AuthViewModel.UserDataState.Error -> {
                 Toast.makeText(
                     context,
-
                     "Error loading data: ${(userDataState as AuthViewModel.UserDataState.Error).message}",
-
                     Toast.LENGTH_LONG
                 ).show()
                 isLoading = false
@@ -110,10 +113,8 @@ fun ProfileScreen(
             TopAppBar(
                 title = { Text("Perfil") },
                 navigationIcon = {
-
                     IconButton(onClick = { navController.navigate("main") { launchSingleTop = true } }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-
                     }
                 }
             )
@@ -137,7 +138,6 @@ fun ProfileScreen(
                     .padding(innerPadding)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
-
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
@@ -197,10 +197,6 @@ fun ProfileScreen(
         }
     }
 }
-
-
-
-
 
 @SuppressLint("ResourceAsColor")
 @Composable
@@ -346,7 +342,14 @@ fun SectionWithButtons(navController: NavController) {
 }
 
 @Composable
-fun ActionButtonWithArrow(text: String, iconResId: Int, navController: NavController, backgroundColor: Color = Color(0xFFB3CB54), textColor: Color = Color.Black, onClick: () -> Unit) {
+fun ActionButtonWithArrow(
+    text: String,
+    iconResId: Int,
+    navController: NavController,
+    backgroundColor: Color = Color(0xFFB3CB54),
+    textColor: Color = Color.Black,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -384,12 +387,8 @@ fun ActionButtonWithArrow(text: String, iconResId: Int, navController: NavContro
     }
 }
 
-
-
-
-
 @OptIn(UiToolingDataApi::class)
-@SuppressLint("MissingPermission") // Asegúrate de manejar permisos en el nivel de actividad
+@SuppressLint("MissingPermission")
 suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit) {
     val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
 
@@ -410,7 +409,6 @@ suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit
     }
 }
 
-
 fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap): Uri? {
     val filename = "profile_image.png"
     val file = File(context.filesDir, filename)
@@ -426,23 +424,30 @@ fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap): Uri? {
     }
 }
 
-// Función para guardar la imagen en el almacenamiento interno
-fun saveImageToInternalStorage(context: Context, uri: Uri) {
-    val file = File(context.filesDir, "profile_image.png")
-    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-        FileOutputStream(file).use { outputStream ->
-            inputStream.copyTo(outputStream)
+
+fun saveImageToInternalStorage(context: Context, uri: Uri): Uri? {
+    val filename = "profile_image.png"
+    val file = File(context.filesDir, filename)
+    return try {
+        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            FileOutputStream(file).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
         }
+        Uri.fromFile(file)
+    } catch (e: IOException) {
+        e.printStackTrace()
+        null
     }
 }
 
-// Función para guardar la URI de la imagen de perfil de manera persistente
+
 fun saveProfileImageUri(context: Context, uri: Uri) {
     val sharedPreferences = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
     sharedPreferences.edit().putString("profile_image_uri", uri.toString()).apply()
 }
 
-// Función para obtener la URI de la imagen de perfil almacenada de manera persistente
+
 fun getProfileImageUri(context: Context): Uri? {
     val sharedPreferences = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
     val uriString = sharedPreferences.getString("profile_image_uri", null)
