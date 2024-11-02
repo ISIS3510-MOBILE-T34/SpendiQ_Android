@@ -6,14 +6,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -27,6 +30,7 @@ import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.google.firebase.Timestamp
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import com.isis3510.spendiq.views.common.CreatePieChart
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -43,12 +47,16 @@ fun MainContent(
     val promos by promoViewModel.offers.collectAsState()
     val currentMoney by accountViewModel.currentMoney.collectAsState()
     var showAddTransactionModal by remember { mutableStateOf(false) }
-    var isIncome by remember { mutableStateOf(true) }
+    val uiState by transactionViewModel.uiState.collectAsState()
+    val transactions by transactionViewModel.transactions.collectAsState()
+    val (totalIncome, totalExpenses) = remember(transactions) {
+        transactionViewModel.getIncomeAndExpenses()
+    }
 
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
         promoViewModel.fetchOffers()
-        accounts.firstOrNull()?.let { transactionViewModel.fetchTransactions(it.name) }
+        transactionViewModel.fetchAllTransactions()
     }
 
     Scaffold(
@@ -111,23 +119,52 @@ fun MainContent(
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Income/Expenses", style = MaterialTheme.typography.headlineMedium)
+                Text("Monthly Income/Expenses", style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Row {
-                    Button(onClick = { isIncome = true }) {
-                        Text("Income")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(onClick = { isIncome = false }) {
-                        Text("Expenses")
+                // Muestra un indicador de carga si la UI está en estado de carga
+                if (uiState is TransactionViewModel.UiState.Loading) {
+                    CircularProgressIndicator()
+                } else {
+                    if (totalIncome > 0 || totalExpenses > 0) {
+                        //CreatePieChart(data = listOf("Income" to totalIncome, "Expenses" to totalExpenses))
+                        Row(modifier = Modifier.fillMaxWidth()){
+                            CreatePieChart(data = listOf("Income" to totalIncome, "Expenses" to totalExpenses))
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp),
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowUp,
+                                    contentDescription = "Income Icon",
+                                    tint = Color(0xffb3cb54)
+                                )
+                                Text(
+                                    text = "$ $totalIncome",
+                                    color = Color(0xffb3cb54),
+                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "$ $totalExpenses",
+                                    color = Color(0xffc33ba5),
+                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Expenses Icon",
+                                    tint = Color(0xffc33ba5)
+                                )
+                            }
+                        }
+                    } else {
+                        Text("You don't have any transactions.")
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Here will be a Graph"
-                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Save with these promotions",
