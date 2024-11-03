@@ -82,8 +82,8 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .align(Alignment.TopCenter) // Alinea la imagen en la parte superior central del Box
-                .offset(y = 80.dp) // Ajusta la distancia vertical desde la parte superior
+                .align(Alignment.TopCenter)
+                .offset(y = 75.dp)
         )
 
         // Back Button
@@ -103,7 +103,7 @@ fun LoginScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(110.dp))
+            Spacer(modifier = Modifier.height(122.dp))
 
             // App Title
             Text(
