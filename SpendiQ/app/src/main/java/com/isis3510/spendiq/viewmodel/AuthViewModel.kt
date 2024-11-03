@@ -17,6 +17,8 @@ import android.util.Log
 import androidx.fragment.app.FragmentActivity
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 sealed class AuthState {
     data object Idle : AuthState()
@@ -28,6 +30,7 @@ sealed class AuthState {
     data object EmailVerified : AuthState()
     data object EmailNotVerified : AuthState()
     data class Error(val message: String) : AuthState()
+    data object BiometricAlreadyEnabled : AuthState()
 }
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
@@ -43,6 +46,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val userData: StateFlow<UserDataState> = _userData
 
     private val biometricHelper = BiometricHelper(application)
+
+    private val _biometricLoginEvent = MutableSharedFlow<String>() // Evento para manejar el resultado de la habilitación de biometría
+    val biometricLoginEvent = _biometricLoginEvent.asSharedFlow() // Exponer como SharedFlow
 
     init {
         _user.value = authRepository.getCurrentUser()
@@ -207,6 +213,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     // Enable biometric login by saving credentials
     fun enableBiometricLogin(email: String, password: String) {
         viewModelScope.launch {
+            // Verificar si la biometría ya está habilitada
+            if (biometricHelper.isBiometricEnabled()) {
+                _authState.value = AuthState.BiometricAlreadyEnabled // Cambiar el estado
+                return@launch // Salir de la función
+            }
+
             _authState.value = AuthState.Loading
             authRepository.login(email, password).collect { result ->
                 when {
@@ -215,10 +227,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         user?.let {
                             Log.d("AuthViewModel", "Login successful, storing credentials")
                             biometricHelper.storeCredentials(email, password)
-                            _authState.value = AuthState.BiometricEnabled
+                            _authState.value = AuthState.BiometricEnabled // Cambiar el estado a habilitado
                         }
                     }
-                    result.isFailure -> _authState.value = AuthState.Error("Failed to enable biometric login")
+                    result.isFailure -> {
+                        _authState.value = AuthState.Error("Failed to enable biometric login")
+                    }
                 }
             }
         }
