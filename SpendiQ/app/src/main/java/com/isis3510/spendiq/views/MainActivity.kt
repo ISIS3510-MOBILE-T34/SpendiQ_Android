@@ -115,6 +115,7 @@ class MainActivity : FragmentActivity() {
                     val offersViewModel: OffersViewModel = viewModel()
                     val profileViewModel: ProfileViewModel = viewModel()
                     val userViewModel: UserViewModel = viewModel()
+                    val connectivityViewModel: ConnectivityViewModel = viewModel()
                     val userData by userViewModel.userData.collectAsState()
 
 
