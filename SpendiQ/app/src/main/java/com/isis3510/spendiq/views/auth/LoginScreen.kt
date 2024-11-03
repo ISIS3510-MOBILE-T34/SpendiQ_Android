@@ -349,7 +349,6 @@ fun LoginScreen(
                     text = "Enable Biometrics",
                     color = Color(0xffc33ba5),
                     modifier = Modifier.clickable {
-                        Log.d("LoginScreen", "Enable Biometrics clicked with email: $email")
                         viewModel.enableBiometricLogin(email, password)
                     },
                     style = TextStyle(fontSize = 16.sp)
