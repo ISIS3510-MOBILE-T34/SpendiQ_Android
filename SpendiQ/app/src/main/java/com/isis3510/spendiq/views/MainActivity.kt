@@ -116,6 +116,7 @@ class MainActivity : FragmentActivity() {
                     val profileViewModel: ProfileViewModel = viewModel()
                     val userViewModel: UserViewModel = viewModel()
                     val userData by userViewModel.userData.collectAsState()
+                    val connectivityViewModel: ConnectivityViewModel = viewModel()
 
 
                     NavHost(navController = navController, startDestination = "splash") {
@@ -150,7 +151,7 @@ class MainActivity : FragmentActivity() {
                             ProfileSecurityScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileAccountScreen") {
-                            ProfileAccountScreen(navController, userData, transactionViewModel, accountViewModel)
+                            ProfileAccountScreen(navController)//, userData, transactionViewModel, accountViewModel)
                         }
                         composable("profileLaGScreen") {
                             ProfileLaGScreen(navController, transactionViewModel, accountViewModel)
