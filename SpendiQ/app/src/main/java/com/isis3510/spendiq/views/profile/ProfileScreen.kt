@@ -63,13 +63,11 @@ fun ProfileScreen(
     accountViewModel: AccountViewModel,
     profileViewModel: ProfileViewModel
 ) {
-    var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
+    val userDataState by viewModel.userData.collectAsState()
     val profileImageUri by profileViewModel.profileImageUri.collectAsState()
     var isLoading by remember { mutableStateOf(true) }
     val context = LocalContext.current
-
     var locationText by remember { mutableStateOf("Location not available") }
-
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { newUri ->
             val savedUri = saveImageToInternalStorage(context, newUri)
@@ -88,11 +86,11 @@ fun ProfileScreen(
         updateLocation(context) { location -> locationText = location }
     }
 
-    val userDataState by viewModel.userData.collectAsState()
     LaunchedEffect(userDataState) {
         when (userDataState) {
             is AuthViewModel.UserDataState.Success -> {
-                userData = (userDataState as AuthViewModel.UserDataState.Success).data
+                val data = (userDataState as AuthViewModel.UserDataState.Success).data
+                profileViewModel.setUserData(data)
                 isLoading = false
             }
             is AuthViewModel.UserDataState.Error -> {
@@ -152,27 +150,30 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                userData?.let { data ->
-                    Text(
-                        text = (data["fullName"] as? String) ?: "",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.baseline_location_pin_24),
-                            contentDescription = "Location",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                userDataState.let { state ->
+                    if (state is AuthViewModel.UserDataState.Success) {
+                        val data = state.data
                         Text(
-                            text = locationText,
-                            style = MaterialTheme.typography.bodyLarge
+                            text = (data["fullName"] as? String) ?: "Nombre no disponible",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
                         )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.baseline_location_pin_24),
+                                contentDescription = "Location",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = locationText,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
                     }
                 }
 
@@ -268,12 +269,6 @@ fun ProfileImageWithMultiColorBorder(profileImageUri: Uri?) {
     }
 }
 
-@Composable
-fun ActionButton(text: String) {
-    Button(onClick = { /* Acciones de botón */ }) {
-        Text(text)
-    }
-}
 
 @Composable
 fun SectionWithButtons(navController: NavController) {

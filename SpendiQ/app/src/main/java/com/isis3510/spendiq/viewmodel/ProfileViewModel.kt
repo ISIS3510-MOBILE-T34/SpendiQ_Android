@@ -1,3 +1,4 @@
+// ProfileViewModel.kt
 package com.isis3510.spendiq.viewmodel
 
 import android.content.Context
@@ -11,6 +12,9 @@ class ProfileViewModel : ViewModel() {
     private val _profileImageUri = MutableStateFlow<Uri?>(null)
     val profileImageUri: StateFlow<Uri?> = _profileImageUri
 
+    private val _userData = MutableStateFlow<Map<String, Any?>?>(null)
+    val userData: StateFlow<Map<String, Any?>?> = _userData
+
     fun saveProfileImage(context: Context, uri: Uri) {
         saveProfileImageUri(context, uri)
         _profileImageUri.value = uri
@@ -18,6 +22,10 @@ class ProfileViewModel : ViewModel() {
 
     fun loadProfileImage(context: Context) {
         _profileImageUri.value = getProfileImageUri(context)
+    }
+
+    fun setUserData(data: Map<String, Any?>) {
+        _userData.value = data
     }
 
     private fun saveProfileImageUri(context: Context, uri: Uri) {

@@ -5,25 +5,20 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-
 class UserViewModel : ViewModel() {
     private val _userData = MutableStateFlow<Map<String, Any?>>(emptyMap())
     val userData: StateFlow<Map<String, Any?>> = _userData
-
     init {
         loadUserDataFromFirebase()
     }
-
     private fun loadUserDataFromFirebase() {
         // Obtener el usuario actual
         val currentUser = FirebaseAuth.getInstance().currentUser
         val userId = currentUser?.uid
-
         if (userId != null) {
             viewModelScope.launch {
                 val firestore = FirebaseFirestore.getInstance()
                 val userDocument = firestore.collection("users").document(userId)
-
                 userDocument.get()
                     .addOnSuccessListener { document ->
                         if (document != null && document.exists()) {
