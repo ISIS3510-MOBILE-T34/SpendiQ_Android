@@ -2,8 +2,6 @@ package com.isis3510.spendiq.viewmodel
 
 import android.app.Application
 import android.net.Uri
-import android.util.Log
-import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.isis3510.spendiq.model.data.User
@@ -12,17 +10,23 @@ import com.isis3510.spendiq.utils.BiometricHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.util.Base64
+import java.util.Date
+import android.content.SharedPreferences
+import android.util.Base64
+import android.util.Log
+import androidx.fragment.app.FragmentActivity
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
 sealed class AuthState {
-    object Idle : AuthState()
-    object Loading : AuthState()
-    object Authenticated : AuthState()
-    object BiometricEnabled : AuthState()
-    object PasswordResetEmailSent : AuthState()
-    object EmailVerificationSent : AuthState()
-    object EmailVerified : AuthState()
-    object EmailNotVerified : AuthState()
+    data object Idle : AuthState()
+    data object Loading : AuthState()
+    data object Authenticated : AuthState()
+    data object BiometricEnabled : AuthState() // Re-added this state
+    data object PasswordResetEmailSent : AuthState() // Fixed the missing reference
+    data object EmailVerificationSent : AuthState()
+    data object EmailVerified : AuthState()
+    data object EmailNotVerified : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -55,7 +59,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 "email" to email,
                 "phoneNumber" to phoneNumber,
                 "birthDate" to birthDate,
-                "registrationDate" to System.currentTimeMillis()
+                "registrationDate" to Date()
             )
             authRepository.register(email, password, userData).collect { result ->
                 _authState.value = when {
@@ -113,18 +117,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _user.value?.let { user ->
                 authRepository.getUserData(user.id).collect { result ->
                     _userData.value = if (result.isSuccess) {
-                        val data = result.getOrNull() ?: emptyMap()
-                        Log.d("AuthViewModel", "Datos de usuario obtenidos: $data")
-                        UserDataState.Success(data)
+                        UserDataState.Success(result.getOrNull() ?: emptyMap())
                     } else {
-                        val error = result.exceptionOrNull()?.message ?: "Failed to get user data"
-                        Log.e("AuthViewModel", "Error al obtener datos de usuario: $error")
-                        UserDataState.Error(error)
+                        UserDataState.Error(result.exceptionOrNull()?.message ?: "Failed to get user data")
                     }
                 }
-            } ?: run {
-                Log.e("AuthViewModel", "No hay un usuario autenticado.")
-                _userData.value = UserDataState.Error("Usuario no autenticado.")
             }
         }
     }
@@ -134,7 +131,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _userData.value = UserDataState.Loading
             authRepository.uploadProfileImage(uri).collect { result ->
                 if (result.isSuccess) {
-                    getUserData() // Refrescar datos después de subir la imagen
+                    getUserData() // Refresh user data after successful upload
                 } else {
                     _userData.value = UserDataState.Error(result.exceptionOrNull()?.message ?: "Failed to upload profile image")
                 }
