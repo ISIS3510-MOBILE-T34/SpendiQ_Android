@@ -12,6 +12,7 @@ data class Transaction(
     val location: Location?,
     val amountAnomaly: Boolean = false,
     val locationAnomaly: Boolean = false,
+    val automatic: Boolean = false
 )
 
 data class Location(

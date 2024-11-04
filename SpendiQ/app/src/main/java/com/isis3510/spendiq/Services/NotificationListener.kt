@@ -97,7 +97,7 @@ class NotificationListener : NotificationListenerService() {
 
             if (!transactionExists(userId, company, amount, currentTimestamp, "Income")) {
                 Log.d("NotificationListener", "Processing income from $company, amount: $amount")
-                addTransaction(userId, amount, company, "Income", location)
+                addTransaction(userId, amount, company, "Income", location, automatic = true)
                 updateNuAccountBalance(userId, amount)
                 showNotification("Income Recorded", "Income of $$amount from $company has been recorded.")
             } else {
@@ -136,7 +136,7 @@ class NotificationListener : NotificationListenerService() {
 
             if (!transactionExists(userId, company, amount, currentTimestamp, "Expense")) {
                 Log.d("NotificationListener", "Processing expense for $company, amount: $amount")
-                addTransaction(userId, amount, company, "Expense", location)
+                addTransaction(userId, amount, company, "Expense", location, automatic = true)
                 updateNuAccountBalance(userId, -amount)
                 showNotification("Expense Recorded", "Expense of $$amount to $company has been recorded.")
             } else {
@@ -215,7 +215,7 @@ class NotificationListener : NotificationListenerService() {
         }
     }
 
-    private suspend fun addTransaction(userId: String, amount: Long, transactionName: String, transactionType: String, location: android.location.Location?) {
+    private suspend fun addTransaction(userId: String, amount: Long, transactionName: String, transactionType: String, location: android.location.Location?, automatic: Boolean) {
         try {
             val accountSnapshot = firestore.collection("accounts")
                 .whereEqualTo("name", "Nu")
@@ -231,6 +231,7 @@ class NotificationListener : NotificationListenerService() {
                     "accountID" to accountId,
                     "transactionName" to transactionName,
                     "transactionType" to transactionType,
+                    "automatic" to automatic, // Adding the automatic field
                     "location" to if (location != null) {
                         hashMapOf(
                             "latitude" to location.latitude,

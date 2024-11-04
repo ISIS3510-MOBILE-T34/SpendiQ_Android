@@ -240,7 +240,10 @@ fun AddTransactionModal(
                                         latitude = location!!.latitude,
                                         longitude = location!!.longitude
                                     )
-                                } else null
+                                } else null,
+                                automatic = false, // Add this line to explicitly set manual transactions
+                                amountAnomaly = false,
+                                locationAnomaly = false
                             )
                             transactionViewModel.addTransactionWithAccountCheck(transaction)
                             onTransactionAdded()
