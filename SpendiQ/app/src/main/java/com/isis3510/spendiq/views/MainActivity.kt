@@ -88,20 +88,18 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Check if notifications service is enabled, if not, request
+
         if (!isNotificationServiceEnabled()) {
             requestNotificationPermission()
         }
 
-        // Request location permission
         requestLocationPermission()
 
-        // Check and request permissions if needed
         if (!hasRequiredPermissions()) {
             requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
         }
 
-        // Initialize the content view with Jetpack Compose and navigation
+
         setContent {
             SpendiQTheme {
                 Surface(
