@@ -143,7 +143,7 @@ class MainActivity : FragmentActivity() {
                             AccountsScreen(navController, accountViewModel, transactionViewModel)
                         }
                         composable("profileNotificationsScreen") {
-                            ProfileNotificationsScreen(navController)
+                            ProfileNotificationsScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileSecurityScreen") {
                             ProfileSecurityScreen(navController, transactionViewModel, accountViewModel)
@@ -158,10 +158,10 @@ class MainActivity : FragmentActivity() {
                             ProfileStatisticsScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileHelpScreen") {
-                            ProfileHelpScreen(navController)
+                            ProfileHelpScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileInfoScreen") {
-                            ProfileInfoScreen(navController)
+                            ProfileInfoScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable(
                             route = "accountTransactions/{accountId}",

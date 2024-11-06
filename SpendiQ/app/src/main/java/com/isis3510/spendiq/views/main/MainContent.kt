@@ -35,6 +35,7 @@ import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.CreatePieChart
 import java.text.SimpleDateFormat
 import java.util.*
+import java.text.NumberFormat
 
 
 @Composable
@@ -55,6 +56,7 @@ fun MainContent(
     val (totalIncome, totalExpenses) = remember(transactions) {
         transactionViewModel.getIncomeAndExpenses()
     }
+    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
 
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
@@ -86,7 +88,6 @@ fun MainContent(
                 Text(
                     text = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date()),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp)
-
                 )
                 Text(
                     text = "Summary",
@@ -105,14 +106,13 @@ fun MainContent(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
                 )
 
-
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start,
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
                     Text(
-                        text = if (isMoneyVisible) "$ $currentMoney" else "****",
+                        text = if (isMoneyVisible) currencyFormatter.format(currentMoney) else "******",
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
@@ -151,8 +151,7 @@ fun MainContent(
                     CircularProgressIndicator()
                 } else {
                     if (totalIncome > 0 || totalExpenses > 0) {
-                        //CreatePieChart(data = listOf("Income" to totalIncome, "Expenses" to totalExpenses))
-                        Row(modifier = Modifier.fillMaxWidth()){
+                        Row(modifier = Modifier.fillMaxWidth()) {
                             CreatePieChart(data = listOf("Income" to totalIncome, "Expenses" to totalExpenses))
 
                             Column(
@@ -167,13 +166,13 @@ fun MainContent(
                                     tint = Color(0xffb3cb54)
                                 )
                                 Text(
-                                    text = "$ $totalIncome",
+                                    text = currencyFormatter.format(totalIncome),
                                     color = Color(0xffb3cb54),
                                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "$ $totalExpenses",
+                                    text = currencyFormatter.format(totalExpenses),
                                     color = Color(0xffc33ba5),
                                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                                 )
