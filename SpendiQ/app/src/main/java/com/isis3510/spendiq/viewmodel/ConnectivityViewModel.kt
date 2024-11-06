@@ -1,3 +1,5 @@
+package com.isis3510.spendiq.viewmodel
+
 import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager

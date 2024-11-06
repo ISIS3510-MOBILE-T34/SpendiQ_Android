@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.model.repository.TransactionRepository
-import com.isis3510.spendiq.viewmodel.AccountViewModel.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch

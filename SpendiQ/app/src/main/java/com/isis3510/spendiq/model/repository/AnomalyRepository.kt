@@ -1,7 +1,7 @@
 package com.isis3510.spendiq.model.repository
 
 import android.util.Log
-import com.isis3510.spendiq.Services.AnomalyApiService
+import com.isis3510.spendiq.services.AnomalyApiService
 
 class AnomalyRepository {
     private val apiService = AnomalyApiService.create()

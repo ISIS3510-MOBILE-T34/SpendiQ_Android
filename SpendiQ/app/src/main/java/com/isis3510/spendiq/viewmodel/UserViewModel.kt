@@ -1,3 +1,5 @@
+package com.isis3510.spendiq.viewmodel
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -5,6 +7,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
 class UserViewModel : ViewModel() {
     private val _userData = MutableStateFlow<Map<String, Any?>>(emptyMap())
     val userData: StateFlow<Map<String, Any?>> = _userData

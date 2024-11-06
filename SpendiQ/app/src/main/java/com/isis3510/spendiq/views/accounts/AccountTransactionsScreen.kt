@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.google.firebase.Timestamp
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import java.text.NumberFormat
