@@ -132,7 +132,7 @@ fun OffersScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ofertas Especiales en tu Área") },
+                title = { Text("Special offers in your area") },
             )
         },
         bottomBar = {
@@ -149,7 +149,7 @@ fun OffersScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
             ) {
-                // Mostrar tarjeta de permiso de ubicación si no se ha otorgado el permiso
+
                 if (!hasLocationPermission) {
                     LocationPermissionCard(
                         onEnableClick = {
@@ -158,15 +158,14 @@ fun OffersScreen(
                     )
                 }
 
-                // Texto informativo sobre ofertas basadas en historial de compras
+
                 Text(
-                    "Basado en las tiendas donde has comprado antes, creemos que estas ofertas cerca de tu ubicación pueden interesarte",
+                    "Based on the stores where you've shopped before, we believe these offers near your location may be of interest to you",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
 
-                // Lista de ofertas ordenadas y filtradas mostradas como tarjetas clicables
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(vertical = 8.dp)
@@ -188,14 +187,6 @@ fun OffersScreen(
     }
 }
 
-/**
- * LocationPermissionCard composable function
- *
- * Una tarjeta que muestra un aviso para que el usuario habilite los permisos de ubicación, mejorando la precisión
- * de las ofertas mostradas basadas en la ubicación.
- *
- * @param onEnableClick Lambda que se activa cuando el usuario hace clic para habilitar los permisos de ubicación.
- */
 @Composable
 private fun LocationPermissionCard(onEnableClick: () -> Unit) {
     Card(
@@ -230,16 +221,6 @@ private fun LocationPermissionCard(onEnableClick: () -> Unit) {
     }
 }
 
-/**
- * OfferCard composable function
- *
- * Muestra los detalles de una oferta individual, incluyendo la imagen de la tienda, nombre, descripción
- * y distancia desde la ubicación actual del usuario.
- *
- * @param offer [Offer] objeto que contiene los detalles de la oferta
- * @param distance [Float?] que representa la distancia a la ubicación del usuario
- * @param onClick Función lambda que se activa cuando se hace clic en la tarjeta
- */
 @Composable
 fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
     Card(
@@ -309,12 +290,6 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
     }
 }
 
-/**
- * Recupera la ubicación actual del usuario si se han otorgado los permisos de ubicación.
- *
- * @param context [Context] utilizado para acceder a los servicios de ubicación.
- * @return Objeto [Location] o null si la ubicación no está disponible o el permiso es denegado.
- */
 private suspend fun getCurrentLocation(context: Context): Location? {
     return try {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -330,14 +305,6 @@ private suspend fun getCurrentLocation(context: Context): Location? {
     }
 }
 
-/**
- * Filtra y ordena una lista de ofertas por proximidad a la ubicación actual del usuario,
- * incluyendo solo aquellas dentro de 1 km.
- *
- * @param offers Lista de objetos [Offer] a filtrar y ordenar.
- * @param currentLocation [Location?] que representa la ubicación actual del usuario.
- * @return Lista de ofertas emparejadas con su distancia, filtradas a 1 km y ordenadas por proximidad.
- */
 private fun sortOffersByDistance(offers: List<Offer>, currentLocation: Location?): List<Pair<Offer, Float?>> {
     return offers.mapNotNull { offer ->
         if (currentLocation != null && offer.latitude != null && offer.longitude != null) {
@@ -357,12 +324,6 @@ private fun sortOffersByDistance(offers: List<Offer>, currentLocation: Location?
     }.sortedBy { it.second }
 }
 
-/**
- * Formatea la distancia en metros o kilómetros para mostrar.
- *
- * @param meters [Float] que representa la distancia en metros.
- * @return Cadena de distancia formateada en metros o kilómetros.
- */
 private fun formatDistance(meters: Float): String {
     val df = DecimalFormat("#.#")
     return when {

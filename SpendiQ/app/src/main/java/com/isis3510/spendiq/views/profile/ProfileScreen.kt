@@ -108,7 +108,7 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Perfil") },
+                title = { Text("Profile") },
                 navigationIcon = {
 
                     IconButton(onClick = { navController.navigate("main") { launchSingleTop = true } }) {
@@ -210,15 +210,15 @@ fun SectionWithButtons(navController: NavController) {
                     .background(Color(0xFFEEEEEE))
                     .padding(16.dp)
             ) {
-                ActionButtonWithArrow("Notificaciones", R.drawable.baseline_notifications_24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
+                ActionButtonWithArrow("Notifications", R.drawable.baseline_notifications_24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
                     navController.navigate("profileNotificationsScreen") { launchSingleTop = true }
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
-                ActionButtonWithArrow("Seguridad", R.drawable.baseline_shield_24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
+                ActionButtonWithArrow("Security", R.drawable.baseline_shield_24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
                     navController.navigate("profileSecurityScreen") { launchSingleTop = true }
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
-                ActionButtonWithArrow("Cuenta", R.drawable.person24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
+                ActionButtonWithArrow("Account", R.drawable.person24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
                     navController.navigate("profileAccountScreen") { launchSingleTop = true }
 
                 }
@@ -234,11 +234,11 @@ fun SectionWithButtons(navController: NavController) {
                     .background(Color(0xFFEEEEEE))
                     .padding(16.dp)
             ) {
-                ActionButtonWithArrow("Limites y Objetivos", R.drawable.baseline_adjust_24, navController, backgroundColor = Color(0xFFB3CB54), textColor = Color.Black) {
+                ActionButtonWithArrow("Limits and Goals", R.drawable.baseline_adjust_24, navController, backgroundColor = Color(0xFFB3CB54), textColor = Color.Black) {
                     navController.navigate("profileLaGScreen") { launchSingleTop = true }
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
-                ActionButtonWithArrow("Estadísticas", R.drawable.round_equalizer_24, navController, backgroundColor = Color(0xFFB3CB54), textColor = Color.Black) {
+                ActionButtonWithArrow("Estatistics", R.drawable.round_equalizer_24, navController, backgroundColor = Color(0xFFB3CB54), textColor = Color.Black) {
                     navController.navigate("profileStatisticsScreen") { launchSingleTop = true }
                 }
             }
@@ -253,11 +253,11 @@ fun SectionWithButtons(navController: NavController) {
                     .background(Color(0xFFEEEEEE))
                     .padding(16.dp)
             ) {
-                ActionButtonWithArrow("Ayuda", R.drawable.outline_question_mark_24, navController, backgroundColor = Color(0xFF5875DD), textColor = Color.Black) {
+                ActionButtonWithArrow("Help", R.drawable.outline_question_mark_24, navController, backgroundColor = Color(0xFF5875DD), textColor = Color.Black) {
                     navController.navigate("profileHelpScreen") { launchSingleTop = true }
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
-                ActionButtonWithArrow("Información", R.drawable.sharp_info_outline_24, navController, backgroundColor = Color(0xFF5875DD), textColor = Color.Black) {
+                ActionButtonWithArrow("Information", R.drawable.sharp_info_outline_24, navController, backgroundColor = Color(0xFF5875DD), textColor = Color.Black) {
                     navController.navigate("profileInfoScreen") { launchSingleTop = true }
                 }
             }

@@ -28,7 +28,7 @@ class LocationBasedOfferService(private val context: Context) {
     // Track the last notification time and the last notified offer ID
     private var lastNotificationTime: Long = 0
     private var lastNotifiedOfferId: String? = null
-    private val NOTIFICATION_COOLDOWN = 15 * 60 * 1000 // Cooldown period of 15 minutes
+    private val NOTIFICATION_COOLDOWN = 3 * 60 * 1000 // Cooldown period of 15 minutes
     private val MAX_NOTIFICATION_DISTANCE = 1000.0 // Maximum distance for notifications in meters
 
     // Callback to receive location updates
