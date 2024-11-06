@@ -29,6 +29,7 @@ import com.isis3510.spendiq.model.data.Location
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -101,6 +102,8 @@ fun TransactionDetailsScreen(
         position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
     }
 
+    var isNavigating by remember { mutableStateOf(false) }
+
     // Load Transaction Data on Screen Start
     LaunchedEffect(Unit) {
         transactionViewModel.getTransaction(accountId, transactionId)
@@ -150,7 +153,16 @@ fun TransactionDetailsScreen(
             TopAppBar(
                 title = { Text("Edit Transaction") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        if (!isNavigating) {
+                            isNavigating = true
+                            coroutineScope.launch {
+                                navController.popBackStack()
+                                delay(300)
+                                isNavigating = false
+                            }
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 },
