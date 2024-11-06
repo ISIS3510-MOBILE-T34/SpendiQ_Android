@@ -1,5 +1,8 @@
+// SpecialSalesDetail.kt
 package com.isis3510.spendiq.views.offers
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -7,12 +10,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -23,6 +29,11 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import com.isis3510.spendiq.views.common.BottomNavigation
+import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * SpecialSalesDetail composable function
@@ -52,10 +63,14 @@ import androidx.compose.ui.text.style.TextAlign
 @Composable
 fun SpecialSalesDetail(
     offer: Offer,
-    navController: NavController
+    navController: NavController,
+    transactionViewModel: TransactionViewModel,
+    accountViewModel: AccountViewModel
 ) {
     // Context for starting external intents
     val context = LocalContext.current
+    var isNavigating by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Scaffold component to manage top-level layout including top bar
     Scaffold(
@@ -69,6 +84,13 @@ fun SpecialSalesDetail(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") // Back icon
                     }
                 }
+            )
+        },
+        bottomBar = {
+            BottomNavigation(
+                navController = navController,
+                transactionViewModel = transactionViewModel,
+                accountViewModel = accountViewModel
             )
         }
     ) { padding ->

@@ -1,15 +1,16 @@
 package com.isis3510.spendiq.views.auth
 
 import android.app.DatePickerDialog
+import android.util.Patterns
 import android.widget.DatePicker
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -17,20 +18,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AuthState
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.views.theme.Purple40
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -46,9 +50,9 @@ fun RegisterScreen(
     var phoneNumber by remember { mutableStateOf("") }
     var birthDate by remember { mutableStateOf("") }
     val authState by viewModel.authState.collectAsState()
-    val (checkedState, onStateChange) = remember { mutableStateOf(false) }
+    var checkedState by remember { mutableStateOf(false) }
+    var isBackButtonEnabled by remember { mutableStateOf(true) }
 
-    // Calendar setup for date picker
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val year = calendar.get(Calendar.YEAR)
@@ -56,7 +60,6 @@ fun RegisterScreen(
     val day = calendar.get(Calendar.DAY_OF_MONTH)
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-    // Date picker dialog
     val datePickerDialog = DatePickerDialog(
         context,
         { _: DatePicker, selectedYear: Int, selectedMonth: Int, selectedDay: Int ->
@@ -68,23 +71,51 @@ fun RegisterScreen(
         day
     )
 
-    // Set max and min dates for the date picker
     datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
     calendar.add(Calendar.YEAR, -100)
     datePickerDialog.datePicker.minDate = calendar.timeInMillis
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .clip(shape = RoundedCornerShape(7.dp))
+            .verticalScroll(rememberScrollState())
             .background(color = Color.White)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.Top
     ) {
+        // Botón de retroceso
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            IconButton(
+                onClick = {
+                    if (isBackButtonEnabled) {
+                        isBackButtonEnabled = false
+                        navController.popBackStack()
+                    }
+                },
+                enabled = isBackButtonEnabled,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.round_arrow_back_ios_24),
+                    contentDescription = "Back",
+                    tint = Purple40,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.Center,
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -92,51 +123,90 @@ fun RegisterScreen(
                 color = Color.Black,
                 textAlign = TextAlign.Center,
                 style = TextStyle(
-                    fontSize = 48.sp,
+                    fontSize = 40.sp,
                     fontFamily = FontFamily.SansSerif
-                ),
-                modifier = Modifier.padding(top = 16.dp)
+                )
             )
-
             Spacer(modifier = Modifier.height(32.dp))
+        }
 
-            // Full name input field
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             OutlinedTextField(
                 value = fullName,
                 onValueChange = { fullName = it },
                 placeholder = { Text("Full Name") },
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Person", tint = Color(0xffb3cb54)) }
+                    .padding(vertical = 4.dp),
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Person", tint = Color(0xffb3cb54)) },
+                shape = RoundedCornerShape(50),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Purple40,
+                    unfocusedBorderColor = Purple40,
+                    errorBorderColor = MaterialTheme.colorScheme.error
+                ),
+                singleLine = true
             )
 
-            // Email input field
+            val isEmailValid = remember(email) { Patterns.EMAIL_ADDRESS.matcher(email).matches() }
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
                 placeholder = { Text("Email") },
+                isError = email.isNotEmpty() && !isEmailValid,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xffb3cb54)) }
+                    .padding(vertical = 4.dp),
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xffb3cb54)) },
+                shape = RoundedCornerShape(50),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Purple40,
+                    unfocusedBorderColor = Purple40,
+                    errorBorderColor = MaterialTheme.colorScheme.error
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Email)
             )
+            if (email.isNotEmpty() && !isEmailValid) {
+                Text(
+                    text = "Invalid email format",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
 
-            // Phone number input field
+            val isPhoneValid = remember(phoneNumber) { phoneNumber.all { it.isDigit() } && phoneNumber.length >= 10 }
             OutlinedTextField(
                 value = phoneNumber,
-                onValueChange = { phoneNumber = it },
+                onValueChange = {
+                    if (it.all { char -> char.isDigit() }) phoneNumber = it
+                },
                 placeholder = { Text("Phone Number") },
+                isError = phoneNumber.isNotEmpty() && !isPhoneValid,
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone",  tint = Color(0xffb3cb54)) }
+                    .padding(vertical = 4.dp),
+                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone", tint = Color(0xffb3cb54)) },
+                shape = RoundedCornerShape(50),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Purple40,
+                    unfocusedBorderColor = Purple40,
+                    errorBorderColor = MaterialTheme.colorScheme.error
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
             )
+            if (phoneNumber.isNotEmpty() && !isPhoneValid) {
+                Text(
+                    text = "Phone number must have at least 10 digits",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
 
-            // Birth date field
             OutlinedTextField(
                 value = birthDate,
                 onValueChange = { },
@@ -144,14 +214,18 @@ fun RegisterScreen(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .padding(vertical = 4.dp)
-                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50))
                     .clickable { datePickerDialog.show() },
                 leadingIcon = { Icon(Icons.Default.DateRange, contentDescription = "Calendar", tint = Color(0xffc33ba5)) },
                 readOnly = true,
-                enabled = false
+                enabled = false,
+                shape = RoundedCornerShape(50),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Purple40,
+                    unfocusedBorderColor = Purple40
+                ),
+                singleLine = true
             )
 
-            // Password input fields
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -159,9 +233,16 @@ fun RegisterScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock1", tint = Color(0xffc33ba5)) }
+                    .padding(vertical = 4.dp),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock1", tint = Color(0xffc33ba5)) },
+                shape = RoundedCornerShape(50),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Purple40,
+                    unfocusedBorderColor = Purple40,
+                    errorBorderColor = MaterialTheme.colorScheme.error
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
 
             OutlinedTextField(
@@ -171,30 +252,42 @@ fun RegisterScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
-                    .padding(vertical = 4.dp)
-                    .border(BorderStroke(2.dp, Purple40), RoundedCornerShape(50)),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock2", tint = Color(0xffc33ba5)) }
+                    .padding(vertical = 4.dp),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock2", tint = Color(0xffc33ba5)) },
+                shape = RoundedCornerShape(50),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Purple40,
+                    unfocusedBorderColor = Purple40,
+                    errorBorderColor = MaterialTheme.colorScheme.error
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
 
-            // Checkbox for terms & conditions
             Row(
                 Modifier
                     .fillMaxWidth(0.9f)
                     .toggleable(
                         value = checkedState,
-                        onValueChange = { onStateChange(!checkedState) },
+                        onValueChange = { checkedState = it },
                         role = Role.Checkbox
                     )
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(checked = checkedState, onCheckedChange = null)
+                Checkbox(
+                    checked = checkedState,
+                    onCheckedChange = { checkedState = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = Purple40,
+                        uncheckedColor = Color.Gray
+                    )
+                )
                 Text(text = "Accept Terms & Conditions", modifier = Modifier.padding(start = 16.dp))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Register button
             Button(
                 onClick = {
                     if (password == confirmPassword && checkedState) {
@@ -203,7 +296,8 @@ fun RegisterScreen(
                 },
                 enabled = password == confirmPassword && checkedState &&
                         email.isNotEmpty() && fullName.isNotEmpty() &&
-                        birthDate.isNotEmpty() && phoneNumber.isNotEmpty(),
+                        birthDate.isNotEmpty() && phoneNumber.isNotEmpty() &&
+                        isEmailValid && isPhoneValid,
                 shape = RoundedCornerShape(7.dp),
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
@@ -215,7 +309,6 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Auth state handling
             when (authState) {
                 is AuthState.Loading -> CircularProgressIndicator()
                 is AuthState.Error -> Text(
@@ -224,7 +317,6 @@ fun RegisterScreen(
                 )
                 is AuthState.Authenticated -> {
                     LaunchedEffect(Unit) {
-                        // Trigger email verification
                         viewModel.sendEmailVerification()
                     }
                 }

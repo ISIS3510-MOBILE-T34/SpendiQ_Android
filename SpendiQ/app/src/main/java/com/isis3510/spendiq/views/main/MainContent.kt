@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -28,10 +29,12 @@ import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.google.firebase.Timestamp
+import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.CreatePieChart
 import java.text.SimpleDateFormat
 import java.util.*
+import java.text.NumberFormat
 
 /**
  * MainContent composable function
@@ -87,9 +90,11 @@ fun MainContent(
     val transactions by transactionViewModel.transactions.collectAsState()
 
     // Calculate total income and expenses
+    var isMoneyVisible by remember { mutableStateOf(true) }
     val (totalIncome, totalExpenses) = remember(transactions) {
         transactionViewModel.getIncomeAndExpenses()
     }
+    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
 
     // Fetch data when the composable is first displayed
     LaunchedEffect(Unit) {
@@ -99,6 +104,7 @@ fun MainContent(
     }
 
     // Scaffold layout with bottom navigation
+
     Scaffold(
         bottomBar = {
             BottomNavigation(
@@ -118,30 +124,48 @@ fun MainContent(
         ) {
             // Display date, summary, and current balance
             item {
+                Spacer(modifier = Modifier.height(24.dp))
+
                 Text(
                     text = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date()),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp)
                 )
                 Text(
                     text = "Summary",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Medium)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = "Take a look at your finances",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+
+                Spacer(modifier = Modifier.height(30.dp))
+
                 Text(
                     text = "Current available money",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
                 )
-                Text(
-                    text = "$ $currentMoney",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start,
                     modifier = Modifier.padding(vertical = 8.dp)
-                )
+                ) {
+                    Text(
+                        text = if (isMoneyVisible) currencyFormatter.format(currentMoney) else "******",
+                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    IconButton(
+                        onClick = { isMoneyVisible = !isMoneyVisible }
+                    ) {
+                        Icon(
+                            painter = painterResource(id = if (isMoneyVisible) R.drawable.round_visibility_24 else R.drawable.baseline_visibility_off_24),
+                            contentDescription = if (isMoneyVisible) "Hide money" else "Show money"
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
@@ -149,7 +173,7 @@ fun MainContent(
             item {
                 Text(
                     text = "Accounts",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Medium)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -188,13 +212,13 @@ fun MainContent(
                                     tint = Color(0xffb3cb54)
                                 )
                                 Text(
-                                    text = "$ $totalIncome",
+                                    text = currencyFormatter.format(totalIncome),
                                     color = Color(0xffb3cb54),
                                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = "$ $totalExpenses",
+                                    text = currencyFormatter.format(totalExpenses),
                                     color = Color(0xffc33ba5),
                                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                                 )

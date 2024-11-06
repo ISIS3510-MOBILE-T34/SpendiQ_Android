@@ -253,7 +253,7 @@ fun AddTransactionModal(
                                         longitude = location!!.longitude
                                     )
                                 } else null,
-                                automatic = false, // Explicitly set as a manual transaction
+                                automatic = false, // Add this line to explicitly set manual transactions
                                 amountAnomaly = false,
                                 locationAnomaly = false
                             )

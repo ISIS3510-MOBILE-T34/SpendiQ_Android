@@ -1,6 +1,5 @@
 package com.isis3510.spendiq.views
 
-import ConnectivityViewModel
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -137,7 +136,7 @@ class MainActivity : FragmentActivity() {
                             AccountsScreen(navController, accountViewModel, transactionViewModel)
                         }
                         composable("profileNotificationsScreen") {
-                            ProfileNotificationsScreen(navController)
+                            ProfileNotificationsScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileSecurityScreen") {
                             ProfileSecurityScreen(navController, transactionViewModel, accountViewModel)
@@ -152,10 +151,10 @@ class MainActivity : FragmentActivity() {
                             ProfileStatisticsScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileHelpScreen") {
-                            ProfileHelpScreen(navController)
+                            ProfileHelpScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileInfoScreen") {
-                            ProfileInfoScreen(navController)
+                            ProfileInfoScreen(navController, transactionViewModel, accountViewModel)
                         }
                         // Define destination for account transactions with accountId as argument
                         composable(
@@ -207,7 +206,9 @@ class MainActivity : FragmentActivity() {
                                         selectedOffer?.let { offer ->
                                             SpecialSalesDetail(
                                                 offer = offer,
-                                                navController = navController
+                                                navController = navController,
+                                                accountViewModel = accountViewModel,
+                                                transactionViewModel = transactionViewModel
                                             )
                                         }
                                     }

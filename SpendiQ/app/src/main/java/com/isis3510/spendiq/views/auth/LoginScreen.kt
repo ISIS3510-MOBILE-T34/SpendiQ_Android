@@ -60,9 +60,9 @@ fun LoginScreen(
     val isLogInButtonEnable by connectivityViewModel.isConnected.observeAsState(true)
     var previousConnectionState by remember { mutableStateOf(isLogInButtonEnable) }
 
-    // State variables for the reset password dialog
     var showResetPasswordDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
+    var isBackButtonEnabled by remember { mutableStateOf(true) }
 
     var showBiometricDialog by remember { mutableStateOf(false) }
 
@@ -71,7 +71,7 @@ fun LoginScreen(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
     ) {
-        // Background Logo
+        // Logo de fondo
         Image(
             painter = painterResource(id = R.drawable.logo_log_in),
             contentDescription = "Background Logo",
@@ -82,16 +82,31 @@ fun LoginScreen(
                 .offset(y = 75.dp)
         )
 
-        // Back Button
-        Image(
-            painter = painterResource(id = R.drawable.leftactionable),
-            contentDescription = "Back",
+        Row(
             modifier = Modifier
-                .align(alignment = Alignment.TopStart)
-                .padding(16.dp)
-                .size(24.dp)
-                .clickable { navController.popBackStack() }
-        )
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            IconButton(
+                onClick = {
+                    if (isBackButtonEnabled) {
+                        isBackButtonEnabled = false
+                        navController.popBackStack()
+                    }
+                },
+                enabled = isBackButtonEnabled,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.round_arrow_back_ios_24),
+                    contentDescription = "Back",
+                    tint = Purple40,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
 
         Column(
             modifier = Modifier
@@ -99,7 +114,7 @@ fun LoginScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(122.dp))
+            Spacer(modifier = Modifier.height(113.dp))
 
             // App Title
             Text(
@@ -114,7 +129,7 @@ fun LoginScreen(
 
             )
 
-            Spacer(modifier = Modifier.height(200.dp))
+            Spacer(modifier = Modifier.height(210.dp))
 
             // Email Field
             OutlinedTextField(
