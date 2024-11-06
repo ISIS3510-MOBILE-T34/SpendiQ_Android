@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -29,51 +28,47 @@ import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.google.firebase.Timestamp
-import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.CreatePieChart
 import java.text.SimpleDateFormat
 import java.util.*
-import java.text.NumberFormat
 
 /**
  * MainContent composable function
  *
- * Displays the main financial dashboard for the user, providing an overview of accounts,
- * income and expenses, and current promotions. Users can view account details, check monthly
- * income and expense summaries, and access promotions relevant to their spending habits.
- * Additionally, users can add new transactions through a modal interface.
+ * Provides a comprehensive dashboard view for the user's financial data. This main screen offers
+ * an overview of the user's accounts, a summary of monthly income and expenses, and current
+ * promotions. Users can interact with their financial data by viewing account-specific transactions,
+ * accessing relevant promotions, and adding new transactions through a modal interface.
  *
  * Key Features:
- * - Financial Summary: Shows the current available money and gives a brief summary of finances.
- * - Accounts Overview: Lists the user’s accounts, with each account displayed in a clickable card
- *   for easy navigation to account-specific transactions.
- * - Monthly Income and Expense Chart: Visualizes the user's monthly income and expenses in a pie chart
- *   and displays the corresponding totals.
- * - Promotions Section: Highlights relevant promotions near the user, allowing them to view more details
- *   and navigate to additional promotions.
- * - Add Transaction Modal: Provides a modal interface for users to add new transactions, including
- *   selecting an account, entering an amount, and choosing a transaction type.
+ * - Financial Summary: Shows the current available balance along with an introductory summary.
+ * - Accounts List: Displays the user’s accounts, each represented by a clickable card that
+ *   navigates to transaction details.
+ * - Income/Expense Chart: Visualizes monthly income and expenses using a pie chart.
+ * - Promotions: Highlights nearby promotions, allowing navigation to further promotional details.
+ * - Add Transaction Modal: A modal dialog for adding new transactions, including account selection,
+ *   amount entry, transaction type, and date selection.
  *
  * UI Structure:
- * - Scaffold with a BottomNavigation bar for easy access to other app sections.
- * - LazyColumn that arranges:
- *   - A financial summary section displaying the date, available money, and accounts.
- *   - Monthly income/expense chart.
- *   - A promotions section with relevant offers.
- * - AddTransactionModal: A modal dialog for adding a transaction, with fields for amount, name,
- *   date, transaction type, and associated account.
+ * - Scaffold with a BottomNavigation bar for seamless navigation across app sections.
+ * - LazyColumn that organizes:
+ *   - A summary section with the date, current available money, and accounts.
+ *   - Income and expense visualization in a pie chart.
+ *   - Promotions section with clickable offers.
+ * - AddTransactionModal: A dialog for adding transactions, featuring various input fields.
  *
- * Supporting Functions:
- * - `AccountItem`: A composable to display individual account details.
- * - `PromoItem`: A composable to display promotion details.
- * - `AddTransactionModal`: A composable modal for adding new transactions with customizable fields.
+ * Supporting Components:
+ * - `AccountItem`: A composable for displaying individual account details within a clickable card.
+ * - `PromoItem`: A composable for rendering promotion details.
+ * - `AddTransactionModal`: A modal dialog for entering details for a new transaction.
  *
- * @param navController [NavController] to navigate between screens.
- * @param accountViewModel [AccountViewModel] provides account-related data.
- * @param promoViewModel [OffersViewModel] provides promotions data.
- * @param transactionViewModel [TransactionViewModel] manages transactions.
+ * @param navController [NavController] to navigate between different screens within the app.
+ * @param accountViewModel [AccountViewModel] provides and manages account-related data.
+ * @param promoViewModel [OffersViewModel] provides data about available promotions.
+ * @param transactionViewModel [TransactionViewModel] manages transaction data and actions.
  */
+
 @Composable
 fun MainContent(
     navController: NavController,
@@ -81,30 +76,27 @@ fun MainContent(
     promoViewModel: OffersViewModel,
     transactionViewModel: TransactionViewModel,
 ) {
-    // Collect data for accounts, promotions, current balance, and transactions
-    val accounts by accountViewModel.accounts.collectAsState()
-    val promos by promoViewModel.offers.collectAsState()
-    val currentMoney by accountViewModel.currentMoney.collectAsState()
-    var showAddTransactionModal by remember { mutableStateOf(false) }
-    val uiState by transactionViewModel.uiState.collectAsState()
-    val transactions by transactionViewModel.transactions.collectAsState()
+    // State collection for financial data
+    val accounts by accountViewModel.accounts.collectAsState() // List of user accounts
+    val promos by promoViewModel.offers.collectAsState() // List of promotions
+    val currentMoney by accountViewModel.currentMoney.collectAsState() // Available balance
+    var showAddTransactionModal by remember { mutableStateOf(false) } // Control for transaction modal
+    val uiState by transactionViewModel.uiState.collectAsState() // UI state for transactions
+    val transactions by transactionViewModel.transactions.collectAsState() // Transaction list
 
-    // Calculate total income and expenses
-    var isMoneyVisible by remember { mutableStateOf(true) }
+    // Calculate total income and expenses from transactions
     val (totalIncome, totalExpenses) = remember(transactions) {
         transactionViewModel.getIncomeAndExpenses()
     }
-    val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
 
-    // Fetch data when the composable is first displayed
+    // Load necessary data when the composable first appears
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
         promoViewModel.fetchOffers()
         transactionViewModel.fetchAllTransactions()
     }
 
-    // Scaffold layout with bottom navigation
-
+    // Main layout with bottom navigation bar
     Scaffold(
         bottomBar = {
             BottomNavigation(
@@ -122,103 +114,85 @@ fun MainContent(
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.Top
         ) {
-            // Display date, summary, and current balance
+            // Financial Summary Section
             item {
-                Spacer(modifier = Modifier.height(24.dp))
-
                 Text(
                     text = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date()),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp)
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
                 Text(
                     text = "Summary",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Medium)
                 )
-                Spacer(modifier = Modifier.height(1.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Take a look at your finances",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp)
+                    style = MaterialTheme.typography.bodyMedium
                 )
-
-                Spacer(modifier = Modifier.height(30.dp))
-
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Current available money",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
                 )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start,
+                Text(
+                    text = "$ $currentMoney",
+                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(vertical = 8.dp)
-                ) {
-                    Text(
-                        text = if (isMoneyVisible) currencyFormatter.format(currentMoney) else "******",
-                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    IconButton(
-                        onClick = { isMoneyVisible = !isMoneyVisible }
-                    ) {
-                        Icon(
-                            painter = painterResource(id = if (isMoneyVisible) R.drawable.round_visibility_24 else R.drawable.baseline_visibility_off_24),
-                            contentDescription = if (isMoneyVisible) "Hide money" else "Show money"
-                        )
-                    }
-                }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Section for account listings
+            // Accounts List Section
             item {
                 Text(
                     text = "Accounts",
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Medium)
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Display each account
+            // Account items displayed within clickable cards
             items(accounts) { account ->
                 AccountItem(account, navController)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Section for displaying monthly income and expenses chart
+            // Monthly Income and Expenses Chart
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Monthly Income/Expenses", style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Show loading indicator if data is still being loaded
+                // Show loading state or chart with income/expenses breakdown
                 if (uiState is TransactionViewModel.UiState.Loading) {
                     CircularProgressIndicator()
                 } else {
                     if (totalIncome > 0 || totalExpenses > 0) {
-                        // Display a pie chart if income or expenses exist
                         Row(modifier = Modifier.fillMaxWidth()) {
                             CreatePieChart(data = listOf("Income" to totalIncome, "Expenses" to totalExpenses))
 
-                            // Display income and expenses with icons
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(start = 16.dp),
                                 horizontalAlignment = Alignment.End
                             ) {
+                                // Income display
                                 Icon(
                                     imageVector = Icons.Default.KeyboardArrowUp,
                                     contentDescription = "Income Icon",
                                     tint = Color(0xffb3cb54)
                                 )
                                 Text(
-                                    text = currencyFormatter.format(totalIncome),
+                                    text = "$ $totalIncome",
                                     color = Color(0xffb3cb54),
                                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
+                                // Expenses display
                                 Text(
-                                    text = currencyFormatter.format(totalExpenses),
+                                    text = "$ $totalExpenses",
                                     color = Color(0xffc33ba5),
                                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                                 )
@@ -242,7 +216,7 @@ fun MainContent(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Display promotions
+            // Promotions Section
             items(promos.take(3)) { promo ->
                 PromoItem(promo) {}
                 Spacer(modifier = Modifier.height(8.dp))
@@ -275,9 +249,15 @@ fun MainContent(
     }
 }
 
+/**
+ * Displays an account in a card, with account name, type, and balance.
+ * The card navigates to transaction details for the account when clicked.
+ *
+ * @param account [Account] object containing account details
+ * @param navController [NavController] to navigate to account transaction details
+ */
 @Composable
 fun AccountItem(account: Account, navController: NavController) {
-    // Card component to display account information
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -305,9 +285,15 @@ fun AccountItem(account: Account, navController: NavController) {
     }
 }
 
+/**
+ * Displays a promotion item in a card with details such as place name, description,
+ * recommendation reason, and an optional shop image.
+ *
+ * @param promo [Offer] object containing promotion details
+ * @param onClick Lambda function called when the promotion is clicked
+ */
 @Composable
 fun PromoItem(promo: Offer, onClick: () -> Unit) {
-    // Card for displaying promotion details
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -338,6 +324,16 @@ fun PromoItem(promo: Offer, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Displays a modal bottom sheet for adding a new transaction, with fields for amount,
+ * name, date, transaction type, and associated account.
+ *
+ * @param accountViewModel [AccountViewModel] provides account data for transaction association
+ * @param transactionViewModel [TransactionViewModel] manages transaction data and submission
+ * @param accounts List of [Account] objects available for association with the transaction
+ * @param onDismiss Lambda function to close the modal
+ * @param onTransactionAdded Lambda function to perform additional actions after adding the transaction
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionModal(
@@ -347,7 +343,7 @@ fun AddTransactionModal(
     onDismiss: () -> Unit,
     onTransactionAdded: () -> Unit
 ) {
-    // State for transaction fields
+    // Modal state variables for transaction fields
     var amount by remember { mutableStateOf("") }
     var transactionName by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf(Timestamp.now()) }
@@ -356,7 +352,7 @@ fun AddTransactionModal(
     var selectedAccountType by remember { mutableStateOf("Nu") }
     var expandedAccountType by remember { mutableStateOf(false) }
 
-    // Date picker dialog
+    // Date picker dialog setup
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val datePickerDialog = android.app.DatePickerDialog(
@@ -370,6 +366,7 @@ fun AddTransactionModal(
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
+    // Modal bottom sheet UI for transaction entry
     ModalBottomSheet(
         onDismissRequest = onDismiss
     ) {
@@ -381,7 +378,7 @@ fun AddTransactionModal(
             Text("Add Transaction", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Amount input
+            // Amount input field
             OutlinedTextField(
                 value = amount,
                 onValueChange = { amount = it.filter { char -> char.isDigit() } },
@@ -390,7 +387,7 @@ fun AddTransactionModal(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Transaction name input
+            // Transaction name input field
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = transactionName,
@@ -399,7 +396,7 @@ fun AddTransactionModal(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Date picker button
+            // Date selection button
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = { datePickerDialog.show() }) {
                 Text("Select Date: ${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(selectedDate.toDate())}")
@@ -407,7 +404,7 @@ fun AddTransactionModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Transaction type dropdown menu
+            // Dropdown menu for transaction type
             ExposedDropdownMenuBox(
                 expanded = expandedTransactionType,
                 onExpandedChange = { expandedTransactionType = !expandedTransactionType }
@@ -442,7 +439,7 @@ fun AddTransactionModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Account type dropdown menu
+            // Dropdown menu for account selection
             ExposedDropdownMenuBox(
                 expanded = expandedAccountType,
                 onExpandedChange = { expandedAccountType = !expandedAccountType }

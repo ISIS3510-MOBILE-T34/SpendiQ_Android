@@ -31,6 +31,37 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
+/**
+ * AccountTransactionsScreen composable function
+ *
+ * Displays a list of transactions for a specific account. This screen allows users to view,
+ * search, and filter transactions associated with an account. Users can also access detailed
+ * views of individual transactions and see location information if available.
+ *
+ * Key Features:
+ * - Transaction Listing: Displays transactions with details such as name, amount, type (income/expense),
+ *   and indicators for any anomalies related to location or amount.
+ * - Search Functionality: Allows users to filter transactions by name using a search bar.
+ * - Date Grouping: Groups transactions by date for better organization and readability.
+ * - Location Handling: Includes a feature to view the location associated with a transaction using
+ *   the device's map application.
+ *
+ * UI Structure:
+ * - Scaffold with a TopAppBar that includes the account name and a back navigation button.
+ * - Search field for filtering transactions.
+ * - A LazyColumn that displays transactions grouped by date, with the ability to click on each
+ *   transaction for further details.
+ *
+ * Supporting Components:
+ * - `TransactionItem`: A composable that represents an individual transaction and displays relevant
+ *   details.
+ * - `AnomalyIndicator`: Visual feedback indicating any anomalies in the transaction data.
+ *
+ * @param navController [NavController] to handle navigation actions within the app.
+ * @param accountName The name of the account for which transactions are being displayed.
+ * @param viewModel [TransactionViewModel] to manage and provide transaction data.
+ */
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountTransactionsScreen(
@@ -38,14 +69,18 @@ fun AccountTransactionsScreen(
     accountName: String,
     viewModel: TransactionViewModel = viewModel()
 ) {
+    // State for managing search query
     var searchQuery by remember { mutableStateOf("") }
+    // State for collecting transactions and UI state
     val transactions by viewModel.transactions.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
+    // Load transactions for the specified account
     LaunchedEffect(accountName) {
         viewModel.fetchTransactions(accountName)
     }
 
+    // Scaffold layout with TopAppBar
     Scaffold(
         topBar = {
             TopAppBar(
@@ -84,6 +119,7 @@ fun AccountTransactionsScreen(
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
+                    // Search Field for filtering transactions
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -94,6 +130,7 @@ fun AccountTransactionsScreen(
                             .padding(16.dp)
                     )
 
+                    // Handle empty transaction list
                     if (transactions.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -102,19 +139,24 @@ fun AccountTransactionsScreen(
                             Text("No hay transacciones aún", style = MaterialTheme.typography.bodyLarge)
                         }
                     } else {
+                        // LazyColumn to display transactions
                         LazyColumn(
                             modifier = Modifier.fillMaxSize()
                         ) {
+                            // Filter transactions based on the search query
                             val filteredTransactions = transactions.filter {
                                 it.transactionName.contains(searchQuery, ignoreCase = true)
                             }
 
+                            // Group transactions by normalized date
                             val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.dateTime.toDate()) }
                             val sortedDates = groupedTransactions.keys.sortedDescending()
 
+                            // Iterate through grouped dates to display transactions
                             sortedDates.forEach { date ->
                                 val transactionsForDate = groupedTransactions[date] ?: return@forEach
 
+                                // Display date header
                                 item {
                                     Text(
                                         text = formatDate(date),
@@ -124,6 +166,7 @@ fun AccountTransactionsScreen(
                                     )
                                 }
 
+                                // Display each transaction for the given date
                                 items(transactionsForDate.sortedByDescending { it.dateTime }) { transaction ->
                                     TransactionItem(transaction, navController, accountName)
                                 }
@@ -136,6 +179,17 @@ fun AccountTransactionsScreen(
     }
 }
 
+/**
+ * TransactionItem composable function
+ *
+ * Displays the details of a single transaction, including its name, amount, type, and any associated
+ * anomalies. Provides a clickable interface to navigate to detailed transaction information, and shows
+ * location information if applicable.
+ *
+ * @param transaction [Transaction] the transaction data to display.
+ * @param navController [NavController] to handle navigation to transaction details.
+ * @param accountName The name of the account associated with the transaction.
+ */
 @Composable
 fun TransactionItem(transaction: Transaction, navController: NavController, accountName: String) {
     val context = LocalContext.current
@@ -167,6 +221,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Show an icon based on transaction type
                 Icon(
                     imageVector = if (transaction.transactionType == "Income") Icons.Default.KeyboardArrowUp
                     else Icons.Default.KeyboardArrowDown,
@@ -189,7 +244,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                 )
             }
 
-            // Anomaly indicators
+            // Anomaly indicators for location and amount
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -206,7 +261,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                 )
             }
 
-            // Location button (if available)
+            // Location button to open maps if location is available
             if (transaction.location != null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -236,6 +291,14 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
     }
 }
 
+/**
+ * AnomalyIndicator composable function
+ *
+ * Displays a visual indicator for transaction anomalies, such as location or amount anomalies.
+ *
+ * @param label String to display next to the anomaly indicator.
+ * @param isAnomaly Boolean indicating whether the anomaly exists.
+ */
 @Composable
 private fun AnomalyIndicator(
     label: String,
@@ -261,6 +324,8 @@ private fun AnomalyIndicator(
         )
     }
 }
+
+// Utility functions for date and currency formatting
 
 private fun normalizeDate(date: Date): Date {
     val calendar = Calendar.getInstance()
