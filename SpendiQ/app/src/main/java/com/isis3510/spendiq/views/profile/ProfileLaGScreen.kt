@@ -1,13 +1,16 @@
 package com.isis3510.spendiq.views.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
@@ -76,7 +80,9 @@ fun ProfileLaGScreen(
     var selectedFrequency by remember { mutableStateOf("Daily") }
     var amountText by remember { mutableStateOf("") }
     val lightGrayColor = Color(0xFFD9D9D9)
-    val cornerRadius = 30.dp // Definimos el radio de los bordes redondeados
+    val selectedButtonColor = Color(0xFFB3CB54) // Color especificado para selección
+    val cornerRadius = 50.dp // Bordes más redondeados
+    var selectedExpenseIndex by remember { mutableStateOf(-1) }
 
     // Estado de desplazamiento para controlar las sombras
     val scrollState = rememberScrollState()
@@ -116,6 +122,7 @@ fun ProfileLaGScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
+                .imePadding() // Añade padding cuando el teclado está visible
         ) {
             // Sección principal con scroll
             Column(
@@ -155,18 +162,24 @@ fun ProfileLaGScreen(
                                 .verticalScroll(scrollState)
                                 .padding(8.dp)
                         ) {
-                            expenses.forEach { expense ->
-                                // Card para cada gasto con fondo gris claro
+                            expenses.forEachIndexed { index, expense ->
+                                // Card para cada gasto con un borde condicional verde si está seleccionado
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
+                                        .padding(vertical = 4.dp)
+                                        .border(
+                                            width = if (index == selectedExpenseIndex) 2.dp else 0.dp,
+                                            color = if (index == selectedExpenseIndex) Color(0xFFB3CB54) else Color.Transparent,
+                                            shape = RoundedCornerShape(30.dp)
+                                        )
+                                        .clickable { selectedExpenseIndex = index }, // Al hacer clic, selecciona este contenedor
                                     shape = RoundedCornerShape(30.dp),
                                     colors = CardDefaults.cardColors(
                                         containerColor = lightGrayColor
                                     )
                                 ) {
-                                    // Row para los campos de texto
+                                    // Contenido de cada contenedor (campo de texto y otros)
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -179,12 +192,7 @@ fun ProfileLaGScreen(
                                             onValueChange = { newValue ->
                                                 expense.name = newValue
                                             },
-                                            placeholder = {
-                                                Text(
-                                                    "Expense Name",
-                                                    fontSize = 15.sp
-                                                )
-                                            },
+                                            placeholder = { Text("Expense Name", fontSize = 15.sp) },
                                             textStyle = TextStyle(
                                                 fontSize = 15.sp,
                                                 textAlign = TextAlign.Start
@@ -205,20 +213,14 @@ fun ProfileLaGScreen(
 
                                         Spacer(modifier = Modifier.width(8.dp))
 
-                                        // Campo de monto con formato de número
+                                        // Campo de monto
                                         TextField(
                                             value = expense.amount,
                                             onValueChange = { newValue ->
-                                                // Permitir solo dígitos y puntos
                                                 val filtered = newValue.replace("[^\\d.]".toRegex(), "")
                                                 expense.amount = filtered
                                             },
-                                            placeholder = {
-                                                Text(
-                                                    "Amount",
-                                                    fontSize = 14.sp
-                                                )
-                                            },
+                                            placeholder = { Text("Amount", fontSize = 14.sp) },
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                             textStyle = TextStyle(
                                                 fontSize = 14.sp,
@@ -235,28 +237,43 @@ fun ProfileLaGScreen(
                                                 errorIndicatorColor = Color.Transparent,
                                             ),
                                             shape = RoundedCornerShape(30.dp),
-                                            leadingIcon = {
-                                                Text("$", fontSize = 14.sp)
-                                            },
+                                            leadingIcon = { Text("$", fontSize = 14.sp) },
                                             singleLine = true,
                                             visualTransformation = NumberFormatTransformation()
                                         )
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        // Botón de eliminación
+                                        IconButton(
+                                            onClick = {
+                                                expenses.removeAt(index)
+                                            },
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Delete,
+                                                contentDescription = "Delete Expense",
+                                                tint = Color.Black
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
 
-                        // Sombras de indicación de scroll con bordes redondeados y opacidad más tenue
+                        // Sombras de indicación de scroll con bordes redondeados y opacidad ajustada
                         if (canScrollUp) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(30.dp)
+                                    .height(40.dp) // Sombra superior más larga
                                     .background(
                                         Brush.verticalGradient(
                                             colors = listOf(Color.Gray.copy(alpha = 0.15f), Color.Transparent),
                                             startY = 0f,
-                                            endY = 30f
+                                            endY = 40f
                                         )
                                     )
                                     .clip(RoundedCornerShape(cornerRadius))
@@ -284,15 +301,11 @@ fun ProfileLaGScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Botón Add Expense
+                    // Botón para agregar gasto
                     Button(
-                        onClick = {
-                            expenses.add(Expense("", ""))
-                        },
+                        onClick = { expenses.add(Expense("", "")) },
                         enabled = isByExpenseChecked,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = lightGrayColor
-                        ),
+                        colors = ButtonDefaults.buttonColors(containerColor = lightGrayColor),
                         shape = RoundedCornerShape(50),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -317,58 +330,125 @@ fun ProfileLaGScreen(
 
                 if (isByQuantityChecked) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Selector de frecuencia
-                    Row {
-                        listOf("Daily", "Weekly", "Monthly").forEach { frequency ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(end = 16.dp)
-                            ) {
-                                RadioButton(
-                                    selected = selectedFrequency == frequency,
-                                    onClick = { selectedFrequency = frequency }
-                                )
-                                Text(frequency)
+
+                    // Contenedor de frecuencia con botones estilizados
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(cornerRadius),
+                        colors = CardDefaults.cardColors(
+                            containerColor = lightGrayColor
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf("Daily", "Weekly", "Monthly").forEach { frequency ->
+                                Button(
+                                    onClick = { selectedFrequency = frequency },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (selectedFrequency == frequency) selectedButtonColor else lightGrayColor,
+                                        contentColor = if (selectedFrequency == frequency) Color.White else Color.Black
+                                    ),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 4.dp)
+                                ) {
+                                    Text(frequency)
+                                }
                             }
                         }
                     }
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Campo de texto para monto con formato de número
-                    TextField(
-                        value = amountText,
-                        onValueChange = { newValue ->
-                            // Permitir solo dígitos y puntos
-                            val filtered = newValue.replace("[^\\d.]".toRegex(), "")
-                            amountText = filtered
-                        },
-                        placeholder = {
-                            Text(
-                                "Amount",
-                                fontSize = 15.sp
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        textStyle = TextStyle(
-                            fontSize = 15.sp,
-                            textAlign = TextAlign.Center
-                        ),
+
+
+                    Card(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp),
-                        shape = RoundedCornerShape(30.dp),
-                        colors = TextFieldDefaults.textFieldColors(
-                            containerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
-                            errorIndicatorColor = Color.Transparent,
-                        ),
-                        leadingIcon = {
-                            Text("$", fontSize = 15.sp)
-                        },
-                        singleLine = true,
-                        visualTransformation = NumberFormatTransformation()
-                    )
+                            .width(210.dp)
+                            .padding(vertical = 4.dp),
+                        shape = RoundedCornerShape(cornerRadius),
+                        colors = CardDefaults.cardColors(
+                            containerColor = lightGrayColor
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center // Centramos el contenido en el contenedor
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .width(230.dp)
+                                    .padding(vertical = 4.dp),
+                                shape = RoundedCornerShape(cornerRadius),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = lightGrayColor
+                                )
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center // Centra el contenido interno también
+                                ) {
+                                    Card(
+                                        modifier = Modifier
+                                            .width(200.dp) // Ancho del fondo gris limitado a 200.dp
+                                            .padding(vertical = 4.dp),
+                                        shape = RoundedCornerShape(30.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color(0xFFD9D9D9) // Fondo gris claro
+                                        )
+                                    ) {
+                                        // Campo de texto para el monto dentro del fondo gris
+                                        TextField(
+                                            value = amountText,
+                                            onValueChange = { newValue ->
+                                                // Permitir solo dígitos y puntos
+                                                val filtered = newValue.replace("[^\\d.]".toRegex(), "")
+                                                amountText = filtered
+                                            },
+                                            placeholder = {
+                                                Text(
+                                                    "Amount",
+                                                    fontSize = 15.sp
+                                                )
+                                            },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            textStyle = TextStyle(
+                                                fontSize = 15.sp,
+                                                textAlign = TextAlign.Center
+                                            ),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(
+                                                    Color.White,
+                                                    shape = RoundedCornerShape(30.dp)
+                                                ) // Fondo blanco en el campo de texto
+                                                .height(60.dp), // Ajusta la altura según sea necesario
+                                            shape = RoundedCornerShape(30.dp),
+                                            colors = TextFieldDefaults.textFieldColors(
+                                                containerColor = Color.Transparent,
+                                                focusedIndicatorColor = Color.Transparent,
+                                                unfocusedIndicatorColor = Color.Transparent,
+                                                disabledIndicatorColor = Color.Transparent,
+                                                errorIndicatorColor = Color.Transparent,
+                                            ),
+                                            leadingIcon = {
+                                                Text("$", fontSize = 15.sp)
+                                            },
+                                            singleLine = true,
+                                            visualTransformation = NumberFormatTransformation()
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
