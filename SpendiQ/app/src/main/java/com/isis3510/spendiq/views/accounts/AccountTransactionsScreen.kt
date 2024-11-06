@@ -27,6 +27,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -74,6 +76,8 @@ fun AccountTransactionsScreen(
     // State for collecting transactions and UI state
     val transactions by viewModel.transactions.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    var isNavigating by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Load transactions for the specified account
     LaunchedEffect(accountName) {
@@ -86,7 +90,16 @@ fun AccountTransactionsScreen(
             TopAppBar(
                 title = { Text(accountName) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = {
+                        if (!isNavigating) {
+                            isNavigating = true
+                            coroutineScope.launch {
+                                navController.popBackStack()
+                                delay(300)
+                                isNavigating = false
+                            }
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
