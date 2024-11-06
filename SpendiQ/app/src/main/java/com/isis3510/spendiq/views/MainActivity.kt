@@ -209,7 +209,9 @@ class MainActivity : FragmentActivity() {
                                         selectedOffer?.let { offer ->
                                             SpecialSalesDetail(
                                                 offer = offer,
-                                                navController = navController
+                                                navController = navController,
+                                                accountViewModel = accountViewModel,
+                                                transactionViewModel = transactionViewModel
                                             )
                                         }
                                     }
