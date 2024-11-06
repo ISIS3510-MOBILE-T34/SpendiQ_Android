@@ -11,28 +11,36 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Date
-import android.content.SharedPreferences
 import android.util.Base64
 import android.util.Log
 import androidx.fragment.app.FragmentActivity
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
+/**
+ * Represents the various states of authentication.
+ */
 sealed class AuthState {
-    data object Idle : AuthState()
-    data object Loading : AuthState()
-    data object Authenticated : AuthState()
-    data object BiometricEnabled : AuthState() // Re-added this state
-    data object PasswordResetEmailSent : AuthState() // Fixed the missing reference
-    data object EmailVerificationSent : AuthState()
-    data object EmailVerified : AuthState()
-    data object EmailNotVerified : AuthState()
-    data class Error(val message: String) : AuthState()
-    data object BiometricAlreadyEnabled : AuthState()
+    object Idle : AuthState()
+    object Loading : AuthState()
+    object Authenticated : AuthState()
+    object BiometricEnabled : AuthState() // State indicating biometric login has been enabled
+    object PasswordResetEmailSent : AuthState() // State indicating a password reset email has been sent
+    object EmailVerificationSent : AuthState()
+    object EmailVerified : AuthState()
+    object EmailNotVerified : AuthState()
+    data class Error(val message: String) : AuthState() // State indicating an error occurred
+    object BiometricAlreadyEnabled : AuthState() // State indicating biometric login was already enabled
 }
 
+/**
+ * ViewModel for managing authentication-related operations.
+ *
+ * This ViewModel handles user registration, login, logout, and user data management.
+ * It also provides methods for biometric authentication and email verification.
+ *
+ * @param application The application context.
+ */
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository(application)
 
@@ -47,16 +55,26 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val biometricHelper = BiometricHelper(application)
 
-    private val _biometricLoginEvent = MutableSharedFlow<String>() // Evento para manejar el resultado de la habilitación de biometría
-    val biometricLoginEvent = _biometricLoginEvent.asSharedFlow() // Exponer como SharedFlow
+    private val _biometricLoginEvent = MutableSharedFlow<String>() // Event to handle the result of biometric enablement
+    val biometricLoginEvent = _biometricLoginEvent.asSharedFlow() // Expose as SharedFlow
 
     init {
+        // Initialize user data
         _user.value = authRepository.getCurrentUser()
         if (_user.value != null) {
             _authState.value = AuthState.Authenticated
         }
     }
 
+    /**
+     * Registers a new user with the provided information.
+     *
+     * @param email User's email address.
+     * @param password User's password.
+     * @param fullName User's full name.
+     * @param phoneNumber User's phone number.
+     * @param birthDate User's birth date.
+     */
     fun register(email: String, password: String, fullName: String, phoneNumber: String, birthDate: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
@@ -83,6 +101,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Logs in a user with the provided email and password.
+     *
+     * @param email User's email address.
+     * @param password User's password.
+     */
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
@@ -99,12 +123,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Logs out the current user.
+     */
     fun logout() {
         authRepository.logout()
         _user.value = null
         _authState.value = AuthState.Idle
     }
 
+    /**
+     * Saves user data to the repository.
+     *
+     * @param data User data to be saved.
+     */
     fun saveUserData(data: Map<String, Any>) {
         viewModelScope.launch {
             _user.value?.let { user ->
@@ -117,6 +149,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Retrieves user data from the repository.
+     */
     fun getUserData() {
         viewModelScope.launch {
             _userData.value = UserDataState.Loading
@@ -132,6 +167,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Uploads the user's profile image to the repository.
+     *
+     * @param uri The URI of the image to upload.
+     */
     fun uploadProfileImage(uri: Uri) {
         viewModelScope.launch {
             _userData.value = UserDataState.Loading
@@ -145,14 +185,19 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Represents the various states of user data operations.
+     */
     sealed class UserDataState {
-        data object Idle : UserDataState()
-        data object Loading : UserDataState()
+        object Idle : UserDataState()
+        object Loading : UserDataState()
         data class Success(val data: Map<String, Any>) : UserDataState()
         data class Error(val message: String) : UserDataState()
     }
 
-    // Send email verification
+    /**
+     * Sends a verification email to the user's email address.
+     */
     fun sendEmailVerification() {
         viewModelScope.launch {
             authRepository.sendEmailVerification().collect { result ->
@@ -165,7 +210,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Check if the user's email is verified
+    /**
+     * Checks if the user's email is verified.
+     */
     fun checkEmailVerification() {
         viewModelScope.launch {
             authRepository.reloadUser().collect { result ->
@@ -182,7 +229,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Send password reset email
+    /**
+     * Sends a password reset email to the user's email address.
+     *
+     * @param email User's email address.
+     */
     fun sendPasswordResetEmail(email: String) {
         viewModelScope.launch {
             _authState.value = AuthState.Loading
@@ -196,7 +247,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Biometric login setup
+    /**
+     * Sets up the biometric authentication prompt.
+     *
+     * @param activity The FragmentActivity to show the prompt in.
+     * @param onSuccess Callback when biometric authentication is successful.
+     * @param onError Callback when an error occurs during biometric authentication.
+     */
     fun setupBiometricPrompt(
         activity: FragmentActivity,
         onSuccess: () -> Unit,
@@ -205,18 +262,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         biometricHelper.setupBiometricPrompt(activity, onSuccess, onError)
     }
 
-    // Show biometric login prompt
+    /**
+     * Shows the biometric authentication prompt.
+     */
     fun showBiometricPrompt() {
         biometricHelper.showBiometricPrompt()
     }
 
-    // Enable biometric login by saving credentials
+    /**
+     * Enables biometric login by storing the user's credentials.
+     *
+     * @param email User's email address.
+     * @param password User's password.
+     */
     fun enableBiometricLogin(email: String, password: String) {
         viewModelScope.launch {
-            // Verificar si la biometría ya está habilitada
+            // Check if biometric login is already enabled
             if (biometricHelper.isBiometricEnabled()) {
-                _authState.value = AuthState.BiometricAlreadyEnabled // Cambiar el estado
-                return@launch // Salir de la función
+                _authState.value = AuthState.BiometricAlreadyEnabled // Change state to indicate biometric already enabled
+                return@launch // Exit the function
             }
 
             _authState.value = AuthState.Loading
@@ -227,7 +291,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         user?.let {
                             Log.d("AuthViewModel", "Login successful, storing credentials")
                             biometricHelper.storeCredentials(email, password)
-                            _authState.value = AuthState.BiometricEnabled // Cambiar el estado a habilitado
+                            _authState.value = AuthState.BiometricEnabled // Change state to enabled
                         }
                     }
                     result.isFailure -> {
@@ -238,7 +302,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Perform login using stored biometric credentials
+    /**
+     * Logs in the user using stored biometric credentials.
+     */
     fun loginWithBiometrics() {
         val (encryptedEmail, encryptedPassword) = biometricHelper.getStoredCredentials()
 
@@ -256,8 +322,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-
-    // Reset authentication state
+    /**
+     * Resets the authentication state to idle.
+     */
     fun resetAuthState() {
         _authState.value = AuthState.Idle
     }

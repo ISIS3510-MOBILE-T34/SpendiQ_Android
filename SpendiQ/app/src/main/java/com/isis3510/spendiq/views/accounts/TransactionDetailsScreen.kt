@@ -2,7 +2,6 @@ package com.isis3510.spendiq.views.accounts
 
 import android.app.DatePickerDialog
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -30,10 +29,45 @@ import com.isis3510.spendiq.model.data.Location
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.*
 
+/**
+ * TransactionDetailsScreen composable function
+ *
+ * Displays the details of a specific transaction and allows the user to edit or delete it. The screen
+ * includes fields for transaction name, amount, type, date, and location (optional). A Google Map
+ * view is provided for users to select or update the transaction location, enhancing geolocation data
+ * for financial tracking.
+ *
+ * Key Features:
+ * - Transaction Editing: Allows modification of transaction details, including the name, amount,
+ *   type (income/expense), date, and location.
+ * - Location Management:
+ *   - Optional location tracking with Google Maps integration.
+ *   - Allows enabling or disabling of location tracking.
+ *   - Interactive map to select or change location.
+ * - Delete Confirmation: A dialog to confirm deletion of the transaction.
+ * - Snackbar Feedback: Provides success or error messages for save and delete actions.
+ *
+ * UI Structure:
+ * - Scaffold with a TopAppBar for navigation and actions.
+ * - Scrollable Column layout containing:
+ *   - Editable fields for transaction details.
+ *   - Location options and map view.
+ *   - Save button to apply changes and delete button in the app bar for deletion.
+ *
+ * Supporting Components:
+ * - `DatePickerDialog` for selecting a transaction date.
+ * - `AlertDialog` for confirming transaction deletion.
+ * - Google Maps integration to view and modify the location.
+ *
+ * @param navController [NavController] to handle navigation.
+ * @param accountViewModel [AccountViewModel] to manage account-related data.
+ * @param transactionViewModel [TransactionViewModel] to handle transaction data.
+ * @param accountId The ID of the account associated with the transaction.
+ * @param transactionId The ID of the transaction being viewed or edited.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionDetailsScreen(
@@ -43,10 +77,14 @@ fun TransactionDetailsScreen(
     accountId: String,
     transactionId: String
 ) {
+    // Context and CoroutineScope
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // UI States and Variables
     val transaction by transactionViewModel.selectedTransaction.collectAsState()
     val uiState by transactionViewModel.uiState.collectAsState()
-
     var transactionName by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var transactionType by remember { mutableStateOf("") }
@@ -56,33 +94,26 @@ fun TransactionDetailsScreen(
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var expandedTransactionType by remember { mutableStateOf(false) }
 
-    val defaultLocation = LatLng(4.6097100, -74.0817500) // Bogota
+    // Google Map Configuration
+    val defaultLocation = LatLng(4.6097100, -74.0817500) // Default to Bogota
     var mapPosition by remember { mutableStateOf(defaultLocation) }
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
     }
 
-    val coroutineScope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    // Load transaction data
+    // Load Transaction Data on Screen Start
     LaunchedEffect(Unit) {
         transactionViewModel.getTransaction(accountId, transactionId)
     }
 
-    // Handle UI state
+    // Handle UI State
     LaunchedEffect(uiState) {
-        when (uiState) {
-            is TransactionViewModel.UiState.Error -> {
-                snackbarHostState.showSnackbar(
-                    (uiState as TransactionViewModel.UiState.Error).message
-                )
-            }
-            else -> {}
+        if (uiState is TransactionViewModel.UiState.Error) {
+            snackbarHostState.showSnackbar((uiState as TransactionViewModel.UiState.Error).message)
         }
     }
 
-    // Update local state when transaction loads
+    // Update Local State when Transaction Loads
     LaunchedEffect(transaction) {
         transaction?.let {
             transactionName = it.transactionName
@@ -100,6 +131,7 @@ fun TransactionDetailsScreen(
         }
     }
 
+    // DatePickerDialog for Selecting Transaction Date
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
@@ -112,6 +144,7 @@ fun TransactionDetailsScreen(
         Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
     )
 
+    // Main Scaffold Layout
     Scaffold(
         topBar = {
             TopAppBar(
@@ -149,6 +182,7 @@ fun TransactionDetailsScreen(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             } else {
+                // Transaction Name Input
                 OutlinedTextField(
                     value = transactionName,
                     onValueChange = { transactionName = it },
@@ -158,6 +192,7 @@ fun TransactionDetailsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Amount Input Field
                 OutlinedTextField(
                     value = amount,
                     onValueChange = {
@@ -170,6 +205,7 @@ fun TransactionDetailsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Transaction Type Dropdown Menu
                 ExposedDropdownMenuBox(
                     expanded = expandedTransactionType,
                     onExpandedChange = { expandedTransactionType = !expandedTransactionType }
@@ -205,6 +241,7 @@ fun TransactionDetailsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Date Selector Button
                 OutlinedButton(
                     onClick = { datePickerDialog.show() },
                     modifier = Modifier.fillMaxWidth()
@@ -214,6 +251,7 @@ fun TransactionDetailsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Location Toggle with Map Display
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -245,7 +283,7 @@ fun TransactionDetailsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Google Maps
+                // Google Map for Selecting Location
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -270,6 +308,7 @@ fun TransactionDetailsScreen(
                         }
                     }
 
+                    // Overlay if Location Disabled
                     if (!isLocationEnabled) {
                         Box(
                             modifier = Modifier
@@ -288,6 +327,7 @@ fun TransactionDetailsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Save Changes Button
                 Button(
                     onClick = {
                         transaction?.let { currentTransaction ->
@@ -324,6 +364,7 @@ fun TransactionDetailsScreen(
             }
         }
 
+        // Delete Confirmation Dialog
         if (showDeleteConfirmation) {
             AlertDialog(
                 onDismissRequest = { showDeleteConfirmation = false },

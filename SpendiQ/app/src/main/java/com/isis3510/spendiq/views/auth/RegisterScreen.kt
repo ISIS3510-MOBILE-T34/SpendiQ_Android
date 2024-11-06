@@ -33,15 +33,47 @@ import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AuthState
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.views.theme.Purple40
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+
+/**
+ * RegisterScreen composable function
+ *
+ * Provides the user interface for the account registration process, allowing users to input their personal
+ * information and create an account. The form includes fields for the user's full name, email, phone number,
+ * birth date, and password. A checkbox for agreeing to terms and conditions and password confirmation are
+ * also required to complete the registration.
+ *
+ * Key Features:
+ * - Input Validation: Real-time validation for email format and phone number length.
+ * - Date Picker: Allows users to select a birth date using a DatePicker dialog.
+ * - Form Validation: Ensures that all required fields are filled out and meet validation criteria before
+ *   enabling the "Sign Up" button.
+ * - Authentication Status Handling: Manages the different states of authentication, such as loading,
+ *   error, email verification, and success.
+ *
+ * UI Structure:
+ * - Column layout that vertically scrolls for comfortable input on smaller screens.
+ * - Fields for full name, email, phone number, birth date, password, and confirm password.
+ * - Checkbox for terms and conditions agreement.
+ * - "Sign Up" button that triggers registration if all criteria are met.
+ *
+ * Supporting Components:
+ * - `OutlinedTextField`: Used for user input fields, each with specific styling and icons.
+ * - `DatePickerDialog`: Allows selection of birth date.
+ * - Authentication State Handling: Renders feedback or actions based on current authentication state,
+ *   such as showing a progress indicator or error message.
+ *
+ * @param navController [NavController] to navigate within the app after registration.
+ * @param viewModel [AuthViewModel] that handles registration logic and authentication states.
+ */
 
 @Composable
 fun RegisterScreen(
     navController: NavController,
     viewModel: AuthViewModel
 ) {
+    // State variables for user inputs
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -49,9 +81,10 @@ fun RegisterScreen(
     var phoneNumber by remember { mutableStateOf("") }
     var birthDate by remember { mutableStateOf("") }
     val authState by viewModel.authState.collectAsState()
-    var checkedState by remember { mutableStateOf(false) }
-    var isBackButtonEnabled by remember { mutableStateOf(true) }
+    var checkedState by remember { mutableStateOf(false) } // Terms and conditions checkbox
+    var isBackButtonEnabled by remember { mutableStateOf(true) } // Back button control
 
+    // DatePicker setup for birth date
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val year = calendar.get(Calendar.YEAR)
@@ -70,8 +103,8 @@ fun RegisterScreen(
         day
     )
 
-    datePickerDialog.datePicker.maxDate = System.currentTimeMillis()
-    calendar.add(Calendar.YEAR, -100)
+    datePickerDialog.datePicker.maxDate = System.currentTimeMillis() // Restricts date selection to today or earlier
+    calendar.add(Calendar.YEAR, -100) // Sets minimum date to 100 years ago
     datePickerDialog.datePicker.minDate = calendar.timeInMillis
 
     Column(
@@ -82,7 +115,7 @@ fun RegisterScreen(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.Top
     ) {
-        // Botón de retroceso
+        // Back button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -111,6 +144,7 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Title
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -129,10 +163,12 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
 
+        // Form fields
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Full Name field
             OutlinedTextField(
                 value = fullName,
                 onValueChange = { fullName = it },
@@ -144,12 +180,12 @@ fun RegisterScreen(
                 shape = RoundedCornerShape(50),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
-                    unfocusedBorderColor = Purple40,
-                    errorBorderColor = MaterialTheme.colorScheme.error
+                    unfocusedBorderColor = Purple40
                 ),
                 singleLine = true
             )
 
+            // Email field with validation
             val isEmailValid = remember(email) { Patterns.EMAIL_ADDRESS.matcher(email).matches() }
             OutlinedTextField(
                 value = email,
@@ -163,8 +199,7 @@ fun RegisterScreen(
                 shape = RoundedCornerShape(50),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
-                    unfocusedBorderColor = Purple40,
-                    errorBorderColor = MaterialTheme.colorScheme.error
+                    unfocusedBorderColor = Purple40
                 ),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Email)
@@ -177,12 +212,11 @@ fun RegisterScreen(
                 )
             }
 
+            // Phone number field with validation
             val isPhoneValid = remember(phoneNumber) { phoneNumber.all { it.isDigit() } && phoneNumber.length >= 10 }
             OutlinedTextField(
                 value = phoneNumber,
-                onValueChange = {
-                    if (it.all { char -> char.isDigit() }) phoneNumber = it
-                },
+                onValueChange = { if (it.all { char -> char.isDigit() }) phoneNumber = it },
                 placeholder = { Text("Phone Number") },
                 isError = phoneNumber.isNotEmpty() && !isPhoneValid,
                 modifier = Modifier
@@ -192,8 +226,7 @@ fun RegisterScreen(
                 shape = RoundedCornerShape(50),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
-                    unfocusedBorderColor = Purple40,
-                    errorBorderColor = MaterialTheme.colorScheme.error
+                    unfocusedBorderColor = Purple40
                 ),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
@@ -206,6 +239,7 @@ fun RegisterScreen(
                 )
             }
 
+            // Birth Date field
             OutlinedTextField(
                 value = birthDate,
                 onValueChange = { },
@@ -225,6 +259,7 @@ fun RegisterScreen(
                 singleLine = true
             )
 
+            // Password and Confirm Password fields
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -237,8 +272,7 @@ fun RegisterScreen(
                 shape = RoundedCornerShape(50),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
-                    unfocusedBorderColor = Purple40,
-                    errorBorderColor = MaterialTheme.colorScheme.error
+                    unfocusedBorderColor = Purple40
                 ),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
@@ -256,13 +290,13 @@ fun RegisterScreen(
                 shape = RoundedCornerShape(50),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
-                    unfocusedBorderColor = Purple40,
-                    errorBorderColor = MaterialTheme.colorScheme.error
+                    unfocusedBorderColor = Purple40
                 ),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
 
+            // Terms and Conditions Checkbox
             Row(
                 Modifier
                     .fillMaxWidth(0.9f)
@@ -287,6 +321,7 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Sign Up Button
             Button(
                 onClick = {
                     if (password == confirmPassword && checkedState) {
@@ -308,6 +343,7 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Authentication state feedback
             when (authState) {
                 is AuthState.Loading -> CircularProgressIndicator()
                 is AuthState.Error -> Text(
