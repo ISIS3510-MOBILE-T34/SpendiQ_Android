@@ -2,7 +2,6 @@ package com.isis3510.spendiq.views.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +25,36 @@ import androidx.navigation.NavController
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.isis3510.spendiq.R
 
+/**
+ * AuthenticationScreen composable function
+ *
+ * Serves as the entry point for the application's authentication workflow, presenting the user with options
+ * to either log in or sign up for a new account. It includes visual elements such as the app title and a
+ * background logo image, providing a welcoming layout to guide users in accessing the application.
+ * Additionally, it incorporates Firebase Crashlytics integration, allowing for testing of error handling
+ * (both recoverable and non-recoverable errors) by simulating a logged recoverable error and a forced crash.
+ *
+ * Key Features:
+ * - App Branding: Displays the app title ("SpendiQ") in a prominent, bold font, paired with a background logo.
+ * - Authentication Navigation:
+ *   - Login: Navigates to the Login screen.
+ *   - Register: Navigates to the Register screen.
+ * - Firebase Crashlytics Integration:
+ *   - Simulated Recoverable Error: Logs a non-fatal error to Firebase Crashlytics, simulating recoverable error handling.
+ *   - Forced Crash: Triggers a forced app crash, useful for testing error tracking setup.
+ *
+ * UI Structure:
+ * - Background logo image for branding.
+ * - Centralized layout with app title, login, and register buttons.
+ * - Row layout for icons that allow simulated bug/error handling and crash testing.
+ *
+ * Supporting Components:
+ * - Buttons for Login and Register actions, both spanning the full width of the screen.
+ * - Error handling icons that log simulated errors or trigger a crash.
+ *
+ * @param navController [NavController] used to navigate to either the Login or Register screen.
+ */
+
 @Composable
 fun AuthenticationScreen(navController: NavController) {
     Box(
@@ -34,7 +63,7 @@ fun AuthenticationScreen(navController: NavController) {
             .clip(shape = RoundedCornerShape(7.dp))
             .background(color = Color.White)
     ) {
-        // Background Logo
+        // Background Logo Image
         Image(
             painter = painterResource(id = R.drawable.logogroupstart),
             contentDescription = "Logo Group",
@@ -45,15 +74,15 @@ fun AuthenticationScreen(navController: NavController) {
                 .height(470.dp)
         )
 
-        // Column to hold the content vertically
+        // Main Column Layout for Centered Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp), // Add padding to both sides
-            horizontalAlignment = Alignment.CenterHorizontally, // Center horizontally
+                .padding(horizontal = 16.dp), // Padding for horizontal sides
+            horizontalAlignment = Alignment.CenterHorizontally, // Center content horizontally
             verticalArrangement = Arrangement.Center
         ) {
-            // App Title
+            // App Title "SpendiQ"
             Text(
                 text = "SpendiQ",
                 color = Color.Black,
@@ -65,68 +94,68 @@ fun AuthenticationScreen(navController: NavController) {
                 )
             )
 
-            Spacer(modifier = Modifier.height(96.dp))
+            Spacer(modifier = Modifier.height(96.dp)) // Space below title
 
+            // Row for Simulated Error and Crash Icons
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Bug Icon
+                // Recoverable Error (Bug) Icon
                 IconButton(
                     onClick = {
-                        // Simulación de un error recuperable
+                        // Set up Firebase Crashlytics instance
                         val crashlytics = FirebaseCrashlytics.getInstance()
 
                         try {
-                            // Simular una operación que produce un error recuperable
+                            // Simulate an operation causing a recoverable error
                             throw Exception("Simulated recoverable error: Validation failed")
                         } catch (e: Exception) {
-                            // Registrar la excepción no fatal en Crashlytics
-                            crashlytics.recordException(e) // Esto reporta una excepción sin cerrar la app
+                            // Log the recoverable error in Crashlytics
+                            crashlytics.recordException(e) // Logs non-fatal error without crashing
                             crashlytics.setCustomKey("Bug_AS", "Simulated recoverable error in Authorization Screen")
                             crashlytics.log("Non-fatal exception logged")
 
-                            // Puedes mostrar un mensaje al usuario si lo deseas, sin cerrar la app
+                            // Optionally show a user-facing message here
                             println("Recoverable error caught and logged")
                             crashlytics.sendUnsentReports()
                         }
                     }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Warning, // Replace with your warning icon resource
+                        imageVector = Icons.Default.Warning,
                         contentDescription = "Bug Icon",
-                        tint = Color(0xffb3cb54) // Your desired color for the warning icon
+                        tint = Color(0xffb3cb54) // Color for warning icon
                     )
                 }
 
-                // Space between icons
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(16.dp)) // Space between icons
 
-                // Crash Icon
+                // Forced Crash Icon
                 IconButton(
                     onClick = {
                         val crashlytics = FirebaseCrashlytics.getInstance()
-                        crashlytics.setCustomKey("Crash_AS","Crash in Authorization Screen")
+                        crashlytics.setCustomKey("Crash_AS", "Crash in Authorization Screen")
                         crashlytics.log("App Crash after pushing crash button")
                         throw RuntimeException("Forced Crash from Authorization Screen")
                     }
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close, // Replace with your bus icon resource
+                        imageVector = Icons.Default.Close,
                         contentDescription = "Crash Icon",
-                        tint = Color(0xffc33ba5) // Your desired color for the bus icon
+                        tint = Color(0xffc33ba5) // Color for crash icon
                     )
                 }
             }
 
-            // Login Button
+            // Log In Button
             Button(
                 onClick = { navController.navigate("login") },
                 shape = RoundedCornerShape(7.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 modifier = Modifier
-                    .fillMaxWidth() // Make button full width
+                    .fillMaxWidth()
                     .height(42.dp)
             ) {
                 Text(
@@ -142,7 +171,7 @@ fun AuthenticationScreen(navController: NavController) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp)) // Add space between buttons
+            Spacer(modifier = Modifier.height(16.dp)) // Space between buttons
 
             // Register Button
             Button(
@@ -151,7 +180,7 @@ fun AuthenticationScreen(navController: NavController) {
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f)),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp),
                 modifier = Modifier
-                    .fillMaxWidth() // Make button full width
+                    .fillMaxWidth()
                     .height(42.dp)
             ) {
                 Text(
@@ -167,7 +196,7 @@ fun AuthenticationScreen(navController: NavController) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(260.dp))
+            Spacer(modifier = Modifier.height(260.dp)) // Space below buttons
         }
     }
 }

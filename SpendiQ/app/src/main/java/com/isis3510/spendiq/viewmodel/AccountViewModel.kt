@@ -9,6 +9,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * ViewModel for managing account-related operations.
+ *
+ * This ViewModel handles fetching, creating, and deleting accounts, as well as managing
+ * the current money state and associated transactions.
+ */
 class AccountViewModel : ViewModel() {
     private val accountRepository = AccountRepository()
 
@@ -29,67 +35,83 @@ class AccountViewModel : ViewModel() {
     val selectedTransaction: StateFlow<Transaction?> = _selectedTransaction
 
     init {
-        fetchAccounts()
+        fetchAccounts() // Fetch accounts when ViewModel is initialized
     }
 
+    /**
+     * Fetches accounts from the repository and updates the UI state.
+     */
     fun fetchAccounts() {
         viewModelScope.launch {
-            _uiState.value = UiState.Loading
+            _uiState.value = UiState.Loading // Set loading state
             accountRepository.getAccounts().collect { result ->
                 if (result.isSuccess) {
-                    val accountList = result.getOrNull() ?: emptyList()
+                    val accountList = result.getOrNull() ?: emptyList() // Get accounts
                     _accounts.value = accountList
-                    _currentMoney.value = accountList.sumOf { it.amount }
-                    _uiState.value = UiState.Success
+                    _currentMoney.value = accountList.sumOf { it.amount } // Calculate current money
+                    _uiState.value = UiState.Success // Set success state
                 } else {
                     _uiState.value = UiState.Error(
-                        result.exceptionOrNull()?.message ?: "Failed to fetch accounts"
+                        result.exceptionOrNull()?.message ?: "Failed to fetch accounts" // Handle error
                     )
                 }
             }
         }
     }
 
+    /**
+     * Creates a new account of the specified type.
+     *
+     * @param accountType The type of account to create.
+     */
     fun createAccount(accountType: String) {
         viewModelScope.launch {
-            _uiState.value = UiState.Loading
+            _uiState.value = UiState.Loading // Set loading state
             accountRepository.createAccount(accountType).collect { result ->
                 _uiState.value = when {
                     result.isSuccess -> {
-                        fetchAccounts()
-                        UiState.Success
+                        fetchAccounts() // Refresh accounts
+                        UiState.Success // Set success state
                     }
                     result.isFailure -> {
-                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to create account")
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to create account") // Handle error
                     }
-                    else -> UiState.Error("Unexpected error")
+                    else -> UiState.Error("Unexpected error") // Handle unexpected state
                 }
             }
         }
     }
 
+    /**
+     * Deletes an account of the specified type.
+     *
+     * @param accountType The type of account to delete.
+     */
     fun deleteAccount(accountType: String) {
         viewModelScope.launch {
-            _uiState.value = UiState.Loading
+            _uiState.value = UiState.Loading // Set loading state
             accountRepository.deleteAccount(accountType).collect { result ->
                 _uiState.value = when {
                     result.isSuccess -> {
-                        fetchAccounts()
-                        UiState.Success
+                        fetchAccounts() // Refresh accounts
+                        UiState.Success // Set success state
                     }
                     result.isFailure -> {
-                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete account")
+                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to delete account") // Handle error
                     }
-                    else -> UiState.Error("Unexpected error")
+                    else -> UiState.Error("Unexpected error") // Handle unexpected state
                 }
             }
         }
     }
 
+    /**
+     * Represents the various UI states for account operations.
+     */
     sealed class UiState {
-        object Idle : UiState()
-        object Loading : UiState()
-        object Success : UiState()
-        data class Error(val message: String) : UiState()
+        object Idle : UiState() // Initial state
+        object Loading : UiState() // Loading state
+        object Success : UiState() // Success state
+        data class Error(val message: String) : UiState() // Error state with a message
     }
 }

@@ -1,8 +1,6 @@
 package com.isis3510.spendiq.model.repository
 
 import android.util.Log
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import com.isis3510.spendiq.model.data.Location
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.model.singleton.FirebaseManager
@@ -12,20 +10,34 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+/**
+ * Repository class for managing transactions related to user accounts.
+ *
+ * This class provides methods to fetch, add, update, and delete transactions
+ * stored in Firestore, along with analyzing anomalies in transactions.
+ */
 class TransactionRepository {
+    // Firebase instances for authentication and Firestore
     private val auth = FirebaseManager.auth
     private val firestore = FirebaseManager.firestore
-    private val anomalyRepository = AnomalyRepository()
-    private val accountRepository = AccountRepository()
+    private val anomalyRepository = AnomalyRepository() // For anomaly analysis
+    private val accountRepository = AccountRepository() // For account balance updates
 
     companion object {
+        // Default location used when no location is available
         private val DEFAULT_LOCATION = Location(
-            latitude = 4.6097100,  // Bogota's coordinates
+            latitude = 4.6097100,  // Coordinates for Bogota
             longitude = -74.0817500
         )
     }
 
-    // Get transactions by account name
+    /**
+     * Retrieves transactions for a specified account name.
+     *
+     * @param accountName The name of the account whose transactions are to be fetched.
+     * @return A Flow emitting the result containing a list of transactions on success,
+     * or an error if the operation fails.
+     */
     fun getTransactions(accountName: String): Flow<Result<List<Transaction>>> = flow {
         try {
             val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -47,18 +59,26 @@ class TransactionRepository {
                 .get()
                 .await()
 
+            // Map documents to Transaction objects and sort them by date
             val transactions = transactionsSnapshot.documents.mapNotNull { doc ->
                 parseTransactionDocument(doc, accountId)
             }.sortedByDescending { it.dateTime.toDate() }
 
-            emit(Result.success(transactions))
+            emit(Result.success(transactions)) // Emit the result
         } catch (e: Exception) {
-            Log.e("TransactionRepository", "Error fetching transactions", e)
+            Log.e("TransactionRepository", "Error fetching transactions", e) // Log error
             emit(Result.failure(e))
         }
     }
 
-    // Get specific transaction
+    /**
+     * Retrieves a specific transaction by its ID.
+     *
+     * @param accountId The ID of the account containing the transaction.
+     * @param transactionId The ID of the transaction to retrieve.
+     * @return A Flow emitting the result containing the transaction on success,
+     * or an error if the operation fails.
+     */
     fun getTransaction(accountId: String, transactionId: String): Flow<Result<Transaction>> = flow {
         try {
             val transactionDoc = firestore.collection("accounts")
@@ -75,14 +95,20 @@ class TransactionRepository {
 
             val transaction = parseTransactionDocument(transactionDoc, accountId)
             transaction?.let {
-                emit(Result.success(it))
+                emit(Result.success(it)) // Emit the retrieved transaction
             } ?: emit(Result.failure(Exception("Failed to parse transaction")))
         } catch (e: Exception) {
-            Log.e("TransactionRepository", "Error fetching transaction", e)
+            Log.e("TransactionRepository", "Error fetching transaction", e) // Log error
             emit(Result.failure(e))
         }
     }
 
+    /**
+     * Retrieves all transactions for the current user across all accounts.
+     *
+     * @return A Flow emitting the result containing a list of all transactions on success,
+     * or an error if the operation fails.
+     */
     fun getAllTransactions(): Flow<Result<List<Transaction>>> = flow {
         try {
             val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
@@ -93,6 +119,7 @@ class TransactionRepository {
 
             val transactions = mutableListOf<Transaction>()
 
+            // Iterate over each account to fetch its transactions
             for (accountDoc in accountsSnapshot.documents) {
                 val accountId = accountDoc.id
                 val transactionsSnapshot = firestore.collection("accounts")
@@ -101,34 +128,44 @@ class TransactionRepository {
                     .get()
                     .await()
 
+                // Add each transaction to the list
                 transactions.addAll(transactionsSnapshot.documents.mapNotNull { doc ->
                     parseTransactionDocument(doc, accountId)
                 })
             }
 
-            emit(Result.success(transactions))
+            emit(Result.success(transactions)) // Emit the list of transactions
         } catch (e: Exception) {
-            Log.e("TransactionRepository", "Error fetching all transactions", e)
+            Log.e("TransactionRepository", "Error fetching all transactions", e) // Log error
             emit(Result.failure(e))
         }
     }
 
-    // Add transaction
+    /**
+     * Adds a new transaction to the specified account.
+     *
+     * @param transaction The transaction to add.
+     * @return A Flow emitting the result of the operation.
+     */
     fun addTransaction(transaction: Transaction): Flow<Result<Unit>> = flow {
         try {
+            // Create a reference for the new transaction document
             val accountRef = firestore.collection("accounts")
                 .document(transaction.accountId)
                 .collection("transactions")
                 .document()
 
-            val transactionWithId = transaction.copy(id = accountRef.id)
-            val transactionMap = createTransactionMap(transactionWithId)
+            val transactionWithId = transaction.copy(id = accountRef.id) // Include the document ID
+            val transactionMap = createTransactionMap(transactionWithId) // Create a map for Firestore
 
+            // Store the transaction in Firestore
             accountRef.set(transactionMap).await()
 
+            // Update the account balance based on transaction type
             val amountDelta = if (transaction.transactionType == "Income") transaction.amount else -transaction.amount
             accountRepository.updateAccountBalance(transaction.accountId, amountDelta)
 
+            // Launch a coroutine to analyze the transaction for anomalies
             coroutineScope {
                 launch {
                     auth.currentUser?.uid?.let { userId ->
@@ -137,14 +174,21 @@ class TransactionRepository {
                 }
             }
 
-            emit(Result.success(Unit))
+            emit(Result.success(Unit)) // Emit success
         } catch (e: Exception) {
-            Log.e("TransactionRepository", "Error adding transaction", e)
+            Log.e("TransactionRepository", "Error adding transaction", e) // Log error
             emit(Result.failure(e))
         }
     }
 
-    // Update transaction
+    /**
+     * Updates an existing transaction.
+     *
+     * @param accountId The ID of the account containing the transaction.
+     * @param oldTransaction The transaction to be updated.
+     * @param newTransaction The updated transaction details.
+     * @return A Flow emitting the result of the operation.
+     */
     fun updateTransaction(accountId: String, oldTransaction: Transaction, newTransaction: Transaction): Flow<Result<Unit>> = flow {
         try {
             val transactionRef = firestore.collection("accounts")
@@ -152,18 +196,23 @@ class TransactionRepository {
                 .collection("transactions")
                 .document(oldTransaction.id)
 
+            // Check if the transaction exists before updating
             if (!(transactionRef.get().await().exists())) {
                 emit(Result.failure(Exception("Transaction does not exist")))
                 return@flow
             }
 
+            // Calculate the balance adjustment based on the old and new amounts
             val oldAmount = if (oldTransaction.transactionType == "Income") oldTransaction.amount else -oldTransaction.amount
             val newAmount = if (newTransaction.transactionType == "Income") newTransaction.amount else -newTransaction.amount
             val balanceAdjustment = newAmount - oldAmount
 
+            // Update the transaction in Firestore
             transactionRef.set(createTransactionMap(newTransaction)).await()
+            // Update the account balance
             accountRepository.updateAccountBalance(accountId, balanceAdjustment)
 
+            // Launch a coroutine to analyze the updated transaction for anomalies
             coroutineScope {
                 launch {
                     auth.currentUser?.uid?.let { userId ->
@@ -172,14 +221,20 @@ class TransactionRepository {
                 }
             }
 
-            emit(Result.success(Unit))
+            emit(Result.success(Unit)) // Emit success
         } catch (e: Exception) {
-            Log.e("TransactionRepository", "Error updating transaction", e)
+            Log.e("TransactionRepository", "Error updating transaction", e) // Log error
             emit(Result.failure(e))
         }
     }
 
-    // Delete transaction
+    /**
+     * Deletes a transaction from the specified account.
+     *
+     * @param accountId The ID of the account containing the transaction.
+     * @param transaction The transaction to delete.
+     * @return A Flow emitting the result of the operation.
+     */
     fun deleteTransaction(accountId: String, transaction: Transaction): Flow<Result<Unit>> = flow {
         try {
             val transactionRef = firestore.collection("accounts")
@@ -187,18 +242,27 @@ class TransactionRepository {
                 .collection("transactions")
                 .document(transaction.id)
 
+            // Delete the transaction document
             transactionRef.delete().await()
 
+            // Update the account balance
             val amountToRemove = if (transaction.transactionType == "Income") -transaction.amount else transaction.amount
             accountRepository.updateAccountBalance(accountId, amountToRemove)
 
-            emit(Result.success(Unit))
+            emit(Result.success(Unit)) // Emit success
         } catch (e: Exception) {
-            Log.e("TransactionRepository", "Error deleting transaction", e)
+            Log.e("TransactionRepository", "Error deleting transaction", e) // Log error
             emit(Result.failure(e))
         }
     }
 
+    /**
+     * Parses a Firestore document into a Transaction object.
+     *
+     * @param doc The Firestore document to parse.
+     * @param accountId The ID of the account associated with the transaction.
+     * @return The Transaction object or null if parsing fails.
+     */
     private fun parseTransactionDocument(doc: com.google.firebase.firestore.DocumentSnapshot, accountId: String): Transaction? {
         return try {
             Transaction(
@@ -217,14 +281,21 @@ class TransactionRepository {
                     } else null
                 },
                 amountAnomaly = doc.getBoolean("amountAnomaly") ?: false,
-                locationAnomaly = doc.getBoolean("locationAnomaly") ?: false
+                locationAnomaly = doc.getBoolean("locationAnomaly") ?: false,
+                automatic = doc.getBoolean("automatic") ?: false // Track if the transaction was created automatically
             )
         } catch (e: Exception) {
-            Log.e("TransactionRepository", "Error parsing transaction document", e)
+            Log.e("TransactionRepository", "Error parsing transaction document", e) // Log error
             null
         }
     }
 
+    /**
+     * Creates a map representation of a Transaction object for Firestore storage.
+     *
+     * @param transaction The Transaction object to convert.
+     * @return A map containing the transaction's data.
+     */
     private fun createTransactionMap(transaction: Transaction): Map<String, Any?> {
         return hashMapOf(
             "transactionId" to transaction.id,
@@ -239,7 +310,8 @@ class TransactionRepository {
                 )
             },
             "locationAnomaly" to transaction.locationAnomaly,
-            "amountAnomaly" to transaction.amountAnomaly
+            "amountAnomaly" to transaction.amountAnomaly,
+            "automatic" to transaction.automatic // Track if the transaction was created automatically
         )
     }
 }

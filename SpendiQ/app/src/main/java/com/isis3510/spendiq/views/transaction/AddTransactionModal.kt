@@ -23,6 +23,17 @@ import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.services.LocationService
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 
+/**
+ * AddTransactionModal composable function
+ *
+ * A modal for adding a new transaction. The function provides fields for transaction details
+ * and checks account availability before submission. It includes a location option and date picker.
+ *
+ * @param accountViewModel [AccountViewModel] for retrieving account details
+ * @param transactionViewModel [TransactionViewModel] for transaction-related operations
+ * @param onDismiss Callback to dismiss the modal
+ * @param onTransactionAdded Callback triggered after successfully adding a transaction
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionModal(
@@ -31,7 +42,7 @@ fun AddTransactionModal(
     onDismiss: () -> Unit,
     onTransactionAdded: () -> Unit
 ) {
-    // State variables for form fields
+    // State variables for form inputs
     var amount by remember { mutableStateOf("") }
     var transactionName by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf(Timestamp.now()) }
@@ -46,13 +57,13 @@ fun AddTransactionModal(
     // Collect accounts from ViewModel
     val accounts by accountViewModel.accounts.collectAsState()
 
-    // Context and services
+    // Initialize context, calendar, and location service
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val locationService = remember { LocationService(context) }
     val scope = rememberCoroutineScope()
 
-    // Initialize date picker dialog
+    // Date picker dialog configuration
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, dayOfMonth ->
@@ -64,12 +75,12 @@ fun AddTransactionModal(
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    // No accounts dialog
+    // Display a dialog if no accounts are available
     if (showNoAccountsDialog) {
         AlertDialog(
             onDismissRequest = { showNoAccountsDialog = false },
             title = { Text("No Accounts Available") },
-            text = { Text("Please create an account first in the Accounts section before making a transaction.") },
+            text = { Text("Please create an account in the Accounts section before adding a transaction.") },
             confirmButton = {
                 Button(onClick = { showNoAccountsDialog = false }) {
                     Text("OK")
@@ -78,13 +89,14 @@ fun AddTransactionModal(
         )
     }
 
-    // Check for accounts availability
+    // Check for available accounts when the component is launched
     LaunchedEffect(Unit) {
         if (accounts.isEmpty()) {
             showNoAccountsDialog = true
         }
     }
 
+    // Modal layout and transaction form
     ModalBottomSheet(
         onDismissRequest = onDismiss
     ) {
@@ -96,7 +108,7 @@ fun AddTransactionModal(
             Text("Add Transaction", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Amount field
+            // Amount input field with digit-only filter
             OutlinedTextField(
                 value = amount,
                 onValueChange = { amount = it.filter { char -> char.isDigit() } },
@@ -108,7 +120,7 @@ fun AddTransactionModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Transaction name field
+            // Transaction name input field
             OutlinedTextField(
                 value = transactionName,
                 onValueChange = { transactionName = it },
@@ -119,14 +131,14 @@ fun AddTransactionModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Date selector
+            // Date picker button
             Button(onClick = { datePickerDialog.show() }) {
                 Text("Select Date: ${selectedDate.toDate().toString().substring(0, 10)}")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Transaction type dropdown
+            // Transaction type dropdown menu
             ExposedDropdownMenuBox(
                 expanded = expandedTransactionType,
                 onExpandedChange = { expandedTransactionType = !expandedTransactionType }
@@ -162,8 +174,8 @@ fun AddTransactionModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Account selection dropdown if accounts are available
             if (accounts.isNotEmpty()) {
-                // Account selection dropdown
                 ExposedDropdownMenuBox(
                     expanded = expandedAccountType,
                     onExpandedChange = { expandedAccountType = !expandedAccountType }
@@ -194,7 +206,7 @@ fun AddTransactionModal(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Location toggle
+                // Location toggle row with switch
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -224,13 +236,13 @@ fun AddTransactionModal(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Submit button
+                // Submit button for adding transaction
                 Button(
                     onClick = {
                         selectedAccount?.let { account ->
                             val transaction = Transaction(
-                                id = "", // This will be set by Firestore
-                                accountId = account.id, // Using account ID instead of name
+                                id = "", // Firestore will assign ID
+                                accountId = account.id,
                                 transactionName = transactionName,
                                 amount = amount.toLongOrNull() ?: 0L,
                                 dateTime = selectedDate,
@@ -240,7 +252,10 @@ fun AddTransactionModal(
                                         latitude = location!!.latitude,
                                         longitude = location!!.longitude
                                     )
-                                } else null
+                                } else null,
+                                automatic = false, // Add this line to explicitly set manual transactions
+                                amountAnomaly = false,
+                                locationAnomaly = false
                             )
                             transactionViewModel.addTransactionWithAccountCheck(transaction)
                             onTransactionAdded()
@@ -255,7 +270,7 @@ fun AddTransactionModal(
                     Text("Add Transaction")
                 }
             } else {
-                // No accounts message
+                // Message when no accounts are available
                 Text(
                     "No accounts available. Please create an account first.",
                     style = MaterialTheme.typography.bodyMedium,
