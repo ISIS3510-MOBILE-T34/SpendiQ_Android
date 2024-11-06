@@ -70,6 +70,8 @@ fun LoginScreen(
     var showResetPasswordDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
 
+    var showBiometricDialog by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -333,6 +335,12 @@ fun LoginScreen(
                         }
                     }
                 }
+                is AuthState.BiometricAlreadyEnabled -> {
+                    Toast.makeText(context, "La biometría ya está habilitada.", Toast.LENGTH_SHORT).show()
+                }
+                is AuthState.BiometricEnabled -> {
+                    Toast.makeText(context, "Biometría habilitada correctamente.", Toast.LENGTH_SHORT).show()
+                }
                 else -> { /* Handle other states */ }
             }
 
@@ -349,8 +357,7 @@ fun LoginScreen(
                     text = "Enable Biometrics",
                     color = Color(0xffc33ba5),
                     modifier = Modifier.clickable {
-                        Log.d("LoginScreen", "Enable Biometrics clicked with email: $email")
-                        viewModel.enableBiometricLogin(email, password)
+                        showBiometricDialog = true
                     },
                     style = TextStyle(fontSize = 16.sp)
                 )
@@ -390,6 +397,32 @@ fun LoginScreen(
             }
         }
     }
+
+    if (showBiometricDialog) {
+        AlertDialog(
+            onDismissRequest = { showBiometricDialog = false },
+            title = { Text(text = "Enable Biometrics") },
+            text = { Text("¿Está seguro de que desea habilitar el inicio de sesión biométrico?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.enableBiometricLogin(email, password) // Llama a la función para habilitar biometría
+                        showBiometricDialog = false // Cierra el diálogo
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f))
+                ) {
+                    Text("Aceptar", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBiometricDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+
 
     // Reset AuthState after displaying messages
     LaunchedEffect(authState) {

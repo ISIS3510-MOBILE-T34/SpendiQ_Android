@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.Timestamp
 
 class TransactionRepository {
     private val auth = FirebaseManager.auth
@@ -217,7 +218,8 @@ class TransactionRepository {
                     } else null
                 },
                 amountAnomaly = doc.getBoolean("amountAnomaly") ?: false,
-                locationAnomaly = doc.getBoolean("locationAnomaly") ?: false
+                locationAnomaly = doc.getBoolean("locationAnomaly") ?: false,
+                automatic = doc.getBoolean("automatic") ?: false // Add this line
             )
         } catch (e: Exception) {
             Log.e("TransactionRepository", "Error parsing transaction document", e)
@@ -239,7 +241,8 @@ class TransactionRepository {
                 )
             },
             "locationAnomaly" to transaction.locationAnomaly,
-            "amountAnomaly" to transaction.amountAnomaly
+            "amountAnomaly" to transaction.amountAnomaly,
+            "automatic" to transaction.automatic // Add this line
         )
     }
 }

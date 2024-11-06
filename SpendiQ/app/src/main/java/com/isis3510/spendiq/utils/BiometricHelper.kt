@@ -32,4 +32,11 @@ class BiometricHelper(private val context: Context) {
             encryptedPassword
         )
     }
+
+    fun isBiometricEnabled(): Boolean {
+        // Verificar si las credenciales están almacenadas
+        val encryptedEmail = ldServicesFacade.getEncryptedEmail()
+        val encryptedPassword = ldServicesFacade.getEncryptedPassword()
+        return encryptedEmail != null && encryptedPassword != null
+    }
 }
