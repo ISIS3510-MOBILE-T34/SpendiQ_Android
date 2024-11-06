@@ -24,7 +24,6 @@ fun ProfileInfoScreen(
     transactionViewModel: TransactionViewModel,
     accountViewModel: AccountViewModel
 ) {
-    // Estado para evitar múltiples clics rápidos en el botón de retroceso
     var isNavigating by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -38,7 +37,7 @@ fun ProfileInfoScreen(
                             isNavigating = true
                             coroutineScope.launch {
                                 navController.popBackStack()
-                                delay(300) // Esperar 300 ms antes de permitir otro clic
+                                delay(300)
                                 isNavigating = false
                             }
                         }
