@@ -4,6 +4,7 @@ package com.isis3510.spendiq.views.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -11,9 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.views.common.BottomNavigation
@@ -21,6 +27,10 @@ import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.isis3510.spendiq.model.data.Account
+import com.isis3510.spendiq.model.data.Transaction
+import kotlin.math.abs
+import android.graphics.Paint as AndroidPaint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,17 +39,37 @@ fun ProfileStatisticsScreen(
     transactionViewModel: TransactionViewModel,
     accountViewModel: AccountViewModel
 ) {
-    // Detectar si está en modo oscuro
     val isDarkTheme = isSystemInDarkTheme()
-    val backgroundColor = if (isDarkTheme) Color.DarkGray else Color(0xFFEEEEEE)
     val cardBackgroundColor = Color(0xFFB3CB54)
-    val textColor = Color.Black
+    val textColor = if (isDarkTheme) Color.White else Color.Black
 
-    // Estado para evitar múltiples clics rápidos en el botón de retroceso
     var isNavigating by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
+    val accounts by accountViewModel.accounts.collectAsState()
+    val transactions by transactionViewModel.transactions.collectAsState()
+
+    val accountBalances = remember { mutableStateMapOf<String, Double>() }
+
+    LaunchedEffect(Unit) {
+        transactionViewModel.fetchAllTransactions()
+    }
+
+    LaunchedEffect(accounts, transactions) {
+        val balances = mutableMapOf<String, Double>()
+        accounts.forEach { account ->
+            val transactionsForAccount = transactions.filter { it.accountId == account.id }
+            val total = transactionsForAccount.sumOf {
+                if (it.transactionType == "Income") it.amount else -it.amount
+            }
+            balances[account.name] = total.toDouble()
+        }
+        accountBalances.clear()
+        accountBalances.putAll(balances)
+    }
+
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = { Text("Statistics") },
@@ -49,7 +79,7 @@ fun ProfileStatisticsScreen(
                             isNavigating = true
                             coroutineScope.launch {
                                 navController.popBackStack()
-                                delay(300) // Esperar 300 ms antes de permitir otro clic
+                                delay(300)
                                 isNavigating = false
                             }
                         }
@@ -59,7 +89,8 @@ fun ProfileStatisticsScreen(
                             contentDescription = "Back"
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
         bottomBar = {
@@ -74,44 +105,66 @@ fun ProfileStatisticsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 8.dp)
+                .padding(horizontal = 16.dp) // Aumentado para mejor espaciado
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Toggle para Daily/Weekly
-            Surface(
-                modifier = Modifier.padding(vertical = 16.dp),
-                shape = RoundedCornerShape(50),
-                color = backgroundColor
+            // Botones Segmented "Daily" y "Weekly"
+            SegmentedButton(
+                options = listOf("Daily", "Weekly"),
+                selectedOption = "Daily",
+                onOptionSelected = {},
+                backgroundColor = Color.Transparent,
+                selectedColor = cardBackgroundColor,
+                textColor = textColor
+            )
+
+            // Espacio adicional para bajar el gráfico (aprox. 50 dp)
+            Spacer(modifier = Modifier.height(50.dp))
+
+            // Gráfico de Barras
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp) // Ajusta la altura según sea necesario
+                    .background(Color.Transparent),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.padding(4.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SegmentedButton(
-                        options = listOf("Daily", "Weekly"),
-                        selectedOption = "Daily",
-                        onOptionSelected = { /* Handle selection */ },
-                        backgroundColor = backgroundColor,
-                        selectedColor = cardBackgroundColor,
-                        textColor = textColor
+                if (accountBalances.isNotEmpty()) {
+                    BarChart(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        data = accountBalances.toMap(),
+                        isDarkTheme = isDarkTheme
+                    )
+                } else {
+                    Text("Cargando datos...", color = textColor)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Etiquetas de las cuentas justo debajo del eje X
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                sortedAccounts(accountBalances).forEach { accountName ->
+                    Text(
+                        text = accountName,
+                        fontSize = 12.sp,
+                        color = textColor,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .widthIn(min = 40.dp, max = 80.dp)
                     )
                 }
             }
 
-            // Placeholder para la gráfica
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(if (isDarkTheme) Color.Gray else Color.LightGray),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Chart Placeholder", color = textColor)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Tarjetas resumen
             Column(
@@ -141,16 +194,18 @@ fun ProfileStatisticsScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     SummaryCard(
-                        title = "September 3",
+                        title = "Sept. 3",
                         subtitle = "Last advice",
                         backgroundColor = cardBackgroundColor,
-                        textColor = textColor
+                        textColor = textColor,
+                        iconResId = R.drawable.round_lightbulb_24
                     )
                     SummaryCard(
                         title = "El Corral",
                         subtitle = "Most visited place",
                         backgroundColor = cardBackgroundColor,
-                        textColor = textColor
+                        textColor = textColor,
+                        iconResId = R.drawable.round_star_24
                     )
                 }
                 Row(
@@ -161,13 +216,15 @@ fun ProfileStatisticsScreen(
                         title = "$67,500",
                         subtitle = "Highest expend",
                         backgroundColor = cardBackgroundColor,
-                        textColor = textColor
+                        textColor = textColor,
+                        iconResId = R.drawable.round_money_24
                     )
                     SummaryCard(
                         title = "Nequi",
                         subtitle = "Preferred payment account",
                         backgroundColor = cardBackgroundColor,
-                        textColor = textColor
+                        textColor = textColor,
+                        iconResId = R.drawable.outline_giftcard_24
                     )
                 }
             }
@@ -175,8 +232,126 @@ fun ProfileStatisticsScreen(
     }
 }
 
+// Función auxiliar para ordenar las cuentas (si es necesario)
 @Composable
-fun SummaryCard(title: String, subtitle: String, backgroundColor: Color, textColor: Color, iconResId: Int? = null) {
+fun sortedAccounts(accountBalances: Map<String, Double>): List<String> {
+    return accountBalances.keys.sorted()
+}
+
+@Composable
+fun BarChart(
+    modifier: Modifier = Modifier,
+    data: Map<String, Double>,
+    isDarkTheme: Boolean = isSystemInDarkTheme()
+) {
+    val step = 10000.0
+    val maxPositiveAmount = data.values.filter { it > 0 }.maxOrNull() ?: 0.0
+    val maxNegativeAmount = data.values.filter { it < 0 }.minOrNull() ?: 0.0
+    val maxAmount = maxOf(maxPositiveAmount, abs(maxNegativeAmount))
+    val numberOfSteps = if (maxAmount % step == 0.0) (maxAmount / step).toInt() else (maxAmount / step).toInt() + 1
+
+    val barColors = if (isDarkTheme) {
+        listOf(Color.Cyan, Color.Magenta)
+    } else {
+        listOf(Color(0xFFB3CB54), Color(0xFFE57373))
+    }
+
+    val sortedData = data.toList().sortedBy { it.first }
+
+    Canvas(modifier = modifier) {
+        val paddingBottom = 40.dp.toPx() // Reducido para acomodar etiquetas
+        val paddingTop = 20.dp.toPx()
+        val paddingStart = 40.dp.toPx()
+        val paddingEnd = 20.dp.toPx()
+
+        val availableHeight = size.height - paddingTop - paddingBottom
+        val availableWidth = size.width - paddingStart - paddingEnd
+
+        val centerY = paddingTop + (availableHeight / 2)
+
+        val barWidth = availableWidth / (sortedData.size * 2)
+        var xPosition = paddingStart + barWidth / 2
+
+        // Dibujar líneas de referencia horizontales
+        for (i in 1..numberOfSteps) {
+            val y = centerY - (i * step / maxAmount * availableHeight)
+            drawLine(
+                color = Color.LightGray,
+                start = Offset(paddingStart, y.toFloat()),
+                end = Offset(size.width - paddingEnd, y.toFloat()),
+                strokeWidth = 1f
+            )
+        }
+
+        // Dibujar eje X
+        drawLine(
+            color = Color.Black,
+            start = Offset(paddingStart, centerY),
+            end = Offset(size.width - paddingEnd, centerY),
+            strokeWidth = 2f
+        )
+
+
+        // Dibujar barras
+        sortedData.forEach { (accountName, amount) ->
+            val barHeightRatio = if (maxAmount != 0.0) abs(amount) / maxAmount else 0.0
+            val barHeight = barHeightRatio.toFloat() * availableHeight
+
+            val isPositive = amount >= 0.0
+            val topLeftY = if (isPositive) centerY - barHeight else centerY
+
+            drawRoundRect(
+                color = if (isPositive) barColors[0] else barColors[1],
+                topLeft = Offset(xPosition, topLeftY),
+                size = Size(barWidth, barHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx())
+            )
+
+            // Dibujar etiquetas de las cuentas justo debajo del eje X dentro del Canvas
+            drawIntoCanvas { canvas ->
+                val paint = AndroidPaint().apply {
+                    color = android.graphics.Color.BLACK
+                    textAlign = AndroidPaint.Align.CENTER
+                    textSize = 12.sp.toPx()
+                    isAntiAlias = true
+                }
+                canvas.nativeCanvas.drawText(
+                    accountName,
+                    xPosition + barWidth / 2,
+                    centerY + 25.dp.toPx(), // Aumentado para mayor separación del eje X
+                    paint
+                )
+            }
+
+            // Dibujar línea delgada gris debajo del eje X hasta el final del gráfico
+            drawLine(
+                color = Color.LightGray,
+                start = Offset(xPosition, centerY + 2.dp.toPx()), // Un poco debajo del eje X
+                end = Offset(xPosition + barWidth, centerY + 2.dp.toPx()),
+                strokeWidth = 1f
+            )
+
+            xPosition += barWidth * 2
+        }
+
+        // **Agregar una línea delgada gris al final del eje X**
+        drawLine(
+            color = Color.LightGray,
+            start = Offset(paddingStart, size.height - paddingBottom),
+            end = Offset(size.width - paddingEnd, size.height - paddingBottom),
+            strokeWidth = 1f
+        )
+    }
+}
+
+@Composable
+fun SummaryCard(
+    title: String,
+    subtitle: String,
+    backgroundColor: Color,
+    textColor: Color,
+    iconResId: Int? = null
+) {
     Surface(
         modifier = Modifier
             .width(140.dp)
@@ -191,7 +366,7 @@ fun SummaryCard(title: String, subtitle: String, backgroundColor: Color, textCol
                     contentDescription = null,
                     tint = textColor,
                     modifier = Modifier
-                        .size(48.dp)  // Tamaño mayor para mayor visibilidad
+                        .size(48.dp)
                         .align(Alignment.TopEnd)
                         .padding(10.dp)
                 )

@@ -25,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -108,7 +109,7 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Perfil") },
+                title = { Text("Profile") },
                 navigationIcon = {
 
                     IconButton(onClick = { navController.navigate("main") { launchSingleTop = true } }) {
@@ -201,7 +202,7 @@ fun ProfileScreen(
 @Composable
 fun SectionWithButtons(navController: NavController) {
     Column {
-        // Sección de Notificaciones, Configuración y Cuenta
+        // Sección de Notificaciones, Seguridad y Cuenta
         Box(modifier = Modifier.padding(vertical = 8.dp)) {
             Column(
                 modifier = Modifier
@@ -210,17 +211,42 @@ fun SectionWithButtons(navController: NavController) {
                     .background(Color(0xFFEEEEEE))
                     .padding(16.dp)
             ) {
-                ActionButtonWithArrow("Notificaciones", R.drawable.baseline_notifications_24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
-                    navController.navigate("profileNotificationsScreen") { launchSingleTop = true }
+                // Botón Notifications - Deshabilitado
+                ActionButtonWithArrow(
+                    text = "Notifications",
+                    iconResId = R.drawable.baseline_notifications_24,
+                    navController = navController,
+                    backgroundColor = Color(0xFFC33BA5),
+                    textColor = Color.Black,
+                    enabled = false // Deshabilitado
+                ) {
+                    // Acción deshabilitada, no se ejecutará
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
-                ActionButtonWithArrow("Seguridad", R.drawable.baseline_shield_24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
-                    navController.navigate("profileSecurityScreen") { launchSingleTop = true }
-                }
-                Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
-                ActionButtonWithArrow("Cuenta", R.drawable.person24, navController, backgroundColor = Color(0xFFC33BA5), textColor = Color.Black) {
-                    navController.navigate("profileAccountScreen") { launchSingleTop = true }
 
+                // Botón Security - Deshabilitado
+                ActionButtonWithArrow(
+                    text = "Security",
+                    iconResId = R.drawable.baseline_shield_24,
+                    navController = navController,
+                    backgroundColor = Color(0xFFC33BA5),
+                    textColor = Color.Black,
+                    enabled = false // Deshabilitado
+                ) {
+                    // Acción deshabilitada, no se ejecutará
+                }
+                Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
+
+                // Botón Account - Habilitado (opcional, ya que es true por defecto)
+                ActionButtonWithArrow(
+                    text = "Account",
+                    iconResId = R.drawable.person24,
+                    navController = navController,
+                    backgroundColor = Color(0xFFC33BA5),
+                    textColor = Color.Black
+                    // enabled = true por defecto
+                ) {
+                    navController.navigate("profileAccountScreen") { launchSingleTop = true }
                 }
             }
         }
@@ -234,11 +260,23 @@ fun SectionWithButtons(navController: NavController) {
                     .background(Color(0xFFEEEEEE))
                     .padding(16.dp)
             ) {
-                ActionButtonWithArrow("Limites y Objetivos", R.drawable.baseline_adjust_24, navController, backgroundColor = Color(0xFFB3CB54), textColor = Color.Black) {
+                ActionButtonWithArrow(
+                    text = "Limits and Goals",
+                    iconResId = R.drawable.baseline_adjust_24,
+                    navController = navController,
+                    backgroundColor = Color(0xFFB3CB54),
+                    textColor = Color.Black
+                ) {
                     navController.navigate("profileLaGScreen") { launchSingleTop = true }
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
-                ActionButtonWithArrow("Estadísticas", R.drawable.round_equalizer_24, navController, backgroundColor = Color(0xFFB3CB54), textColor = Color.Black) {
+                ActionButtonWithArrow(
+                    text = "Estatistics",
+                    iconResId = R.drawable.round_equalizer_24,
+                    navController = navController,
+                    backgroundColor = Color(0xFFB3CB54),
+                    textColor = Color.Black
+                ) {
                     navController.navigate("profileStatisticsScreen") { launchSingleTop = true }
                 }
             }
@@ -253,32 +291,65 @@ fun SectionWithButtons(navController: NavController) {
                     .background(Color(0xFFEEEEEE))
                     .padding(16.dp)
             ) {
-                ActionButtonWithArrow("Ayuda", R.drawable.outline_question_mark_24, navController, backgroundColor = Color(0xFF5875DD), textColor = Color.Black) {
-                    navController.navigate("profileHelpScreen") { launchSingleTop = true }
+                // Botón Help - Deshabilitado
+                ActionButtonWithArrow(
+                    text = "Help",
+                    iconResId = R.drawable.outline_question_mark_24,
+                    navController = navController,
+                    backgroundColor = Color(0xFF5875DD),
+                    textColor = Color.Black,
+                    enabled = false // Deshabilitado
+                ) {
+                    // Acción deshabilitada, no se ejecutará
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
-                ActionButtonWithArrow("Información", R.drawable.sharp_info_outline_24, navController, backgroundColor = Color(0xFF5875DD), textColor = Color.Black) {
-                    navController.navigate("profileInfoScreen") { launchSingleTop = true }
+
+                // Botón Information - Deshabilitado
+                ActionButtonWithArrow(
+                    text = "Information",
+                    iconResId = R.drawable.sharp_info_outline_24,
+                    navController = navController,
+                    backgroundColor = Color(0xFF5875DD),
+                    textColor = Color.Black,
+                    enabled = false // Deshabilitado
+                ) {
+                    // Acción deshabilitada, no se ejecutará
                 }
             }
         }
     }
 }
 
+
 @Composable
-fun ActionButtonWithArrow(text: String, iconResId: Int, navController: NavController, backgroundColor: Color = Color(0xFFB3CB54), textColor: Color = Color.Black, onClick: () -> Unit) {
+fun ActionButtonWithArrow(
+    text: String,
+    iconResId: Int,
+    navController: NavController,
+    backgroundColor: Color = Color(0xFFB3CB54),
+    textColor: Color = Color.Black,
+    enabled: Boolean = true, // Nuevo parámetro
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .then(
+                if (enabled) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
+            .padding(vertical = 12.dp)
+            .alpha(if (enabled) 1f else 0.5f), // Cambia la opacidad para indicar estado deshabilitado
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(backgroundColor), // Fondo circular para el icono
+                .background(backgroundColor),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -295,14 +366,17 @@ fun ActionButtonWithArrow(text: String, iconResId: Int, navController: NavContro
             color = textColor,
             modifier = Modifier.weight(1f)
         )
-        Icon(
-            painter = painterResource(id = R.drawable.round_arrow_forward_ios_24),
-            contentDescription = "Arrow",
-            tint = Color.Black,
-            modifier = Modifier.size(24.dp)
-        )
+        if (enabled) { // Solo muestra la flecha si está habilitado
+            Icon(
+                painter = painterResource(id = R.drawable.round_arrow_forward_ios_24),
+                contentDescription = "Arrow",
+                tint = Color.Black,
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }
+
 
 @SuppressLint("ResourceAsColor")
 @Composable
