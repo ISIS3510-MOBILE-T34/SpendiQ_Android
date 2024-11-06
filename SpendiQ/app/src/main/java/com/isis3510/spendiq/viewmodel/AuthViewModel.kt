@@ -309,7 +309,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val (encryptedEmail, encryptedPassword) = biometricHelper.getStoredCredentials()
 
         if (encryptedEmail == null || encryptedPassword == null) {
-            _authState.value = AuthState.Error("No stored credentials found")
+            _authState.value = AuthState.Error("Biometrics are not enabled. Please, enable them and try again")
             return
         }
 
