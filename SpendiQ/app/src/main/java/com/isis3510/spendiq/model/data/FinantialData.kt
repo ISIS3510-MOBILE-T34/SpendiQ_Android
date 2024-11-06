@@ -1,6 +1,7 @@
 // model/FinancialData.kt
 package com.isis3510.spendiq.model
 
+
 data class Account(
     val id: String = "",
     val name: String = "",
@@ -14,3 +15,4 @@ data class Transaction(
     val amount: Long = 0L, // Usar Long si es consistente con el resto del código
     val type: String = "" // Asegúrate de que este sea el nombre correcto
 )
+
