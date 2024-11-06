@@ -88,20 +88,18 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Check if notifications service is enabled, if not, request
+
         if (!isNotificationServiceEnabled()) {
             requestNotificationPermission()
         }
 
-        // Request location permission
         requestLocationPermission()
 
-        // Check and request permissions if needed
         if (!hasRequiredPermissions()) {
             requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
         }
 
-        // Initialize the content view with Jetpack Compose and navigation
+
         setContent {
             SpendiQTheme {
                 Surface(
@@ -145,7 +143,7 @@ class MainActivity : FragmentActivity() {
                             AccountsScreen(navController, accountViewModel, transactionViewModel)
                         }
                         composable("profileNotificationsScreen") {
-                            ProfileNotificationsScreen(navController)
+                            ProfileNotificationsScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileSecurityScreen") {
                             ProfileSecurityScreen(navController, transactionViewModel, accountViewModel)
@@ -160,10 +158,10 @@ class MainActivity : FragmentActivity() {
                             ProfileStatisticsScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileHelpScreen") {
-                            ProfileHelpScreen(navController)
+                            ProfileHelpScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable("profileInfoScreen") {
-                            ProfileInfoScreen(navController)
+                            ProfileInfoScreen(navController, transactionViewModel, accountViewModel)
                         }
                         composable(
                             route = "accountTransactions/{accountId}",
@@ -211,7 +209,9 @@ class MainActivity : FragmentActivity() {
                                         selectedOffer?.let { offer ->
                                             SpecialSalesDetail(
                                                 offer = offer,
-                                                navController = navController
+                                                navController = navController,
+                                                accountViewModel = accountViewModel,
+                                                transactionViewModel = transactionViewModel
                                             )
                                         }
                                     }
