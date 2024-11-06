@@ -1,6 +1,7 @@
-package com.isis3510.spendiq.view.accounts  // Ensure this matches the actual directory structure
+package com.isis3510.spendiq.views.accounts
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,7 +13,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.views.common.BottomNavigation
@@ -20,23 +20,63 @@ import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 
+/**
+ * AccountsScreen composable function
+ *
+ * Displays a list of user accounts and provides functionality to edit or delete accounts.
+ * Users can view their existing accounts, create new ones, or delete existing ones.
+ * The screen also includes navigation to transaction details for each account.
+ *
+ * Key Features:
+ * - Account Listing: Displays the current accounts with details such as account name, type, and balance.
+ * - Search Functionality: Allows users to search for specific accounts.
+ * - Modal Dialogs: Provides interfaces for creating and deleting accounts.
+ * - Integration with ViewModel: Fetches account data and manages UI state through the provided ViewModel.
+ *
+ * UI Structure:
+ * - Scaffold with a BottomNavigation for navigation between sections of the app.
+ * - LazyColumn for displaying a list of accounts.
+ * - Buttons for editing accounts and adding transactions.
+ * - Modal dialog for editing accounts with options for creation and deletion.
+ *
+ * Supporting Components:
+ * - `AccountItem`: A composable for displaying individual account details.
+ * - `EditAccountModal`: A composable modal for managing account editing, including creation and deletion.
+ *
+ * @param navController [NavController] to navigate between screens.
+ * @param accountViewModel [AccountViewModel] for managing account-related data.
+ * @param transactionViewModel [TransactionViewModel] for managing transactions.
+ */
 @Composable
-fun AccountsScreen(navController: NavController, accountViewModel: AccountViewModel, transactionViewModel: TransactionViewModel) {  // Make sure the parameter name is consistent
+fun AccountsScreen(
+    navController: NavController,
+    accountViewModel: AccountViewModel,
+    transactionViewModel: TransactionViewModel
+) {
+    // Collects accounts and UI state from the AccountViewModel
     val accounts by accountViewModel.accounts.collectAsState()
     val uiState by accountViewModel.uiState.collectAsState()
+
+    // State variables to manage modal visibility
     var showEditModal by remember { mutableStateOf(false) }
     var showAddTransactionModal by remember { mutableStateOf(false) }
+
+    // Fetch accounts when the screen is loaded
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
     }
 
+    // Scaffold layout with bottom navigation
     Scaffold(
         bottomBar = {
             BottomNavigation(
-                navController = navController, transactionViewModel = transactionViewModel,
-                accountViewModel)
+                navController = navController,
+                transactionViewModel = transactionViewModel,
+                accountViewModel = accountViewModel
+            )
         }
     ) { innerPadding ->
+        // Column layout for the main content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -55,6 +95,7 @@ fun AccountsScreen(navController: NavController, accountViewModel: AccountViewMo
             )
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Display loading indicator or accounts based on the UI state
             when (uiState) {
                 is AccountViewModel.UiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -87,6 +128,7 @@ fun AccountsScreen(navController: NavController, accountViewModel: AccountViewMo
         }
     }
 
+    // Show Edit Account Modal when requested
     if (showEditModal) {
         EditAccountModal(
             existingAccounts = accounts,
@@ -100,6 +142,7 @@ fun AccountsScreen(navController: NavController, accountViewModel: AccountViewMo
         )
     }
 
+    // Show Add Transaction Modal when requested
     if (showAddTransactionModal) {
         AddTransactionModal(
             accountViewModel = accountViewModel,
@@ -113,13 +156,22 @@ fun AccountsScreen(navController: NavController, accountViewModel: AccountViewMo
     }
 }
 
+/**
+ * AccountItem composable function
+ *
+ * Displays the details of an individual account, including its name, type, and balance.
+ * Users can click on the item to navigate to a detailed view of transactions related to that account.
+ *
+ * @param account [Account] the account data to display.
+ * @param navController [NavController] to navigate to transaction details for the account.
+ */
 @Composable
 fun AccountItem(account: Account, navController: NavController) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        onClick = { navController.navigate("accountTransactions/${account.name}") }
+            .padding(vertical = 8.dp)
+            .clickable { navController.navigate("accountTransactions/${account.name}") }
     ) {
         Box(
             modifier = Modifier
@@ -149,6 +201,17 @@ fun AccountItem(account: Account, navController: NavController) {
     }
 }
 
+/**
+ * EditAccountModal composable function
+ *
+ * Provides a modal dialog for editing existing accounts or creating new ones.
+ * Allows users to select account types and choose to delete existing accounts.
+ *
+ * @param existingAccounts List of [Account] currently available.
+ * @param onDismiss Function to call when the modal is dismissed.
+ * @param onCreateAccount Function to call to create a new account.
+ * @param onDeleteAccount Function to call to delete an existing account.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditAccountModal(
@@ -163,9 +226,11 @@ fun EditAccountModal(
     var expandedAction by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
+    // Filter available account types
     val availableAccountTypes = listOf("Nu", "Bancolombia", "Nequi")
         .filter { accountType -> existingAccounts.none { it.name == accountType } }
 
+    // Define actions based on available account types
     val actions = if (availableAccountTypes.isEmpty()) listOf("Delete") else listOf("Create", "Delete")
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -177,6 +242,7 @@ fun EditAccountModal(
             Text("Edit Accounts", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Dropdown for selecting action (Create/Delete)
             ExposedDropdownMenuBox(
                 expanded = expandedAction,
                 onExpandedChange = { expandedAction = !expandedAction }
@@ -208,6 +274,7 @@ fun EditAccountModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Dropdown for selecting account type based on the selected action
             if (selectedAction.isNotEmpty()) {
                 val applicableAccountTypes = if (selectedAction == "Create") availableAccountTypes else existingAccounts.map { it.name }
 
@@ -242,6 +309,7 @@ fun EditAccountModal(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Button to confirm the selected action
             Button(
                 onClick = {
                     if (selectedAction == "Delete") {
@@ -259,6 +327,7 @@ fun EditAccountModal(
         }
     }
 
+    // Confirmation dialog for account deletion
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },

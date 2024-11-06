@@ -1,6 +1,5 @@
 package com.isis3510.spendiq.views
 
-import ConnectivityViewModel
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -25,48 +24,37 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.isis3510.spendiq.view.accounts.AccountsScreen
+import com.isis3510.spendiq.views.accounts.AccountsScreen
 import com.isis3510.spendiq.views.main.MainContent
-import com.isis3510.spendiq.view.splash.SplashScreen
+import com.isis3510.spendiq.views.splash.SplashScreen
 import com.isis3510.spendiq.views.auth.AuthenticationScreen
 import com.isis3510.spendiq.views.auth.LoginScreen
 import com.isis3510.spendiq.views.auth.RegisterScreen
-import com.isis3510.spendiq.views.profile.ProfileScreen
-import com.isis3510.spendiq.views.profile.ProfileAccountScreen
-import com.isis3510.spendiq.views.profile.ProfileHelpScreen
-import com.isis3510.spendiq.views.profile.ProfileInfoScreen
-import com.isis3510.spendiq.views.profile.ProfileLaGScreen
-import com.isis3510.spendiq.views.profile.ProfileNotificationsScreen
-import com.isis3510.spendiq.views.profile.ProfileStatisticsScreen
+import com.isis3510.spendiq.views.profile.*
 import com.isis3510.spendiq.views.theme.SpendiQTheme
-import com.isis3510.spendiq.viewmodel.AccountViewModel
-import com.isis3510.spendiq.viewmodel.AuthViewModel
-import com.isis3510.spendiq.viewmodel.OffersViewModel
-import com.isis3510.spendiq.viewmodel.TransactionViewModel
-import com.isis3510.spendiq.viewmodel.ProfileViewModel
-import UserViewModel
+import com.isis3510.spendiq.viewmodel.*
 import com.isis3510.spendiq.views.accounts.AccountTransactionsScreen
 import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
 import com.isis3510.spendiq.views.offers.OffersScreen
 import com.isis3510.spendiq.views.offers.SpecialSalesDetail
-import com.isis3510.spendiq.views.profile.ProfileSecurityScreen
 
 class MainActivity : FragmentActivity() {
     companion object {
-        private const val TAG = "MainActivity"
+        private const val TAG = "MainActivity" // Tag for logging purposes
     }
 
-    // Permissions required for the app
+    // Array of permissions required by the app
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private val REQUIRED_PERMISSIONS = arrayOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.POST_NOTIFICATIONS
+        Manifest.permission.ACCESS_FINE_LOCATION,  // Location permission
+        Manifest.permission.POST_NOTIFICATIONS     // Notifications permission
     )
 
-    // Location permission launcher
+    // Launcher for requesting multiple permissions
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
+        // Log whether all required permissions were granted or some were denied
         if (permissions.all { it.value }) {
             Log.d(TAG, "All required permissions granted")
         } else {
@@ -74,9 +62,10 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    // Launcher for location permission request
+    // Launcher specifically for requesting location permission
     private val requestLocationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            // Log the result of the location permission request
             if (isGranted) {
                 Log.d(TAG, "Location permission granted")
             } else {
@@ -88,24 +77,27 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
+        // Check if notification service access is enabled; if not, request it
         if (!isNotificationServiceEnabled()) {
             requestNotificationPermission()
         }
 
+        // Request location permission if it is not already granted
         requestLocationPermission()
 
+        // Check if all required permissions are granted; if not, request them
         if (!hasRequiredPermissions()) {
             requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
         }
 
-
+        // Initialize the main content view with Jetpack Compose and theme setup
         setContent {
             SpendiQTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Set up navigation controller for managing screen navigation
                     val navController = rememberNavController()
                     val authViewModel: AuthViewModel = viewModel()
                     val accountViewModel: AccountViewModel = viewModel()
@@ -116,8 +108,9 @@ class MainActivity : FragmentActivity() {
                     val connectivityViewModel: ConnectivityViewModel = viewModel()
                     val userData by userViewModel.userData.collectAsState()
 
-
+                    // Configure navigation destinations
                     NavHost(navController = navController, startDestination = "splash") {
+                        // Define each composable destination with corresponding screen
                         composable("splash") {
                             SplashScreen(navController, authViewModel)
                         }
@@ -131,7 +124,7 @@ class MainActivity : FragmentActivity() {
                             RegisterScreen(navController, authViewModel)
                         }
                         composable("main") {
-                            MainContent(navController, authViewModel, accountViewModel, offersViewModel, transactionViewModel)
+                            MainContent(navController, accountViewModel, offersViewModel, transactionViewModel)
                         }
                         composable("promos") {
                             OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel)
@@ -163,6 +156,7 @@ class MainActivity : FragmentActivity() {
                         composable("profileInfoScreen") {
                             ProfileInfoScreen(navController, transactionViewModel, accountViewModel)
                         }
+                        // Define destination for account transactions with accountId as argument
                         composable(
                             route = "accountTransactions/{accountId}",
                             arguments = listOf(navArgument("accountId") { type = NavType.StringType })
@@ -172,12 +166,14 @@ class MainActivity : FragmentActivity() {
                                 backStackEntry.arguments?.getString("accountId") ?: ""
                             )
                         }
+                        // Define destination for special sales detail with offerId as argument
                         composable(
                             route = "specialSalesDetail/{offerId}",
                             arguments = listOf(navArgument("offerId") { type = NavType.StringType })
                         ) { backStackEntry ->
                             val offerId = backStackEntry.arguments?.getString("offerId")
                             if (offerId != null) {
+                                // Fetch offer details based on the offerId
                                 LaunchedEffect(offerId) {
                                     offersViewModel.getOfferById(offerId)
                                 }
@@ -185,6 +181,7 @@ class MainActivity : FragmentActivity() {
                                 val selectedOffer by offersViewModel.selectedOffer.collectAsState()
                                 val uiState by offersViewModel.uiState.collectAsState()
 
+                                // Display loading, error, or success UI based on UI state
                                 when (uiState) {
                                     is OffersViewModel.UiState.Loading -> {
                                         Box(modifier = Modifier.fillMaxSize()) {
@@ -215,10 +212,11 @@ class MainActivity : FragmentActivity() {
                                             )
                                         }
                                     }
-                                    else -> { }
+                                    else -> { /* No operation */ }
                                 }
                             }
                         }
+                        // Define destination for transaction details with accountId and transactionId as arguments
                         composable(
                             route = "transactionDetails/{accountId}/{transactionId}",
                             arguments = listOf(
@@ -242,7 +240,7 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    // Function to check if all required permissions are granted
+    // Check if all permissions in REQUIRED_PERMISSIONS array are granted
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private fun hasRequiredPermissions(): Boolean {
         return REQUIRED_PERMISSIONS.all {
@@ -263,7 +261,7 @@ class MainActivity : FragmentActivity() {
         return enabledListeners?.contains(packageName) == true
     }
 
-    // Function to request location permission
+    // Function to request location permission if not already granted
     private fun requestLocationPermission() {
         if (ContextCompat.checkSelfPermission(
                 this,

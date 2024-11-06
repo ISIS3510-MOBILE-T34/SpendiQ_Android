@@ -2417,6 +2417,10 @@
                                     import kotlinx.coroutines.flow.flow
                                     import kotlinx.coroutines.launch
                                     import kotlinx.coroutines.tasks.await
+<<<<<<< HEAD
+                                    import com.google.firebase.Timestamp
+=======
+>>>>>>> main
                                     
                                     class TransactionRepository {
                                         private val auth = FirebaseManager.auth
@@ -2623,7 +2627,12 @@
                                                         } else null
                                                     },
                                                     amountAnomaly = doc.getBoolean("amountAnomaly") ?: false,
+<<<<<<< HEAD
+                                                    locationAnomaly = doc.getBoolean("locationAnomaly") ?: false,
+                                                    automatic = doc.getBoolean("automatic") ?: false // Add this line
+=======
                                                     locationAnomaly = doc.getBoolean("locationAnomaly") ?: false
+>>>>>>> main
                                                 )
                                             } catch (e: Exception) {
                                                 Log.e("TransactionRepository", "Error parsing transaction document", e)
@@ -2645,10 +2654,19 @@
                                                     )
                                                 },
                                                 "locationAnomaly" to transaction.locationAnomaly,
+<<<<<<< HEAD
+                                                "amountAnomaly" to transaction.amountAnomaly,
+                                                "automatic" to transaction.automatic // Add this line
+                                            )
+                                        }
+                                    }
+                                    ```
+=======
                                                 "amountAnomaly" to transaction.amountAnomaly
                                             )
                                         }
                                     }                                    ```
+>>>>>>> main
                             - **facade/**
                                 - ExternalServicesFacade.kt
                                     ```
@@ -2837,6 +2855,10 @@
                                         val location: Location?,
                                         val amountAnomaly: Boolean = false,
                                         val locationAnomaly: Boolean = false,
+<<<<<<< HEAD
+                                        val automatic: Boolean = false
+=======
+>>>>>>> main
                                     )
                                     
                                     data class Location(
@@ -3090,7 +3112,14 @@
                                                                             latitude = location!!.latitude,
                                                                             longitude = location!!.longitude
                                                                         )
+<<<<<<< HEAD
+                                                                    } else null,
+                                                                    automatic = false, // Add this line to explicitly set manual transactions
+                                                                    amountAnomaly = false,
+                                                                    locationAnomaly = false
+=======
                                                                     } else null
+>>>>>>> main
                                                                 )
                                                                 transactionViewModel.addTransactionWithAccountCheck(transaction)
                                                                 onTransactionAdded()
@@ -7908,7 +7937,11 @@
                                 
                                             if (!transactionExists(userId, company, amount, currentTimestamp, "Income")) {
                                                 Log.d("NotificationListener", "Processing income from $company, amount: $amount")
+<<<<<<< HEAD
+                                                addTransaction(userId, amount, company, "Income", location, automatic = true)
+=======
                                                 addTransaction(userId, amount, company, "Income", location)
+>>>>>>> main
                                                 updateNuAccountBalance(userId, amount)
                                                 showNotification("Income Recorded", "Income of $$amount from $company has been recorded.")
                                             } else {
@@ -7947,7 +7980,11 @@
                                 
                                             if (!transactionExists(userId, company, amount, currentTimestamp, "Expense")) {
                                                 Log.d("NotificationListener", "Processing expense for $company, amount: $amount")
+<<<<<<< HEAD
+                                                addTransaction(userId, amount, company, "Expense", location, automatic = true)
+=======
                                                 addTransaction(userId, amount, company, "Expense", location)
+>>>>>>> main
                                                 updateNuAccountBalance(userId, -amount)
                                                 showNotification("Expense Recorded", "Expense of $$amount to $company has been recorded.")
                                             } else {
@@ -8026,7 +8063,11 @@
                                         }
                                     }
                                 
+<<<<<<< HEAD
+                                    private suspend fun addTransaction(userId: String, amount: Long, transactionName: String, transactionType: String, location: android.location.Location?, automatic: Boolean) {
+=======
                                     private suspend fun addTransaction(userId: String, amount: Long, transactionName: String, transactionType: String, location: android.location.Location?) {
+>>>>>>> main
                                         try {
                                             val accountSnapshot = firestore.collection("accounts")
                                                 .whereEqualTo("name", "Nu")
@@ -8042,6 +8083,10 @@
                                                     "accountID" to accountId,
                                                     "transactionName" to transactionName,
                                                     "transactionType" to transactionType,
+<<<<<<< HEAD
+                                                    "automatic" to automatic, // Adding the automatic field
+=======
+>>>>>>> main
                                                     "location" to if (location != null) {
                                                         hashMapOf(
                                                             "latitude" to location.latitude,
@@ -8119,7 +8164,12 @@
                                 
                                         notificationManager.notify(System.currentTimeMillis().toInt(), notification)
                                     }
+<<<<<<< HEAD
+                                }
+                                ```
+=======
                                 }                                ```
+>>>>>>> main
                             - AnomalyApiService.kt
                                 ```
                                 package com.isis3510.spendiq.Services
