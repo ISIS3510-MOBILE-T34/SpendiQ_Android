@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,6 +33,7 @@ import androidx.navigation.NavController
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AuthState
 import com.isis3510.spendiq.viewmodel.AuthViewModel
+import com.isis3510.spendiq.views.common.AlertDialogCreate
 import com.isis3510.spendiq.views.theme.Purple40
 import java.text.SimpleDateFormat
 import java.util.*
@@ -83,6 +85,8 @@ fun RegisterScreen(
     val authState by viewModel.authState.collectAsState()
     var checkedState by remember { mutableStateOf(false) } // Terms and conditions checkbox
     var isBackButtonEnabled by remember { mutableStateOf(true) } // Back button control
+    var enableEmailVerSentDialog by remember { mutableStateOf(false) }
+    var isBirthdateValid by remember { mutableStateOf(false) }
 
     // DatePicker setup for birth date
     val context = LocalContext.current
@@ -92,11 +96,20 @@ fun RegisterScreen(
     val day = calendar.get(Calendar.DAY_OF_MONTH)
     val dateFormatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
+    fun isDateMoreThan16YearsOld(date: Calendar): Boolean {
+        val today = Calendar.getInstance()
+        today.add(Calendar.YEAR, -16)
+        return date.before(today)
+    }
+
     val datePickerDialog = DatePickerDialog(
         context,
         { _: DatePicker, selectedYear: Int, selectedMonth: Int, selectedDay: Int ->
             calendar.set(selectedYear, selectedMonth, selectedDay)
             birthDate = dateFormatter.format(calendar.time)
+
+            // Check if the birthdate is more than 16 years ago
+            isBirthdateValid = isDateMoreThan16YearsOld(calendar)
         },
         year,
         month,
@@ -253,13 +266,22 @@ fun RegisterScreen(
                 enabled = false,
                 shape = RoundedCornerShape(50),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Purple40,
-                    unfocusedBorderColor = Purple40
+                    disabledBorderColor = Purple40,
+                    disabledTextColor = Color.Black,
+                    disabledPlaceholderColor = Color.Black
                 ),
                 singleLine = true
             )
+            if (birthDate.isNotEmpty() && !isBirthdateValid) {
+                Text(
+                    text = "You must be at least 16 years old",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
 
             // Password and Confirm Password fields
+            val isPasswordValid = remember(password) { password.length >= 6 }
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -277,7 +299,15 @@ fun RegisterScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
+            if (password.isNotEmpty() && !isPasswordValid) {
+                Text(
+                    text = "Password must at least have 6 letters",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
 
+            val isConfirmPasswordValid = remember(confirmPassword) {confirmPassword == password}
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
@@ -295,6 +325,13 @@ fun RegisterScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
+            if (confirmPassword.isNotEmpty() && !isConfirmPasswordValid) {
+                Text(
+                    text = "Passwords do not match",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
 
             // Terms and Conditions Checkbox
             Row(
@@ -329,7 +366,7 @@ fun RegisterScreen(
                     }
                 },
                 enabled = password == confirmPassword && checkedState &&
-                        email.isNotEmpty() && fullName.isNotEmpty() &&
+                        email.isNotEmpty() && fullName.isNotEmpty() && isBirthdateValid &&
                         birthDate.isNotEmpty() && phoneNumber.isNotEmpty() &&
                         isEmailValid && isPhoneValid,
                 shape = RoundedCornerShape(7.dp),
@@ -342,6 +379,17 @@ fun RegisterScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (enableEmailVerSentDialog)
+            {
+                AlertDialogCreate({enableEmailVerSentDialog = false},
+                    { enableEmailVerSentDialog = false
+                        viewModel.checkEmailVerification() },
+                    "Verification Email Sent",
+                    "Please check your inbox. After verifying, click on CONFIRM to continue.",
+                    Icons.AutoMirrored.Filled.Send,
+                    false)
+            }
 
             // Authentication state feedback
             when (authState) {
@@ -356,10 +404,7 @@ fun RegisterScreen(
                     }
                 }
                 is AuthState.EmailVerificationSent -> {
-                    Text("Verification email sent. Please check your inbox.")
-                    Button(onClick = { viewModel.checkEmailVerification() }) {
-                        Text("I've verified my email")
-                    }
+                    enableEmailVerSentDialog = true
                 }
                 is AuthState.EmailVerified -> {
                     LaunchedEffect(Unit) {
