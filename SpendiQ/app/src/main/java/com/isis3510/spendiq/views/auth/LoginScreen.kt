@@ -179,7 +179,7 @@ fun LoginScreen(
                     .padding(vertical = 4.dp),
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xFFD9D9D9)) },
                 shape = RoundedCornerShape(50),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
                     unfocusedBorderColor = Purple40
                 ),
@@ -242,7 +242,7 @@ fun LoginScreen(
                     }
                 },
                 shape = RoundedCornerShape(50),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
                     unfocusedBorderColor = Purple40
                 ),
