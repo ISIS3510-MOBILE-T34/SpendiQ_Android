@@ -1,5 +1,9 @@
     package com.isis3510.spendiq.views.main
 
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.EaseInOutCubic
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -33,11 +38,19 @@ import com.google.firebase.Timestamp
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.CreatePieChart
+import ir.ehsannarmani.compose_charts.LineChart
+import ir.ehsannarmani.compose_charts.models.AnimationMode
+import ir.ehsannarmani.compose_charts.models.DotProperties
+import ir.ehsannarmani.compose_charts.models.DrawStyle
+import ir.ehsannarmani.compose_charts.models.LabelProperties
+import ir.ehsannarmani.compose_charts.models.Line
+import ir.ehsannarmani.compose_charts.models.ZeroLineProperties
 import java.text.SimpleDateFormat
 import java.util.*
 import java.text.NumberFormat
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainContent(
     navController: NavController,
@@ -143,7 +156,7 @@ fun MainContent(
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Monthly Income/Expenses", style = MaterialTheme.typography.headlineMedium)
+                Text("User Balance Over Last 30 Days", style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Muestra un indicador de carga si la UI está en estado de carga
@@ -151,38 +164,51 @@ fun MainContent(
                     CircularProgressIndicator()
                 } else {
                     if (totalIncome > 0 || totalExpenses > 0) {
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            CreatePieChart(data = listOf("Income" to totalIncome, "Expenses" to totalExpenses))
+                        val dailyTransactions = transactionViewModel.getIncomeAndExpensesLast30Days()
 
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 16.dp),
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.KeyboardArrowUp,
-                                    contentDescription = "Income Icon",
-                                    tint = Color(0xffb3cb54)
+                        val movements = dailyTransactions.map { it.amount }
+                        val moveLabels = dailyTransactions.map { it.day }
+
+                        // Crear el gráfico de líneas
+                        LineChart(
+                            modifier = Modifier
+                                .height(300.dp)
+                                .fillMaxSize().padding(horizontal = 22.dp),
+                            data = remember {
+                                listOf(
+                                    Line(
+                                        label = "Movements",
+                                        values = movements,
+                                        color = SolidColor(Color(0xffb3cb54)),
+                                        firstGradientFillColor = Color(0xFF94B719).copy(alpha = .5f),
+                                        secondGradientFillColor = Color.Transparent,
+                                        strokeAnimationSpec = tween(2000, easing = EaseInOutCubic),
+                                        drawStyle = DrawStyle.Stroke(width = 2.dp),
+                                        dotProperties = DotProperties(
+                                            enabled = true,
+                                            color = SolidColor(Color.White),
+                                            strokeWidth = 2.dp,
+                                            radius = 3.5.dp,
+                                            strokeColor = SolidColor(Color(0xFF94B719)),
+                                        )
+                                    )
                                 )
-                                Text(
-                                    text = currencyFormatter.format(totalIncome),
-                                    color = Color(0xffb3cb54),
-                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = currencyFormatter.format(totalExpenses),
-                                    color = Color(0xffc33ba5),
-                                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Icon(
-                                    imageVector = Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Expenses Icon",
-                                    tint = Color(0xffc33ba5)
-                                )
-                            }
-                        }
+                            },
+                            labelProperties = LabelProperties(
+                                enabled = true,
+                                textStyle = MaterialTheme.typography.labelSmall,
+                                padding = 16.dp,
+                                labels = moveLabels ),
+                            curvedEdges = false,
+                            zeroLineProperties = ZeroLineProperties(
+                                enabled = true,
+                                color = SolidColor(Color(0xffc33ba5)),
+                                thickness = 1.5.dp
+                            ),
+                            animationMode = AnimationMode.Together(delayBuilder = {
+                                it * 500L
+                            }),
+                        )
                     } else {
                         Text("You don't have any transactions.")
                     }

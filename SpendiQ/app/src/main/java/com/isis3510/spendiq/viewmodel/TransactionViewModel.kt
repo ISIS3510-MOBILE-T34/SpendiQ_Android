@@ -1,13 +1,19 @@
 package com.isis3510.spendiq.viewmodel
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.isis3510.spendiq.model.data.DailyTransaction
 import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.model.iterator.TransactionIterator
 import com.isis3510.spendiq.model.repository.TransactionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 /**
  * TransactionViewModel class
@@ -185,6 +191,16 @@ class TransactionViewModel(
         Log.d("TransactionViewModel", "Income: $totalIncome")
 
         return Pair(totalIncome, totalExpenses)
+    }
+
+    //Calculate total income and expenses in te last 30 days
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun getIncomeAndExpensesLast30Days(): List<DailyTransaction> {
+        val iterator = TransactionIterator(transactions.value)
+        while (iterator.hasNext()) {
+            iterator.next()
+        }
+        return iterator.getDailyTransactions()
     }
 
     // Fetch all transactions
