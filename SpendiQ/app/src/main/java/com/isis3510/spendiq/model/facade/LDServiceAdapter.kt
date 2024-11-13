@@ -1,6 +1,5 @@
 package com.isis3510.spendiq.model.facade
 
-import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Base64
@@ -17,7 +16,7 @@ import javax.crypto.AEADBadTagException
  *
  * @property context The application context used to create the encrypted SharedPreferences.
  */
-class LDServicesFacade(private val context: Context) {
+class LDServiceAdapter(private val context: Context) {
     // Lazy initialization of the encrypted SharedPreferences
     private val encryptedPrefs by lazy { createEncryptedSharedPreferences() }
 

@@ -227,9 +227,16 @@ fun RegisterScreen(
 
             // Phone number field with validation
             val isPhoneValid = remember(phoneNumber) { phoneNumber.all { it.isDigit() } && phoneNumber.length >= 10 }
+            if (phoneNumber.isNotEmpty() && !isPhoneValid) {
+                Text(
+                    text = "Phone number must have at least 10 digits",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
             OutlinedTextField(
                 value = phoneNumber,
-                onValueChange = { if (it.all { char -> char.isDigit() }) phoneNumber = it },
+                onValueChange = { if (it.all { char -> char.isDigit() } && it.length <= 15) phoneNumber = it },
                 placeholder = { Text("Phone Number") },
                 isError = phoneNumber.isNotEmpty() && !isPhoneValid,
                 modifier = Modifier
@@ -244,15 +251,15 @@ fun RegisterScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number)
             )
-            if (phoneNumber.isNotEmpty() && !isPhoneValid) {
+
+            // Birth Date field
+            if (birthDate.isNotEmpty() && !isBirthdateValid) {
                 Text(
-                    text = "Phone number must have at least 10 digits",
+                    text = "You must be at least 16 years old",
                     color = MaterialTheme.colorScheme.error,
                     style = TextStyle(fontSize = 12.sp)
                 )
             }
-
-            // Birth Date field
             OutlinedTextField(
                 value = birthDate,
                 onValueChange = { },
@@ -272,16 +279,16 @@ fun RegisterScreen(
                 ),
                 singleLine = true
             )
-            if (birthDate.isNotEmpty() && !isBirthdateValid) {
+
+            // Password and Confirm Password fields
+            val isPasswordValid = remember(password) { password.length >= 6 }
+            if (password.isNotEmpty() && !isPasswordValid) {
                 Text(
-                    text = "You must be at least 16 years old",
+                    text = "Password must at least have 6 letters",
                     color = MaterialTheme.colorScheme.error,
                     style = TextStyle(fontSize = 12.sp)
                 )
             }
-
-            // Password and Confirm Password fields
-            val isPasswordValid = remember(password) { password.length >= 6 }
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -299,15 +306,16 @@ fun RegisterScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
-            if (password.isNotEmpty() && !isPasswordValid) {
+
+
+            val isConfirmPasswordValid = remember(confirmPassword) {confirmPassword == password}
+            if (confirmPassword.isNotEmpty() && !isConfirmPasswordValid) {
                 Text(
-                    text = "Password must at least have 6 letters",
+                    text = "Passwords do not match",
                     color = MaterialTheme.colorScheme.error,
                     style = TextStyle(fontSize = 12.sp)
                 )
             }
-
-            val isConfirmPasswordValid = remember(confirmPassword) {confirmPassword == password}
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
@@ -325,13 +333,7 @@ fun RegisterScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
-            if (confirmPassword.isNotEmpty() && !isConfirmPasswordValid) {
-                Text(
-                    text = "Passwords do not match",
-                    color = MaterialTheme.colorScheme.error,
-                    style = TextStyle(fontSize = 12.sp)
-                )
-            }
+
 
             // Terms and Conditions Checkbox
             Row(
@@ -365,10 +367,10 @@ fun RegisterScreen(
                         viewModel.register(email, password, fullName, phoneNumber, birthDate)
                     }
                 },
-                enabled = password == confirmPassword && checkedState &&
-                        email.isNotEmpty() && fullName.isNotEmpty() && isBirthdateValid &&
-                        birthDate.isNotEmpty() && phoneNumber.isNotEmpty() &&
-                        isEmailValid && isPhoneValid,
+                enabled = isConfirmPasswordValid && checkedState &&
+                        email.isNotEmpty() && fullName.isNotEmpty() && isBirthdateValid
+                        && isPasswordValid && birthDate.isNotEmpty() && phoneNumber.isNotEmpty()
+                        && isEmailValid && isPhoneValid,
                 shape = RoundedCornerShape(7.dp),
                 modifier = Modifier
                     .fillMaxWidth(0.6f)

@@ -2,8 +2,8 @@ package com.isis3510.spendiq.utils
 
 import android.content.Context
 import androidx.fragment.app.FragmentActivity
-import com.isis3510.spendiq.model.facade.ExternalServicesFacade
-import com.isis3510.spendiq.model.facade.LDServicesFacade
+import com.isis3510.spendiq.model.facade.ExternalServiceAdapter
+import com.isis3510.spendiq.model.facade.LDServiceAdapter
 
 /**
  * BiometricHelper is a utility class that handles biometric authentication
@@ -15,8 +15,8 @@ import com.isis3510.spendiq.model.facade.LDServicesFacade
  * @param context The application context to access services.
  */
 class BiometricHelper(private val context: Context) {
-    private val externalServicesFacade = ExternalServicesFacade(context) // Facade for external services
-    private val ldServicesFacade = LDServicesFacade(context) // Facade for local data services
+    private val externalServiceAdapter = ExternalServiceAdapter(context) // Facade for external services
+    private val ldServiceAdapter = LDServiceAdapter(context) // Facade for local data services
 
     /**
      * Sets up the biometric prompt for authentication.
@@ -26,14 +26,14 @@ class BiometricHelper(private val context: Context) {
      * @param onError Callback function to handle errors during biometric authentication.
      */
     fun setupBiometricPrompt(activity: FragmentActivity, onSuccess: () -> Unit, onError: (String) -> Unit) {
-        externalServicesFacade.setupBiometricPrompt(activity, onSuccess, onError) // Delegate to the facade
+        externalServiceAdapter.setupBiometricPrompt(activity, onSuccess, onError) // Delegate to the facade
     }
 
     /**
      * Displays the biometric prompt to the user for authentication.
      */
     fun showBiometricPrompt() {
-        externalServicesFacade.showBiometricPrompt() // Delegate to the facade to show the prompt
+        externalServiceAdapter.showBiometricPrompt() // Delegate to the facade to show the prompt
     }
 
     /**
@@ -43,7 +43,7 @@ class BiometricHelper(private val context: Context) {
      * @param password The user's password to be stored.
      */
     fun storeCredentials(email: String, password: String) {
-        ldServicesFacade.storeCredentials(email, password) // Use the local data service to store credentials
+        ldServiceAdapter.storeCredentials(email, password) // Use the local data service to store credentials
     }
 
     /**
@@ -53,8 +53,8 @@ class BiometricHelper(private val context: Context) {
      *         Both values may be null if no credentials are stored.
      */
     fun getStoredCredentials(): Pair<String?, String?> {
-        val encryptedEmail = ldServicesFacade.getEncryptedEmail() // Get the stored encrypted email
-        val encryptedPassword = ldServicesFacade.getEncryptedPassword() // Get the stored encrypted password
+        val encryptedEmail = ldServiceAdapter.getEncryptedEmail() // Get the stored encrypted email
+        val encryptedPassword = ldServiceAdapter.getEncryptedPassword() // Get the stored encrypted password
 
         return Pair(
             encryptedEmail,
@@ -71,8 +71,8 @@ class BiometricHelper(private val context: Context) {
      */
     fun isBiometricEnabled(): Boolean {
         // Check if the credentials are stored
-        val encryptedEmail = ldServicesFacade.getEncryptedEmail() // Retrieve the encrypted email
-        val encryptedPassword = ldServicesFacade.getEncryptedPassword() // Retrieve the encrypted password
+        val encryptedEmail = ldServiceAdapter.getEncryptedEmail() // Retrieve the encrypted email
+        val encryptedPassword = ldServiceAdapter.getEncryptedPassword() // Retrieve the encrypted password
         return encryptedEmail != null && encryptedPassword != null // Return true if both are present
     }
 }

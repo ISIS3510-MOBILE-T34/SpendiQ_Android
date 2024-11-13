@@ -11,7 +11,7 @@ import androidx.fragment.app.FragmentActivity
  *
  * @property context The context used to create the BiometricPrompt and prompt information.
  */
-class ExternalServicesFacade(private val context: Context) {
+class ExternalServiceAdapter(private val context: Context) {
     private lateinit var biometricPrompt: BiometricPrompt // The biometric prompt for authentication
     private lateinit var promptInfo: BiometricPrompt.PromptInfo // Information about the biometric prompt
 
