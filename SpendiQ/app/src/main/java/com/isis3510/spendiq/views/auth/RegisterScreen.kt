@@ -279,6 +279,13 @@ fun RegisterScreen(
                 ),
                 singleLine = true
             )
+            if (birthDate.isNotEmpty() && !isBirthdateValid) {
+                Text(
+                    text = "You must be at least 16 years old",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
 
             // Password and Confirm Password fields
             val isPasswordValid = remember(password) { password.length >= 6 }
@@ -306,6 +313,13 @@ fun RegisterScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
+            if (password.isNotEmpty() && !isPasswordValid) {
+                Text(
+                    text = "Password must at least have 6 letters",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
 
 
             val isConfirmPasswordValid = remember(confirmPassword) {confirmPassword == password}
@@ -316,6 +330,7 @@ fun RegisterScreen(
                     style = TextStyle(fontSize = 12.sp)
                 )
             }
+
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
@@ -333,6 +348,13 @@ fun RegisterScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
             )
+            if (confirmPassword.isNotEmpty() && !isConfirmPasswordValid) {
+                Text(
+                    text = "Passwords do not match",
+                    color = MaterialTheme.colorScheme.error,
+                    style = TextStyle(fontSize = 12.sp)
+                )
+            }
 
 
             // Terms and Conditions Checkbox
@@ -367,6 +389,7 @@ fun RegisterScreen(
                         viewModel.register(email, password, fullName, phoneNumber, birthDate)
                     }
                 },
+
                 enabled = isConfirmPasswordValid && checkedState &&
                         email.isNotEmpty() && fullName.isNotEmpty() && isBirthdateValid
                         && isPasswordValid && birthDate.isNotEmpty() && phoneNumber.isNotEmpty()
