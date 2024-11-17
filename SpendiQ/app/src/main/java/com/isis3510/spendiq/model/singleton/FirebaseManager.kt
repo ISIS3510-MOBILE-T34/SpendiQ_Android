@@ -2,6 +2,7 @@ package com.isis3510.spendiq.model.singleton
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.storage.FirebaseStorage
 
 /**
@@ -16,8 +17,14 @@ object FirebaseManager {
     // Lazy initialization of Firebase Authentication instance
     val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
 
-    // Lazy initialization of Firestore Database instance
-    val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    // Lazy initialization of Firestore Database instance with persistence disabled
+    val firestore: FirebaseFirestore by lazy {
+        FirebaseFirestore.getInstance().apply {
+            firestoreSettings = FirebaseFirestoreSettings.Builder()
+                .setPersistenceEnabled(false) // Disables local persistence
+                .build()
+        }
+    }
 
     // Lazy initialization of Firebase Storage instance
     val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
