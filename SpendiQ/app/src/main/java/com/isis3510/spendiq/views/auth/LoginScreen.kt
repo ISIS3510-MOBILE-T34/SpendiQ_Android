@@ -1,5 +1,6 @@
 package com.isis3510.spendiq.views.auth
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -91,14 +92,16 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
     val authState by viewModel.authState.collectAsState()
     val context = LocalContext.current
-    val isLogInButtonEnable by connectivityViewModel.isConnected.observeAsState(true)
-    var previousConnectionState by remember { mutableStateOf(isLogInButtonEnable) }
 
     // Reset password and biometric dialog visibility
     var showResetPasswordDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
     var isBackButtonEnabled by remember { mutableStateOf(true) }
     var showBiometricDialog by remember { mutableStateOf(false) }
+
+    //Connection & Eventual Connectivity
+    val isLogInButtonEnable by connectivityViewModel.isConnected.observeAsState(true)
+    var previousConnectionState by remember { mutableStateOf(isLogInButtonEnable) }
 
     Box(
         modifier = Modifier
@@ -176,7 +179,7 @@ fun LoginScreen(
                     .padding(vertical = 4.dp),
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = Color(0xFFD9D9D9)) },
                 shape = RoundedCornerShape(50),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
                     unfocusedBorderColor = Purple40
                 ),
@@ -239,7 +242,7 @@ fun LoginScreen(
                     }
                 },
                 shape = RoundedCornerShape(50),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Purple40,
                     unfocusedBorderColor = Purple40
                 ),
@@ -370,6 +373,10 @@ fun LoginScreen(
                         }
                     }
                 }
+                is AuthState.BiometricAlreadyEnabled ->
+                {
+                    Toast.makeText(context, "Biometrics Already Enabled", Toast.LENGTH_SHORT).show()
+                }
                 else -> { /* Handle other states */ }
             }
 
@@ -431,6 +438,15 @@ fun LoginScreen(
                     }
                 }
             )
+        }
+
+        if (isLogInButtonEnable != previousConnectionState) {
+            if (isLogInButtonEnable) {
+                Toast.makeText(context, "Back Online!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "It looks like you're offline. Please check your network connection", Toast.LENGTH_SHORT).show()
+            }
+            previousConnectionState = isLogInButtonEnable
         }
 
         // Reset AuthState after displaying messages
