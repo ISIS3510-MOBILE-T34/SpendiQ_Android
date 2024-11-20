@@ -4,8 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.isis3510.spendiq.model.data.Offer
+import com.isis3510.spendiq.model.local.database.DatabaseProvider
+import com.isis3510.spendiq.model.local.database.OfferDao
 import com.isis3510.spendiq.model.repository.OffersRepository
 import com.isis3510.spendiq.services.LocationBasedOfferService
+import com.isis3510.spendiq.utils.toDatabaseModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -62,6 +65,8 @@ class OffersViewModel(application: Application) : AndroidViewModel(application) 
     // Public immutable StateFlow for the UI state
     val uiState: StateFlow<UiState> = _uiState
 
+    private val offerDao: OfferDao = DatabaseProvider.getDatabase(application).offerDao()
+
     // Fetches offers from the repository
     fun fetchOffers() {
         viewModelScope.launch {
@@ -71,8 +76,8 @@ class OffersViewModel(application: Application) : AndroidViewModel(application) 
                     result.isSuccess -> {
                         val offersList = result.getOrNull() ?: emptyList()
                         _offers.value = offersList
-                        // Start monitoring for nearby offers
-                        locationBasedOfferService.startMonitoring(offersList)
+                        saveOffersToLocalDatabase(offersList)
+                        locationBasedOfferService.startMonitoring()
                         UiState.Success
                     }
                     result.isFailure -> {
@@ -111,6 +116,18 @@ class OffersViewModel(application: Application) : AndroidViewModel(application) 
     override fun onCleared() {
         super.onCleared()
         locationBasedOfferService.stopMonitoring()
+    }
+
+    private fun saveOffersToLocalDatabase(offers: List<Offer>) {
+        viewModelScope.launch {
+            try {
+                val databaseOffers = offers.map { it.toDatabaseModel() }
+                offerDao.clearAllOffers()
+                offerDao.insertOffers(databaseOffers)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     // Sealed class representing the UI state

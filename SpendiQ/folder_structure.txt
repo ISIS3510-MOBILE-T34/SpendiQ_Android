@@ -1,5 +1,6 @@
 # Folder structure for `app`
 
+- **sampledata/**
 - proguard-rules.pro
     ```
     # Add project specific ProGuard rules here.
@@ -22,7 +23,17 @@
     
     # If you keep the line number information, uncomment this to
     # hide the original source file name.
-    #-renamesourcefileattribute SourceFile    ```
+    #-renamesourcefileattribute SourceFile
+    
+    # Room Database
+    -keepclassmembers class * {
+        @androidx.room.* <methods>;
+    }
+    -keep class androidx.room.** { *; }
+    -keep @androidx.room.Entity class * { *; }
+    ```
+- **schemas/**
+    - **com.isis3510.spendiq.model.local.database.AccountsDatabase/**
 - .gitignore
     ```
     /build    ```
@@ -33,6 +44,7 @@
         alias(libs.plugins.kotlin.android)
         id("com.google.gms.google-services")
         id("com.google.firebase.crashlytics")
+        id("kotlin-kapt")
     }
     
     android {
@@ -140,6 +152,12 @@
     
         // Graphs
         implementation("io.github.ehsannarmani:compose-charts:0.0.14")
+    
+        val roomVersion = "2.6.1"
+        implementation("androidx.room:room-runtime:$roomVersion")
+        kapt("androidx.room:room-compiler:$roomVersion")
+        implementation("androidx.room:room-ktx:$roomVersion")
+        implementation("androidx.work:work-runtime-ktx:2.8.0")
     }    ```
 - google-services.json
     ```
@@ -1221,6 +1239,7 @@
                         </device-transfer>
                         -->
                     </data-extraction-rules>                    ```
+            - **local/**
             - **mipmap-xhdpi/**
                 - ic_launcher.webp
                     ```
@@ -1250,13 +1269,14 @@
             ```
             <?xml version="1.0" encoding="utf-8"?>
             <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:tools="http://schemas.android.com/tools"
-                package="com.isis3510.spendiq">
+                xmlns:tools="http://schemas.android.com/tools">
             
                 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
                 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
                 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
                 <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+                <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+                <uses-permission android:name="android.permission.WAKE_LOCK" />
             
                 <application
                     android:allowBackup="true"
@@ -2045,8 +2065,11 @@
                                 import androidx.lifecycle.AndroidViewModel
                                 import androidx.lifecycle.viewModelScope
                                 import com.isis3510.spendiq.model.data.Offer
+                                import com.isis3510.spendiq.model.local.database.DatabaseProvider
+                                import com.isis3510.spendiq.model.local.database.OfferDao
                                 import com.isis3510.spendiq.model.repository.OffersRepository
                                 import com.isis3510.spendiq.services.LocationBasedOfferService
+                                import com.isis3510.spendiq.utils.toDatabaseModel
                                 import kotlinx.coroutines.flow.MutableStateFlow
                                 import kotlinx.coroutines.flow.StateFlow
                                 import kotlinx.coroutines.launch
@@ -2103,6 +2126,8 @@
                                     // Public immutable StateFlow for the UI state
                                     val uiState: StateFlow<UiState> = _uiState
                                 
+                                    private val offerDao: OfferDao = DatabaseProvider.getDatabase(application).offerDao()
+                                
                                     // Fetches offers from the repository
                                     fun fetchOffers() {
                                         viewModelScope.launch {
@@ -2112,8 +2137,8 @@
                                                     result.isSuccess -> {
                                                         val offersList = result.getOrNull() ?: emptyList()
                                                         _offers.value = offersList
-                                                        // Start monitoring for nearby offers
-                                                        locationBasedOfferService.startMonitoring(offersList)
+                                                        saveOffersToLocalDatabase(offersList)
+                                                        locationBasedOfferService.startMonitoring()
                                                         UiState.Success
                                                     }
                                                     result.isFailure -> {
@@ -2154,6 +2179,18 @@
                                         locationBasedOfferService.stopMonitoring()
                                     }
                                 
+                                    private fun saveOffersToLocalDatabase(offers: List<Offer>) {
+                                        viewModelScope.launch {
+                                            try {
+                                                val databaseOffers = offers.map { it.toDatabaseModel() }
+                                                offerDao.clearAllOffers()
+                                                offerDao.insertOffers(databaseOffers)
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
+                                        }
+                                    }
+                                
                                     // Sealed class representing the UI state
                                     sealed class UiState {
                                         object Idle : UiState()
@@ -2161,8 +2198,7 @@
                                         object Success : UiState()
                                         data class Error(val message: String) : UiState()
                                     }
-                                }
-                                ```
+                                }                                ```
                             - AccountViewModel.kt
                                 ```
                                 package com.isis3510.spendiq.viewmodel
@@ -2461,6 +2497,43 @@
                                         return encryptedEmail != null && encryptedPassword != null // Return true if both are present
                                     }
                                 }
+                                ```
+                            - OfferMapper.kt
+                                ```
+                                package com.isis3510.spendiq.utils
+                                
+                                import com.isis3510.spendiq.model.data.Offer
+                                import com.isis3510.spendiq.model.local.database.DatabaseOffer
+                                
+                                // Convert DatabaseOffer to Offer
+                                fun DatabaseOffer.toDomainModel(): Offer {
+                                    return Offer(
+                                        id = this.id,
+                                        placeName = this.placeName,
+                                        offerDescription = this.offerDescription,
+                                        shopImage = this.shopImage, // Already nullable
+                                        recommendationReason = this.recommendationReason, // Already nullable
+                                        latitude = this.latitude, // Non-nullable, directly assigned
+                                        longitude = this.longitude, // Non-nullable, directly assigned
+                                        distance = this.distance.toInt() // Convert Float to Int
+                                    )
+                                }
+                                
+                                
+                                // Convert Offer to DatabaseOffer
+                                fun Offer.toDatabaseModel(): DatabaseOffer {
+                                    return DatabaseOffer(
+                                        id = this.id ?: "", // Provide default value if null
+                                        placeName = this.placeName ?: "Unknown Place", // Default if null
+                                        offerDescription = this.offerDescription ?: "No description available", // Default if null
+                                        shopImage = this.shopImage, // Already nullable
+                                        recommendationReason = this.recommendationReason, // Already nullable
+                                        latitude = this.latitude ?: 0.0, // Default to 0.0 if null
+                                        longitude = this.longitude ?: 0.0, // Default to 0.0 if null
+                                        distance = this.distance?.toFloat() ?: 0.0f // Convert Int to Float, default to 0.0f if null
+                                    )
+                                }
+                                
                                 ```
                         - **model/**
                             - **repository/**
@@ -3405,6 +3478,90 @@
                                         }
                                     }
                                     ```
+                            - **local/**
+                                - **database/**
+                                    - OfferDao.kt
+                                        ```
+                                        package com.isis3510.spendiq.model.local.database
+                                        
+                                        import androidx.room.*
+                                        
+                                        @Dao
+                                        interface OfferDao {
+                                            @Query("SELECT * FROM offers")
+                                            suspend fun getAllOffers(): List<DatabaseOffer>
+                                        
+                                            @Query("SELECT * FROM offers WHERE id = :offerId")
+                                            suspend fun getOfferById(offerId: String): DatabaseOffer?
+                                        
+                                            @Insert(onConflict = OnConflictStrategy.REPLACE)
+                                            suspend fun insertOffer(offer: DatabaseOffer)
+                                        
+                                            @Insert(onConflict = OnConflictStrategy.REPLACE)
+                                            suspend fun insertOffers(offers: List<DatabaseOffer>)
+                                        
+                                            @Delete
+                                            suspend fun deleteOffer(offer: DatabaseOffer)
+                                        
+                                            @Query("DELETE FROM offers")
+                                            suspend fun clearAllOffers()
+                                        }                                        ```
+                                    - DatabaseProvider.kt
+                                        ```
+                                        package com.isis3510.spendiq.model.local.database
+                                        
+                                        import android.content.Context
+                                        import androidx.room.Room
+                                        
+                                        object DatabaseProvider {
+                                            private var INSTANCE: AppDatabase? = null
+                                        
+                                            fun getDatabase(context: Context): AppDatabase {
+                                                if (INSTANCE == null) {
+                                                    synchronized(AppDatabase::class.java) {
+                                                        if (INSTANCE == null) {
+                                                            INSTANCE = Room.databaseBuilder(
+                                                                context.applicationContext,
+                                                                AppDatabase::class.java,
+                                                                "offers_database"
+                                                            ).build()
+                                                        }
+                                                    }
+                                                }
+                                                return INSTANCE!!
+                                            }
+                                        }
+                                        ```
+                                    - Offer.kt
+                                        ```
+                                        package com.isis3510.spendiq.model.local.database
+                                        
+                                        import androidx.room.Entity
+                                        import androidx.room.PrimaryKey
+                                        
+                                        @Entity(tableName = "offers")
+                                        data class DatabaseOffer(
+                                            @PrimaryKey val id: String,
+                                            val placeName: String,
+                                            val offerDescription: String,
+                                            val shopImage: String?,
+                                            val recommendationReason: String?,
+                                            val latitude: Double,
+                                            val longitude: Double,
+                                            val distance: Float
+                                        )                                        ```
+                                    - AppDatabase.kt
+                                        ```
+                                        package com.isis3510.spendiq.model.local.database
+                                        
+                                        import androidx.room.Database
+                                        import androidx.room.RoomDatabase
+                                        
+                                        @Database(entities = [DatabaseOffer::class], version = 1, exportSchema = false)
+                                        abstract class AppDatabase : RoomDatabase() {
+                                            abstract fun offerDao(): OfferDao
+                                        }
+                                        ```
                             - **iterator/**
                                 - TransactionIterator.kt
                                     ```
@@ -3460,6 +3617,7 @@
                                     
                                     import com.google.firebase.auth.FirebaseAuth
                                     import com.google.firebase.firestore.FirebaseFirestore
+                                    import com.google.firebase.firestore.FirebaseFirestoreSettings
                                     import com.google.firebase.storage.FirebaseStorage
                                     
                                     /**
@@ -3474,8 +3632,14 @@
                                         // Lazy initialization of Firebase Authentication instance
                                         val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
                                     
-                                        // Lazy initialization of Firestore Database instance
-                                        val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+                                        // Lazy initialization of Firestore Database instance with persistence disabled
+                                        val firestore: FirebaseFirestore by lazy {
+                                            FirebaseFirestore.getInstance().apply {
+                                                firestoreSettings = FirebaseFirestoreSettings.Builder()
+                                                    .setPersistenceEnabled(false) // Disables local persistence
+                                                    .build()
+                                            }
+                                        }
                                     
                                         // Lazy initialization of Firebase Storage instance
                                         val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
@@ -10015,7 +10179,6 @@
                                             if (!transactionExists(userId, company, amount, currentTimestamp, "Income")) {
                                                 addTransaction(userId, amount, company, "Income", location, automatic = true) // Add transaction
                                                 updateNuAccountBalance(userId, amount) // Update account balance
-                                                showNotification("Income Recorded", "Income of $$amount from $company has been recorded.") // Show notification
                                             }
                                         }
                                     }
@@ -10053,7 +10216,6 @@
                                             if (!transactionExists(userId, company, amount, currentTimestamp, "Expense")) {
                                                 addTransaction(userId, amount, company, "Expense", location, automatic = true) // Add transaction
                                                 updateNuAccountBalance(userId, -amount) // Update account balance
-                                                showNotification("Expense Recorded", "Expense of $$amount to $company has been recorded.") // Show notification
                                             }
                                         }
                                     }
@@ -10206,13 +10368,6 @@
                                     }
                                 
                                     /**
-                                     * This method is called when a notification is removed.
-                                     */
-                                    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-                                        super.onNotificationRemoved(sbn)
-                                    }
-                                
-                                    /**
                                      * Retrieves the current user's ID.
                                      *
                                      * @return The user's ID as a String, or null if not authenticated.
@@ -10220,32 +10375,6 @@
                                     private fun getCurrentUserId(): String? {
                                         val user = FirebaseAuth.getInstance().currentUser
                                         return user?.uid // Return user ID or null
-                                    }
-                                
-                                    /**
-                                     * Displays a notification to the user.
-                                     *
-                                     * @param title The title of the notification.
-                                     * @param content The content/message of the notification.
-                                     */
-                                    private fun showNotification(title: String, content: String) {
-                                        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                        val channelId = "SpendiQ_Channel"
-                                        val channelName = "SpendiQ Notifications"
-                                
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                            val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_DEFAULT)
-                                            notificationManager.createNotificationChannel(channel) // Create notification channel for API 26+
-                                        }
-                                
-                                        val notification = NotificationCompat.Builder(this, channelId)
-                                            .setContentTitle(title)
-                                            .setContentText(content)
-                                            .setSmallIcon(R.drawable.notification)
-                                            .setAutoCancel(true) // Automatically remove the notification when tapped
-                                            .build()
-                                
-                                        notificationManager.notify(System.currentTimeMillis().toInt(), notification) // Show notification
                                     }
                                 }
                                 ```
