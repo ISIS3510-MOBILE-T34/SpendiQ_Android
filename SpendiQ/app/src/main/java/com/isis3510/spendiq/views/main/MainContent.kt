@@ -135,7 +135,7 @@ fun MainContent(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     IconButton(
-                        onClick = { isMoneyVisible = !isMoneyVisible }
+                        onClick = { isMoneyVisible = !isMoneyVisible } // Cambiar visibilidad y guardar automáticamente
                     ) {
                         Icon(
                             painter = painterResource(id = if (isMoneyVisible) R.drawable.round_visibility_24 else R.drawable.baseline_visibility_off_24),
