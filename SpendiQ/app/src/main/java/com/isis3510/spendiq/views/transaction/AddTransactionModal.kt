@@ -25,6 +25,8 @@ import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.model.singleton.LruCacheManager
 import com.isis3510.spendiq.services.LocationService
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import com.isis3510.spendiq.utils.DataStoreUtils
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +59,13 @@ fun AddTransactionModal(
     val calendar = Calendar.getInstance()
     val locationService = remember { LocationService(context) }
     val scope = rememberCoroutineScope()
+
+    // Initialize DataStore state
+    LaunchedEffect(Unit) {
+        DataStoreUtils.getIncludeLocation(context).collectLatest { savedState ->
+            isLocationEnabled = savedState // Retrieve saved "Include Location" state
+        }
+    }
 
     // Date picker dialog configuration
     val datePickerDialog = DatePickerDialog(
@@ -231,6 +240,29 @@ fun AddTransactionModal(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Reset")
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = "Location",
+                        tint = if (isLocationEnabled) MaterialTheme.colorScheme.primary else Color.Gray
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Include Location")
+                    Spacer(modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = isLocationEnabled,
+                        onCheckedChange = { enabled ->
+                            isLocationEnabled = enabled
+                            scope.launch {
+                                // Save the new state to DataStore
+                                DataStoreUtils.setIncludeLocation(context, enabled)
+                                if (enabled) {
+                                    location = locationService.getCurrentLocation()
+                                } else {
+                                    location = null
+                                }
+                            }
+                        }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
