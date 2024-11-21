@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.model.singleton.LruCacheManager
+import com.isis3510.spendiq.model.singleton.SearchBarCacheManager
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,7 +47,7 @@ fun AccountTransactionsScreen(
     accountName: String,
     viewModel: TransactionViewModel = viewModel()
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(SearchBarCacheManager.getQuery() ) }
     val transactions by viewModel.transactions.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     var isNavigating by remember { mutableStateOf(false) }
@@ -124,7 +126,11 @@ fun AccountTransactionsScreen(
                 ) {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        onValueChange = {
+                            searchQuery = it
+                            SearchBarCacheManager.saveQuery(searchQuery)
+                                        },
+
                         label = { Text("Buscar") },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                         trailingIcon = {
