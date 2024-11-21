@@ -77,7 +77,6 @@ class OffersViewModel(application: Application) : AndroidViewModel(application) 
                         val offersList = result.getOrNull() ?: emptyList()
                         _offers.value = offersList
                         saveOffersToLocalDatabase(offersList)
-                        locationBasedOfferService.startMonitoring()
                         UiState.Success
                     }
                     result.isFailure -> {
@@ -115,7 +114,6 @@ class OffersViewModel(application: Application) : AndroidViewModel(application) 
     // Stops location monitoring when the ViewModel is cleared
     override fun onCleared() {
         super.onCleared()
-        locationBasedOfferService.stopMonitoring()
     }
 
     private fun saveOffersToLocalDatabase(offers: List<Offer>) {
