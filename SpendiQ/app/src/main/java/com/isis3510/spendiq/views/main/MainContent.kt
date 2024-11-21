@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,17 +23,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.rememberImagePainter
+import com.google.firebase.Timestamp
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.model.data.Transaction
-import com.isis3510.spendiq.model.data.Offer
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
-import com.isis3510.spendiq.viewmodel.OffersViewModel
-import com.google.firebase.Timestamp
-import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import com.isis3510.spendiq.R
 import com.isis3510.spendiq.views.common.CreatePieChart
 import ir.ehsannarmani.compose_charts.LineChart
 import ir.ehsannarmani.compose_charts.models.AnimationMode
@@ -43,11 +39,10 @@ import ir.ehsannarmani.compose_charts.models.DrawStyle
 import ir.ehsannarmani.compose_charts.models.LabelProperties
 import ir.ehsannarmani.compose_charts.models.Line
 import ir.ehsannarmani.compose_charts.models.ZeroLineProperties
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
-import java.text.NumberFormat
 
-// Utilidades para SharedPreferences
 fun saveIsMoneyVisible(context: Context, isVisible: Boolean) {
     val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
     sharedPreferences.edit().putBoolean("isMoneyVisible", isVisible).apply()
@@ -55,7 +50,7 @@ fun saveIsMoneyVisible(context: Context, isVisible: Boolean) {
 
 fun getIsMoneyVisible(context: Context): Boolean {
     val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
-    return sharedPreferences.getBoolean("isMoneyVisible", true) // Valor por defecto: true
+    return sharedPreferences.getBoolean("isMoneyVisible", true)
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -64,17 +59,15 @@ fun MainContent(
     navController: NavController,
     authViewModel: AuthViewModel,
     accountViewModel: AccountViewModel,
-    promoViewModel: OffersViewModel,
     transactionViewModel: TransactionViewModel,
 ) {
     val accounts by accountViewModel.accounts.collectAsState()
-    val promos by promoViewModel.offers.collectAsState()
     val currentMoney by accountViewModel.currentMoney.collectAsState()
     var showAddTransactionModal by remember { mutableStateOf(false) }
     val uiState by transactionViewModel.uiState.collectAsState()
     val transactions by transactionViewModel.transactions.collectAsState()
     val context = LocalContext.current
-    var isMoneyVisible by remember { mutableStateOf(getIsMoneyVisible(context)) } // Obtener el estado inicial desde SharedPreferences
+    var isMoneyVisible by remember { mutableStateOf(getIsMoneyVisible(context)) }
 
     val (totalIncome, totalExpenses) = remember(transactions) {
         transactionViewModel.getIncomeAndExpenses()
@@ -82,12 +75,11 @@ fun MainContent(
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
 
     LaunchedEffect(isMoneyVisible) {
-        saveIsMoneyVisible(context, isMoneyVisible) // Guardar estado en SharedPreferences cada vez que cambia
+        saveIsMoneyVisible(context, isMoneyVisible)
     }
 
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
-        promoViewModel.fetchOffers()
         transactionViewModel.fetchAllTransactions()
     }
 
@@ -224,27 +216,10 @@ fun MainContent(
                         Text("You don't have any transactions.")
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Save with these promotions",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            items(promos.take(3)) { promo ->
-                PromoItem(promo) {}
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
             item {
-                Button(
-                    onClick = { navController.navigate("promos") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("See More Promotions")
-                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
 
@@ -288,38 +263,6 @@ fun AccountItem(account: Account, navController: NavController) {
                 color = androidx.compose.ui.graphics.Color.White,
                 fontWeight = FontWeight.Bold
             )
-        }
-    }
-}
-
-@Composable
-fun PromoItem(promo: Offer, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            promo.placeName?.let { Text(it, fontSize = 18.sp, fontWeight = FontWeight.Bold) }
-            Spacer(modifier = Modifier.height(4.dp))
-            promo.offerDescription?.let { Text(it, fontSize = 14.sp) }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "Recommended: ${promo.recommendationReason}",
-                fontSize = 12.sp,
-                color = androidx.compose.ui.graphics.Color.Gray
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            promo.shopImage?.let {
-                Image(
-                    painter = rememberImagePainter(it),
-                    contentDescription = "Shop Image",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
-                )
-            }
         }
     }
 }

@@ -1,6 +1,8 @@
 package com.isis3510.spendiq.views.transaction
 
 import android.app.DatePickerDialog
+import android.util.Log
+import android.util.LruCache
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -20,22 +22,12 @@ import com.google.firebase.Timestamp
 import kotlinx.coroutines.launch
 import java.util.*
 import com.isis3510.spendiq.model.data.Account
+import com.isis3510.spendiq.model.singleton.LruCacheManager
 import com.isis3510.spendiq.services.LocationService
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.utils.DataStoreUtils
 import kotlinx.coroutines.flow.collectLatest
 
-/**
- * AddTransactionModal composable function
- *
- * A modal for adding a new transaction. The function provides fields for transaction details
- * and checks account availability before submission. It includes a location option and date picker.
- *
- * @param accountViewModel [AccountViewModel] for retrieving account details
- * @param transactionViewModel [TransactionViewModel] for transaction-related operations
- * @param onDismiss Callback to dismiss the modal
- * @param onTransactionAdded Callback triggered after successfully adding a transaction
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTransactionModal(
@@ -44,13 +36,16 @@ fun AddTransactionModal(
     onDismiss: () -> Unit,
     onTransactionAdded: () -> Unit
 ) {
-    // State variables for form inputs
-    var amount by remember { mutableStateOf("") }
-    var transactionName by remember { mutableStateOf("") }
-    var selectedDate by remember { mutableStateOf(Timestamp.now()) }
-    var selectedTransactionType by remember { mutableStateOf("Expense") }
+    // Initialize LruCache for caching form data
+    val cache = LruCacheManager.cache
+
+    // Load values from cache or set defaults
+    var amount by remember { mutableStateOf(cache.get("amount") as? String ?: "") }
+    var transactionName by remember { mutableStateOf(cache.get("transactionName") as? String ?: "") }
+    var selectedDate by remember { mutableStateOf(cache.get("selectedDate") as? Timestamp ?: Timestamp.now()) }
+    var selectedTransactionType by remember { mutableStateOf(cache.get("transactionType") as? String ?: "Expense") }
     var expandedTransactionType by remember { mutableStateOf(false) }
-    var selectedAccount by remember { mutableStateOf<Account?>(null) }
+    var selectedAccount by remember { mutableStateOf(cache.get("selectedAccount") as? Account) }
     var expandedAccountType by remember { mutableStateOf(false) }
     var showNoAccountsDialog by remember { mutableStateOf(false) }
     var isLocationEnabled by remember { mutableStateOf(false) }
@@ -78,6 +73,7 @@ fun AddTransactionModal(
         { _, year, month, dayOfMonth ->
             calendar.set(year, month, dayOfMonth)
             selectedDate = Timestamp(calendar.time)
+            cache.put("selectedDate", selectedDate)
         },
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
@@ -120,7 +116,10 @@ fun AddTransactionModal(
             // Amount input field with digit-only filter
             OutlinedTextField(
                 value = amount,
-                onValueChange = { amount = it.filter { char -> char.isDigit() } },
+                onValueChange = {
+                    amount = it.filter { char -> char.isDigit() }
+                    cache.put("amount", amount)
+                },
                 label = { Text("Amount") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
@@ -132,7 +131,16 @@ fun AddTransactionModal(
             // Transaction name input field
             OutlinedTextField(
                 value = transactionName,
-                onValueChange = { transactionName = it },
+                onValueChange = {
+                    transactionName = it
+
+                    // Log the updated transactionName
+                    Log.d("TransactionName", "Updated transactionName: $transactionName")
+
+                    // Put the updated value into the cache and log it
+                    cache.put("transactionName", transactionName)
+                    Log.d("Cache", "Saved to cache: ${cache.get("transactionName")}")
+                },
                 label = { Text("Transaction Name") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -168,6 +176,7 @@ fun AddTransactionModal(
                         text = { Text("Income") },
                         onClick = {
                             selectedTransactionType = "Income"
+                            cache.put("transactionType", selectedTransactionType)
                             expandedTransactionType = false
                         }
                     )
@@ -175,6 +184,7 @@ fun AddTransactionModal(
                         text = { Text("Expense") },
                         onClick = {
                             selectedTransactionType = "Expense"
+                            cache.put("transactionType", selectedTransactionType)
                             expandedTransactionType = false
                         }
                     )
@@ -206,6 +216,7 @@ fun AddTransactionModal(
                                 text = { Text(account.name) },
                                 onClick = {
                                     selectedAccount = account
+                                    cache.put("selectedAccount", selectedAccount)
                                     expandedAccountType = false
                                 }
                             )
@@ -213,13 +224,22 @@ fun AddTransactionModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Location toggle row with switch
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                // Reset button
+                Button(
+                    onClick = {
+                        // Clear form and cache
+                        amount = ""
+                        transactionName = ""
+                        selectedDate = Timestamp.now()
+                        selectedTransactionType = "Expense"
+                        selectedAccount = null
+                        cache.evictAll()
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
+                    Text("Reset")
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = "Location",
@@ -245,14 +265,14 @@ fun AddTransactionModal(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Submit button for adding transaction
                 Button(
                     onClick = {
                         selectedAccount?.let { account ->
                             val transaction = Transaction(
-                                id = "", // Firestore will assign ID
+                                id = "",
                                 accountId = account.id,
                                 transactionName = transactionName,
                                 amount = amount.toLongOrNull() ?: 0L,
@@ -264,7 +284,7 @@ fun AddTransactionModal(
                                         longitude = location!!.longitude
                                     )
                                 } else null,
-                                automatic = false, // Add this line to explicitly set manual transactions
+                                automatic = false,
                                 amountAnomaly = false,
                                 locationAnomaly = false
                             )
@@ -281,7 +301,6 @@ fun AddTransactionModal(
                     Text("Add Transaction")
                 }
             } else {
-                // Message when no accounts are available
                 Text(
                     "No accounts available. Please create an account first.",
                     style = MaterialTheme.typography.bodyMedium,
