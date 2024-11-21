@@ -1,7 +1,7 @@
-// SpecialSalesDetail.kt
 package com.isis3510.spendiq.views.offers
 
-
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -22,9 +22,11 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import com.isis3510.spendiq.model.data.Offer
 import androidx.navigation.NavController
-import android.content.Intent
-import android.net.Uri
+import com.squareup.picasso.Picasso
+import android.widget.ImageView
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.viewinterop.AndroidView
+import com.isis3510.spendiq.R
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
@@ -64,7 +66,6 @@ fun SpecialSalesDetail(
     // Context for starting external intents
     val context = LocalContext.current
     var isNavigating by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     // Scaffold component to manage top-level layout including top bar
     Scaffold(
@@ -94,15 +95,21 @@ fun SpecialSalesDetail(
                 .padding(padding)
                 .verticalScroll(rememberScrollState()) // Enables scrolling for the content
         ) {
-            // Display the store logo and name
+            // Display the store logo and name using Picasso for image loading
             offer.shopImage?.let { imageUrl ->
-                AsyncImage(
-                    model = imageUrl, // URL of the image to load
-                    contentDescription = "Store Image",
+                AndroidView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp), // Sets the image height to 200dp
-                    contentScale = ContentScale.Crop // Crops image to fill available space
+                    factory = { context ->
+                        ImageView(context).apply {
+                            Picasso.get()
+                                .load(imageUrl) // Load image from the URL
+                                .placeholder(R.drawable.placeholder_background) // Show placeholder image if needed
+                                .error(R.drawable.error_background) // Show error image if the load fails
+                                .into(this) // Set the image into the ImageView
+                        }
+                    }
                 )
             }
 

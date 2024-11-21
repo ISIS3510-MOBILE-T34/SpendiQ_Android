@@ -2,7 +2,10 @@ package com.isis3510.spendiq.views.offers
 
 import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.location.Location
+import android.widget.ImageView
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,61 +17,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.google.android.gms.location.LocationServices
+import com.isis3510.spendiq.R
 import com.isis3510.spendiq.model.data.Offer
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
-import com.isis3510.spendiq.views.common.BottomNavigation
-import kotlinx.coroutines.launch
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import com.isis3510.spendiq.views.common.BottomNavigation
+import com.squareup.picasso.Picasso
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.text.DecimalFormat
-
-/**
- * OffersScreen composable function
- *
- * Displays a list of nearby sales offers to the user. This screen utilizes location permissions to
- * identify the user's current location and sorts the offers based on proximity to provide a more
- * relevant user experience.
- *
- * Key Features:
- * - Location-Based Filtering: Only displays offers within 1 kilometer of the user's current location.
- * - Permissions Handling: Manages location permissions and displays prompts if permission is not granted.
- * - Dynamic UI Components:
- *   - `LocationPermissionCard`: A card prompting users to enable location permissions if not granted.
- *   - `OfferCard`: Displays individual offer details, including store image, name, description,
- *     and an estimated distance from the user's current location.
- * - Navigation: Enables users to navigate to a detailed view of each offer when clicked.
- *
- * UI Structure:
- * - Scaffold with:
- *   - TopAppBar for the screen title.
- *   - BottomNavigation for easy navigation between sections.
- * - Column layout including:
- *   - `LocationPermissionCard` (if location access is not granted).
- *   - A list of filtered offers rendered as `OfferCard` elements.
- *
- * Supporting Functions:
- * - `getCurrentLocation`: Retrieves the user's current location if location permissions are granted.
- * - `sortOffersByDistance`: Filters and sorts offers by their proximity to the user’s location.
- * - `formatDistance`: Formats distances into meters or kilometers for display clarity.
- *
- * @param navController [NavController] used for navigating within the app.
- * @param viewModel [OffersViewModel] provides the list of offers.
- * @param transactionViewModel [TransactionViewModel] for integration with bottom navigation.
- * @param accountViewModel [AccountViewModel] for integration with bottom navigation.
- */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,11 +44,9 @@ fun OffersScreen(
     transactionViewModel: TransactionViewModel,
     accountViewModel: AccountViewModel
 ) {
-    // Acceder al contexto y configurar el scope de corrutinas
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Gestión de estados para ofertas, ubicación y permisos
     val offers by viewModel.offers.collectAsState()
     var currentLocation by remember { mutableStateOf<Location?>(null) }
     var sortedOffers by remember { mutableStateOf<List<Pair<Offer, Float?>>>(emptyList()) }
@@ -95,9 +59,8 @@ fun OffersScreen(
         )
     }
 
-    // Lanzador de solicitud de permisos para acceso a la ubicación
     val locationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasLocationPermission = isGranted
         if (isGranted) {
@@ -110,7 +73,6 @@ fun OffersScreen(
         }
     }
 
-    // Carga inicial de datos y comprobación de permisos de ubicación
     LaunchedEffect(Unit) {
         viewModel.fetchOffers()
         if (hasLocationPermission) {
@@ -123,20 +85,22 @@ fun OffersScreen(
         }
     }
 
-    // Reordenar y filtrar ofertas cada vez que cambie la lista de ofertas o la ubicación actual
     LaunchedEffect(offers, currentLocation) {
         sortedOffers = sortOffersByDistance(offers, currentLocation)
     }
 
-    // Diseño Scaffold con barra superior y navegación inferior
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Special offers in your area") },
+                title = { Text("Special offers in your area") }
             )
         },
         bottomBar = {
-            BottomNavigation(navController = navController, transactionViewModel = transactionViewModel, accountViewModel)
+            BottomNavigation(
+                navController = navController,
+                transactionViewModel = transactionViewModel,
+                accountViewModel = accountViewModel
+            )
         }
     ) { paddingValues ->
         Box(
@@ -149,7 +113,6 @@ fun OffersScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
             ) {
-
                 if (!hasLocationPermission) {
                     LocationPermissionCard(
                         onEnableClick = {
@@ -157,7 +120,6 @@ fun OffersScreen(
                         }
                     )
                 }
-
 
                 Text(
                     "Based on the stores where you've shopped before, we believe these offers near your location may be of interest to you",
@@ -205,17 +167,17 @@ private fun LocationPermissionCard(onEnableClick: () -> Unit) {
         ) {
             Icon(
                 Icons.Default.LocationOn,
-                contentDescription = "Ubicación",
+                contentDescription = "Location",
                 tint = MaterialTheme.colorScheme.error
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                "Habilita la ubicación para mejores ofertas",
+                "Enable location for better offers",
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.weight(1f)
             )
             TextButton(onClick = onEnableClick) {
-                Text("Habilitar")
+                Text("Enable")
             }
         }
     }
@@ -231,22 +193,27 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            // Imagen de la tienda
+            // Use Picasso for image loading
             offer.shopImage?.let { imageUrl ->
-                AsyncImage(
-                    model = imageUrl,
-                    contentDescription = "Imagen de la Tienda",
+                AndroidView(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp),
-                    contentScale = ContentScale.Crop
+                        .height(200.dp),
+                    factory = { context ->
+                        ImageView(context).apply {
+                            Picasso.get()
+                                .load(imageUrl)
+                                .placeholder(R.drawable.placeholder_background)
+                                .error(R.drawable.error_background)
+                                .into(this)
+                        }
+                    }
                 )
             }
 
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
-                // Nombre de la tienda y distancia
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -266,7 +233,7 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Text(
-                                text = "${formatDistance(it)} de distancia",
+                                text = "${formatDistance(it)} away",
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 fontSize = 12.sp
                             )
@@ -276,7 +243,6 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Descripción de la oferta
                 offer.offerDescription?.let {
                     Text(
                         text = it,
@@ -305,7 +271,10 @@ private suspend fun getCurrentLocation(context: Context): Location? {
     }
 }
 
-private fun sortOffersByDistance(offers: List<Offer>, currentLocation: Location?): List<Pair<Offer, Float?>> {
+private fun sortOffersByDistance(
+    offers: List<Offer>,
+    currentLocation: Location?
+): List<Pair<Offer, Float?>> {
     return offers.mapNotNull { offer ->
         if (currentLocation != null && offer.latitude != null && offer.longitude != null) {
             val offerLocation = Location("").apply {
@@ -316,18 +285,15 @@ private fun sortOffersByDistance(offers: List<Offer>, currentLocation: Location?
             if (distance <= 1000f) {
                 offer to distance
             } else {
-                null // Excluir ofertas que estén a más de 1 km
+                null
             }
         } else {
-            null // Excluir ofertas sin ubicación válida
+            null
         }
     }.sortedBy { it.second }
 }
 
 private fun formatDistance(meters: Float): String {
     val df = DecimalFormat("#.#")
-    return when {
-        meters < 1000 -> "${df.format(meters)}m"
-        else -> "${df.format(meters / 1000)}km"
-    }
+    return if (meters < 1000) "${df.format(meters)}m" else "${df.format(meters / 1000)}km"
 }
