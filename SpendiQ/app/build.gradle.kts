@@ -118,4 +118,5 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     implementation("androidx.work:work-runtime-ktx:2.8.0")
     implementation("androidx.startup:startup-runtime:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 }
