@@ -10,63 +10,36 @@ class LocationBasedOfferService(private val context: Context) {
 
     fun startMonitoring() {
         Log.d(TAG, "Starting location-based offer monitoring")
-        scheduleLocationWork()
+        setupPeriodicWork()
     }
 
-    private fun scheduleLocationWork() {
-        // Create work constraints
+    private fun setupPeriodicWork() {
+        // Define work constraints
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
-            .setRequiresCharging(false)
-            .setRequiresDeviceIdle(false)
             .build()
 
-        // Create work request
-        val locationWorkRequest = PeriodicWorkRequestBuilder<LocationNotificationWorker>(
-            15, TimeUnit.MINUTES,
-            5, TimeUnit.MINUTES
+        // Create periodic work request that runs every 15 minutes
+        val workRequest = PeriodicWorkRequestBuilder<LocationNotificationWorker>(
+            15, TimeUnit.MINUTES, // Minimum interval allowed by WorkManager
+            5, TimeUnit.MINUTES  // Flex interval
         )
             .setConstraints(constraints)
             .addTag("location_notification_work")
-            .setBackoffCriteria(
-                BackoffPolicy.LINEAR,
-                WorkRequest.MIN_BACKOFF_MILLIS,
-                TimeUnit.MILLISECONDS
-            )
             .build()
 
-        // Schedule the work
-        WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(
-                "LocationNotificationWork",
-                ExistingPeriodicWorkPolicy.UPDATE,
-                locationWorkRequest
-            )
+        // Enqueue the work request
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "LocationNotificationWork",
+            ExistingPeriodicWorkPolicy.UPDATE, // Replace existing if any
+            workRequest
+        )
 
-        // Observe work status
-        WorkManager.getInstance(context)
-            .getWorkInfosByTagLiveData("location_notification_work")
-            .observeForever { workInfoList ->
-                workInfoList?.forEach { workInfo ->
-                    Log.d(TAG, "Work status: ${workInfo.state}")
-                    when (workInfo.state) {
-                        WorkInfo.State.SUCCEEDED -> {
-                            Log.d(TAG, "Work completed successfully")
-                        }
-                        WorkInfo.State.FAILED -> {
-                            Log.e(TAG, "Work failed: ${workInfo.outputData.getString("error_message")}")
-                        }
-                        else -> {
-                            Log.d(TAG, "Work state: ${workInfo.state}")
-                        }
-                    }
-                }
-            }
+        Log.d(TAG, "Periodic work request set up")
     }
 
     fun stopMonitoring() {
         Log.d(TAG, "Stopping location-based offer monitoring")
-        WorkManager.getInstance(context).cancelUniqueWork("LocationNotificationWork")
+        WorkManager.getInstance(context).cancelAllWorkByTag("location_notification_work")
     }
 }
