@@ -117,4 +117,5 @@ dependencies {
     kapt("androidx.room:room-compiler:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     implementation("androidx.work:work-runtime-ktx:2.8.0")
+    implementation("androidx.startup:startup-runtime:1.1.1")
 }
