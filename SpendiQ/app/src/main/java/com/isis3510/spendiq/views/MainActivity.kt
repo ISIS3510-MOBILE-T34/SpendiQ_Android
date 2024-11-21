@@ -29,6 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.work.Configuration
 import androidx.work.WorkManager
+import com.isis3510.spendiq.model.repository.AccountRepository
 import com.isis3510.spendiq.services.LocationBasedOfferService
 import com.isis3510.spendiq.utils.DatabaseTestUtility
 import com.isis3510.spendiq.views.accounts.*
@@ -91,6 +92,8 @@ class MainActivity : FragmentActivity() {
             .setMinimumLoggingLevel(Log.DEBUG)
             .build()
         WorkManager.initialize(this, workManagerConfig)
+
+        AccountRepository.initialize(this)
 
         // Initialize LocationService
         locationService = LocationBasedOfferService(this)

@@ -22,6 +22,8 @@ import java.util.*
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.services.LocationService
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import com.isis3510.spendiq.utils.DataStoreUtils
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * AddTransactionModal composable function
@@ -62,6 +64,13 @@ fun AddTransactionModal(
     val calendar = Calendar.getInstance()
     val locationService = remember { LocationService(context) }
     val scope = rememberCoroutineScope()
+
+    // Initialize DataStore state
+    LaunchedEffect(Unit) {
+        DataStoreUtils.getIncludeLocation(context).collectLatest { savedState ->
+            isLocationEnabled = savedState // Retrieve saved "Include Location" state
+        }
+    }
 
     // Date picker dialog configuration
     val datePickerDialog = DatePickerDialog(
@@ -223,12 +232,14 @@ fun AddTransactionModal(
                         checked = isLocationEnabled,
                         onCheckedChange = { enabled ->
                             isLocationEnabled = enabled
-                            if (enabled) {
-                                scope.launch {
+                            scope.launch {
+                                // Save the new state to DataStore
+                                DataStoreUtils.setIncludeLocation(context, enabled)
+                                if (enabled) {
                                     location = locationService.getCurrentLocation()
+                                } else {
+                                    location = null
                                 }
-                            } else {
-                                location = null
                             }
                         }
                     )
