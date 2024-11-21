@@ -27,6 +27,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.work.Configuration
+import androidx.work.WorkManager
 import com.isis3510.spendiq.services.LocationBasedOfferService
 import com.isis3510.spendiq.utils.DatabaseTestUtility
 import com.isis3510.spendiq.views.accounts.*
@@ -84,6 +86,12 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Configure WorkManager
+        val workManagerConfig = Configuration.Builder()
+            .setMinimumLoggingLevel(Log.DEBUG)
+            .build()
+        WorkManager.initialize(this, workManagerConfig)
+
         // Initialize LocationService
         locationService = LocationBasedOfferService(this)
 
@@ -106,6 +114,9 @@ class MainActivity : FragmentActivity() {
         // Debug database content
         DatabaseTestUtility.verifyDatabaseContent(this)
 
+        // Observe WorkManager tasks
+        observeWorkInfo()
+
         // Initialize the app UI
         initializeUI()
     }
@@ -114,6 +125,16 @@ class MainActivity : FragmentActivity() {
         Log.d(TAG, "Initializing location service")
         locationService.startMonitoring()
         DatabaseTestUtility.insertTestOffer(this)
+    }
+
+    private fun observeWorkInfo() {
+        WorkManager.getInstance(this)
+            .getWorkInfosByTagLiveData("location_notification_work")
+            .observe(this) { workInfoList ->
+                workInfoList?.forEach { workInfo ->
+                    Log.d(TAG, "Work info state: ${workInfo.state}")
+                }
+            }
     }
 
     private fun requestBackgroundLocationWithRationale() {
@@ -250,7 +271,103 @@ class MainActivity : FragmentActivity() {
                         composable("profile") {
                             ProfileScreen(navController, authViewModel, transactionViewModel, accountViewModel, profileViewModel)
                         }
-                        // Add other navigation routes here...
+                        composable("accounts") {
+                            AccountsScreen(navController, accountViewModel, transactionViewModel)
+                        }
+                        composable("profileNotificationsScreen") {
+                            ProfileNotificationsScreen(navController, transactionViewModel, accountViewModel)
+                        }
+                        composable("profileSecurityScreen") {
+                            ProfileSecurityScreen(navController, transactionViewModel, accountViewModel)
+                        }
+                        composable("profileAccountScreen") {
+                            ProfileAccountScreen(navController, userData, transactionViewModel, accountViewModel)
+                        }
+                        composable("profileLaGScreen") {
+                            ProfileLaGScreen(navController, transactionViewModel, accountViewModel)
+                        }
+                        composable("profileStatisticsScreen") {
+                            ProfileStatisticsScreen(navController, transactionViewModel, accountViewModel)
+                        }
+                        composable("profileHelpScreen") {
+                            ProfileHelpScreen(navController, transactionViewModel, accountViewModel)
+                        }
+                        composable("profileInfoScreen") {
+                            ProfileInfoScreen(navController, transactionViewModel, accountViewModel)
+                        }
+                        composable(
+                            route = "accountTransactions/{accountId}",
+                            arguments = listOf(navArgument("accountId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            AccountTransactionsScreen(
+                                navController,
+                                backStackEntry.arguments?.getString("accountId") ?: ""
+                            )
+                        }
+                        composable(
+                            route = "specialSalesDetail/{offerId}",
+                            arguments = listOf(navArgument("offerId") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val offerId = backStackEntry.arguments?.getString("offerId")
+                            if (offerId != null) {
+                                LaunchedEffect(offerId) {
+                                    offersViewModel.getOfferById(offerId)
+                                }
+
+                                val selectedOffer by offersViewModel.selectedOffer.collectAsState()
+                                val uiState by offersViewModel.uiState.collectAsState()
+
+                                when (uiState) {
+                                    is OffersViewModel.UiState.Loading -> {
+                                        Box(modifier = Modifier.fillMaxSize()) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.align(Alignment.Center)
+                                            )
+                                        }
+                                    }
+                                    is OffersViewModel.UiState.Error -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(16.dp)
+                                        ) {
+                                            Text(
+                                                text = (uiState as OffersViewModel.UiState.Error).message,
+                                                modifier = Modifier.align(Alignment.Center)
+                                            )
+                                        }
+                                    }
+                                    is OffersViewModel.UiState.Success -> {
+                                        selectedOffer?.let { offer ->
+                                            SpecialSalesDetail(
+                                                offer = offer,
+                                                navController = navController,
+                                                accountViewModel = accountViewModel,
+                                                transactionViewModel = transactionViewModel
+                                            )
+                                        }
+                                    }
+                                    else -> { /* No operation */ }
+                                }
+                            }
+                        }
+                        composable(
+                            route = "transactionDetails/{accountId}/{transactionId}",
+                            arguments = listOf(
+                                navArgument("accountId") { type = NavType.StringType },
+                                navArgument("transactionId") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            val accountId = backStackEntry.arguments?.getString("accountId") ?: ""
+                            val transactionId = backStackEntry.arguments?.getString("transactionId") ?: ""
+                            TransactionDetailsScreen(
+                                navController = navController,
+                                accountViewModel = accountViewModel,
+                                accountId = accountId,
+                                transactionId = transactionId,
+                                transactionViewModel = transactionViewModel
+                            )
+                        }
                     }
                 }
             }

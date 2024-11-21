@@ -16,39 +16,35 @@ import com.google.android.gms.location.LocationServices
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.model.local.database.DatabaseProvider
 import kotlinx.coroutines.tasks.await
-import java.util.Locale
 import kotlin.math.*
 
 class LocationNotificationWorker(
     private val context: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
-
-    private val tag = "LocationNotificationWorker"
+    private val TAG = "LocationNotificationWorker"
     private val channelId = "OfferNotificationChannel"
-    private val notificationManager =
-        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     private val database = DatabaseProvider.getDatabase(context)
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
     override suspend fun doWork(): Result {
-        Log.d(tag, "Starting work execution")
+        Log.d(TAG, "Starting work execution")
         try {
-            // Step 1: Create a notification channel for Android O+
             createNotificationChannel()
 
-            // Step 2: Get current location safely
+            // Get current location
             val location = getCurrentLocation()
             if (location == null) {
-                Log.w(tag, "Could not get current location")
-                return Result.failure()
+                Log.w(TAG, "Could not get current location")
+                return Result.success()
             }
 
-            // Step 3: Retrieve all offers from the local database
+            // Get all offers from local database
             val offers = database.offerDao().getAllOffers()
-            Log.d(tag, "Retrieved ${offers.size} offers from database")
+            Log.d(TAG, "Retrieved ${offers.size} offers from database")
 
-            // Step 4: Find the closest offer within the specified range
+            // Find closest offer within range
             val closestOffer = offers
                 .map { offer ->
                     val distance = calculateDistance(
@@ -60,62 +56,55 @@ class LocationNotificationWorker(
                 .filter { (_, distance) -> distance <= MAX_NOTIFICATION_DISTANCE }
                 .minByOrNull { (_, distance) -> distance }
 
-            // Step 5: Send a notification for the closest offer, if any
+            // Send notification for closest offer if found
             closestOffer?.let { (offer, distance) ->
-                Log.d(tag, "Found nearby offer: ${offer.placeName} at ${distance.toInt()}m")
-                sendNotification(offer.placeName, distance, offer.offerDescription)
+                Log.d(TAG, "Found nearby offer: ${offer.placeName} at ${distance.toInt()}m")
+                val notification = NotificationCompat.Builder(context, channelId)
+                    .setContentTitle("Special Offer Nearby!")
+                    .setContentText("${offer.placeName} is ${formatDistance(distance)} away")
+                    .setStyle(NotificationCompat.BigTextStyle()
+                        .bigText("${offer.placeName} (${formatDistance(distance)})\n${offer.offerDescription}")
+                    )
+                    .setSmallIcon(R.drawable.notification)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setAutoCancel(true)
+                    .build()
+
+                notificationManager.notify(offer.id.hashCode(), notification)
+                Log.d(TAG, "Notification sent for offer: ${offer.placeName}")
             }
 
             return Result.success()
-        } catch (e: SecurityException) {
-            Log.e(tag, "Security exception: Ensure permissions are granted", e)
-            return Result.failure()
         } catch (e: Exception) {
-            Log.e(tag, "Error during work execution", e)
+            Log.e(TAG, "Error during work execution", e)
             return Result.failure()
         }
     }
 
     private suspend fun getCurrentLocation(): Location? {
-        // Check for location permissions
-        if (!hasLocationPermission()) {
-            Log.w(tag, "Location permissions are not granted")
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w(TAG, "Location permission not granted")
             return null
         }
 
         return try {
             fusedLocationClient.lastLocation.await()
-        } catch (e: SecurityException) {
-            Log.e(tag, "Security exception during location retrieval", e)
-            null
         } catch (e: Exception) {
-            Log.e(tag, "Error getting current location", e)
+            Log.e(TAG, "Error getting location", e)
             null
         }
     }
 
-    private fun hasLocationPermission(): Boolean {
-        return ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED &&
-                ActivityCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun calculateDistance(
-        lat1: Double,
-        lon1: Double,
-        lat2: Double,
-        lon2: Double
-    ): Double {
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6371e3 // Earth's radius in meters
-        val φ1 = Math.toRadians(lat1)
-        val φ2 = Math.toRadians(lat2)
-        val Δφ = Math.toRadians(lat2 - lat1)
-        val Δλ = Math.toRadians(lon2 - lon1)
+        val φ1 = lat1 * Math.PI / 180
+        val φ2 = lat2 * Math.PI / 180
+        val Δφ = (lat2 - lat1) * Math.PI / 180
+        val Δλ = (lon2 - lon1) * Math.PI / 180
 
         val a = sin(Δφ / 2) * sin(Δφ / 2) +
                 cos(φ1) * cos(φ2) *
@@ -125,36 +114,12 @@ class LocationNotificationWorker(
         return r * c
     }
 
-    private fun sendNotification(placeName: String, distance: Double, description: String) {
-        val notification = NotificationCompat.Builder(context, channelId)
-            .setContentTitle("Special Offer Nearby!")
-            .setContentText(
-                String.format(
-                    Locale.getDefault(),
-                    "%s is %s away",
-                    placeName,
-                    formatDistance(distance)
-                )
-            )
-            .setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText(
-                        String.format(
-                            Locale.getDefault(),
-                            "%s (%s)\n%s",
-                            placeName,
-                            formatDistance(distance),
-                            description
-                        )
-                    )
-            )
-            .setSmallIcon(R.drawable.notification)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
-            .build()
-
-        notificationManager.notify(placeName.hashCode(), notification)
-        Log.d(tag, "Notification sent for offer: $placeName")
+    private fun formatDistance(distance: Double): String {
+        return when {
+            distance < 100 -> "less than 100 meters"
+            distance < 1000 -> "${(distance / 100).toInt() * 100} meters"
+            else -> String.format("%.1f km", distance / 1000)
+        }
     }
 
     private fun createNotificationChannel() {
@@ -166,14 +131,6 @@ class LocationNotificationWorker(
                 description = descriptionText
             }
             notificationManager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun formatDistance(distance: Double): String {
-        return when {
-            distance < 100 -> "less than 100 meters"
-            distance < 1000 -> "${(distance / 100).toInt() * 100} meters"
-            else -> String.format(Locale.getDefault(), "%.1f km", distance / 1000)
         }
     }
 

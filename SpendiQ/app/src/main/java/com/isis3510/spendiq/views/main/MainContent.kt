@@ -1,5 +1,6 @@
-    package com.isis3510.spendiq.views.main
+package com.isis3510.spendiq.views.main
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.EaseInOutCubic
@@ -10,9 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,6 +47,16 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.text.NumberFormat
 
+// Utilidades para SharedPreferences
+fun saveIsMoneyVisible(context: Context, isVisible: Boolean) {
+    val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
+    sharedPreferences.edit().putBoolean("isMoneyVisible", isVisible).apply()
+}
+
+fun getIsMoneyVisible(context: Context): Boolean {
+    val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
+    return sharedPreferences.getBoolean("isMoneyVisible", true) // Valor por defecto: true
+}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -65,18 +73,23 @@ fun MainContent(
     var showAddTransactionModal by remember { mutableStateOf(false) }
     val uiState by transactionViewModel.uiState.collectAsState()
     val transactions by transactionViewModel.transactions.collectAsState()
-    var isMoneyVisible by remember { mutableStateOf(true) }
+    val context = LocalContext.current
+    var isMoneyVisible by remember { mutableStateOf(getIsMoneyVisible(context)) } // Obtener el estado inicial desde SharedPreferences
+
     val (totalIncome, totalExpenses) = remember(transactions) {
         transactionViewModel.getIncomeAndExpenses()
     }
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
+
+    LaunchedEffect(isMoneyVisible) {
+        saveIsMoneyVisible(context, isMoneyVisible) // Guardar estado en SharedPreferences cada vez que cambia
+    }
 
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
         promoViewModel.fetchOffers()
         transactionViewModel.fetchAllTransactions()
     }
-
 
     Scaffold(
         bottomBar = {
@@ -130,7 +143,7 @@ fun MainContent(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     IconButton(
-                        onClick = { isMoneyVisible = !isMoneyVisible }
+                        onClick = { isMoneyVisible = !isMoneyVisible } // Cambiar visibilidad y guardar automáticamente
                     ) {
                         Icon(
                             painter = painterResource(id = if (isMoneyVisible) R.drawable.round_visibility_24 else R.drawable.baseline_visibility_off_24),
@@ -159,7 +172,6 @@ fun MainContent(
                 Text("User Balance Over Last 30 Days", style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Muestra un indicador de carga si la UI está en estado de carga
                 if (uiState is TransactionViewModel.UiState.Loading) {
                     CircularProgressIndicator()
                 } else {
@@ -169,7 +181,6 @@ fun MainContent(
                         val movements = dailyTransactions.map { it.amount }
                         val moveLabels = dailyTransactions.map { it.day }
 
-                        // Crear el gráfico de líneas
                         LineChart(
                             modifier = Modifier
                                 .height(300.dp)
