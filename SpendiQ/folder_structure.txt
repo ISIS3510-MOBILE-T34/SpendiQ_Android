@@ -158,6 +158,8 @@
         kapt("androidx.room:room-compiler:$roomVersion")
         implementation("androidx.room:room-ktx:$roomVersion")
         implementation("androidx.work:work-runtime-ktx:2.8.0")
+        implementation("androidx.startup:startup-runtime:1.1.1")
+        implementation("androidx.datastore:datastore-preferences:1.0.0")
     }    ```
 - google-services.json
     ```
@@ -1271,12 +1273,19 @@
             <manifest xmlns:android="http://schemas.android.com/apk/res/android"
                 xmlns:tools="http://schemas.android.com/tools">
             
+                <!-- Permissions -->
                 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
                 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+                <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
                 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
                 <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-                <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
                 <uses-permission android:name="android.permission.WAKE_LOCK" />
+                <uses-permission android:name="android.permission.INTERNET" />
+                <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+                <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+                <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+                    tools:ignore="ProtectedPermissions" />
+                <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
             
                 <application
                     android:allowBackup="true"
@@ -1288,20 +1297,19 @@
                     android:supportsRtl="true"
                     android:theme="@style/Theme.SpendiQ"
                     tools:targetApi="31"
-                    android:networkSecurityConfig="@xml/network_security_config"> <!-- Added line -->
+                    android:networkSecurityConfig="@xml/network_security_config">
             
                     <!-- Google Maps API Key -->
                     <meta-data
                         android:name="com.google.android.geo.API_KEY"
-                        android:value="AIzaSyAknJmX2ZYLzwoddFByZnpGXyDmmcqS8cI"/>
+                        android:value="AIzaSyAknJmX2ZYLzwoddFByZnpGXyDmmcqS8cI" />
             
                     <!-- MainActivity -->
                     <activity
                         android:name=".views.MainActivity"
                         android:exported="true"
-                        android:label="@string/app_name"
-                        android:theme="@style/Theme.SpendiQ"
                         android:screenOrientation="portrait"
+                        android:theme="@style/Theme.SpendiQ"
                         android:windowSoftInputMode="adjustPan">
                         <intent-filter>
                             <action android:name="android.intent.action.MAIN" />
@@ -1309,10 +1317,22 @@
                         </intent-filter>
                     </activity>
             
+                    <!-- WorkManager Provider -->
+                    <provider
+                        android:name="androidx.startup.InitializationProvider"
+                        android:authorities="${applicationId}.androidx-startup"
+                        android:exported="false"
+                        tools:node="merge">
+                        <meta-data
+                            android:name="androidx.work.WorkManagerInitializer"
+                            android:value="androidx.startup"
+                            tools:node="remove" />
+                    </provider>
             
-                    <!-- Registering NotificationListenerService -->
+                    <!-- NotificationListenerService -->
                     <service
                         android:name=".services.NotificationListener"
+                        android:label="@string/app_name"
                         android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
                         android:exported="false">
                         <intent-filter>
@@ -1320,10 +1340,15 @@
                         </intent-filter>
                     </service>
             
-                </application>
+                    <!-- Location Service -->
+                    <service
+                        android:name=".services.LocationBasedOfferService"
+                        android:foregroundServiceType="location"
+                        android:exported="false"
+                        tools:ignore="ForegroundServicePermission" />
             
-            </manifest>
-            ```
+                </application>
+            </manifest>            ```
         - **java/**
             - **com/**
                 - **isis3510/**
@@ -2070,113 +2095,70 @@
                                 import com.isis3510.spendiq.model.repository.OffersRepository
                                 import com.isis3510.spendiq.services.LocationBasedOfferService
                                 import com.isis3510.spendiq.utils.toDatabaseModel
+                                import com.isis3510.spendiq.utils.toDomainModel
                                 import kotlinx.coroutines.flow.MutableStateFlow
                                 import kotlinx.coroutines.flow.StateFlow
                                 import kotlinx.coroutines.launch
                                 
-                                /**
-                                 * OffersViewModel class
-                                 *
-                                 * This ViewModel handles the data and logic related to offers in the application.
-                                 * It interacts with the OffersRepository to fetch offers and utilizes a service to manage
-                                 * location-based offers.
-                                 *
-                                 * Key Features:
-                                 * - Fetching Offers: Retrieves a list of offers from the repository and updates the UI state.
-                                 * - Location-Based Monitoring: Starts monitoring for location-based offers using the LocationBasedOfferService.
-                                 * - Offer Selection: Allows fetching an individual offer by its ID and maintains its state.
-                                 *
-                                 * State Management:
-                                 * - `_offers`: MutableStateFlow holding a list of offers.
-                                 * - `offers`: Public immutable StateFlow for observing the list of offers.
-                                 * - `_selectedOffer`: MutableStateFlow holding the currently selected offer.
-                                 * - `selectedOffer`: Public immutable StateFlow for observing the selected offer.
-                                 * - `_uiState`: MutableStateFlow representing the current UI state (Idle, Loading, Success, Error).
-                                 * - `uiState`: Public immutable StateFlow for observing the UI state.
-                                 *
-                                 * Functions:
-                                 * - `fetchOffers()`: Fetches the offers from the repository and updates the UI state accordingly.
-                                 * - `getOfferById(offerId: String)`: Fetches an individual offer by its ID and updates the selected offer state.
-                                 *
-                                 * Lifecycle Management:
-                                 * - Stops location monitoring when the ViewModel is cleared.
-                                 */
                                 class OffersViewModel(application: Application) : AndroidViewModel(application) {
-                                    // Instance of OffersRepository to interact with the data layer
                                     private val repository = OffersRepository()
-                                
-                                    // Instance of LocationBasedOfferService for monitoring location-based offers
                                     private val locationBasedOfferService = LocationBasedOfferService(application)
-                                
-                                    // MutableStateFlow to hold the list of offers
-                                    private val _offers = MutableStateFlow<List<Offer>>(emptyList())
-                                
-                                    // Public immutable StateFlow for the list of offers
-                                    val offers: StateFlow<List<Offer>> = _offers
-                                
-                                    // MutableStateFlow to hold the currently selected offer
-                                    private val _selectedOffer = MutableStateFlow<Offer?>(null)
-                                
-                                    // Public immutable StateFlow for the selected offer
-                                    val selectedOffer: StateFlow<Offer?> = _selectedOffer
-                                
-                                    // MutableStateFlow representing the current UI state
-                                    private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
-                                
-                                    // Public immutable StateFlow for the UI state
-                                    val uiState: StateFlow<UiState> = _uiState
-                                
                                     private val offerDao: OfferDao = DatabaseProvider.getDatabase(application).offerDao()
                                 
-                                    // Fetches offers from the repository
+                                    private val _offers = MutableStateFlow<List<Offer>>(emptyList())
+                                    val offers: StateFlow<List<Offer>> = _offers
+                                
+                                    private val _selectedOffer = MutableStateFlow<Offer?>(null)
+                                    val selectedOffer: StateFlow<Offer?> = _selectedOffer
+                                
+                                    private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
+                                    val uiState: StateFlow<UiState> = _uiState
+                                
                                     fun fetchOffers() {
                                         viewModelScope.launch {
                                             _uiState.value = UiState.Loading
-                                            repository.getOffers().collect { result ->
-                                                _uiState.value = when {
-                                                    result.isSuccess -> {
-                                                        val offersList = result.getOrNull() ?: emptyList()
-                                                        _offers.value = offersList
-                                                        saveOffersToLocalDatabase(offersList)
-                                                        locationBasedOfferService.startMonitoring()
-                                                        UiState.Success
-                                                    }
-                                                    result.isFailure -> {
-                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch offers")
-                                                    }
-                                                    else -> {
-                                                        UiState.Error("Unknown error occurred")
+                                            try {
+                                                repository.getOffers().collect { result ->
+                                                    val remoteOffers = result.getOrNull()
+                                
+                                                    if (remoteOffers.isNullOrEmpty()) {
+                                                        // Remote offers are empty, fallback to local database
+                                                        loadOffersFromLocalDatabase()
+                                                    } else {
+                                                        // Remote offers are available, update the state and save to local database
+                                                        _offers.value = remoteOffers
+                                                        saveOffersToLocalDatabase(remoteOffers)
+                                                        _uiState.value = UiState.Success
                                                     }
                                                 }
+                                            } catch (e: Exception) {
+                                                // Exception occurred, fallback to local database
+                                                loadOffersFromLocalDatabase()
                                             }
                                         }
                                     }
                                 
-                                    // Fetches an offer by its ID
+                                    private suspend fun loadOffersFromLocalDatabase() {
+                                        try {
+                                            val localOffers = offerDao.getAllOffers().map { it.toDomainModel() }
+                                            _offers.value = localOffers
+                                            _uiState.value = if (localOffers.isNotEmpty()) UiState.Success else UiState.Error("No offers available locally")
+                                        } catch (e: Exception) {
+                                            _uiState.value = UiState.Error("Error loading local offers: ${e.message}")
+                                        }
+                                    }
+                                
                                     fun getOfferById(offerId: String) {
                                         viewModelScope.launch {
                                             _uiState.value = UiState.Loading
-                                            repository.getOfferById(offerId).collect { result ->
-                                                _uiState.value = when {
-                                                    result.isSuccess -> {
-                                                        _selectedOffer.value = result.getOrNull()
-                                                        UiState.Success
-                                                    }
-                                                    result.isFailure -> {
-                                                        UiState.Error(result.exceptionOrNull()?.message ?: "Failed to fetch offer")
-                                                    }
-                                                    else -> {
-                                                        UiState.Error("Unknown error occurred")
-                                                    }
-                                                }
+                                            try {
+                                                val offer = offerDao.getOfferById(offerId)?.toDomainModel()
+                                                _selectedOffer.value = offer
+                                                _uiState.value = if (offer != null) UiState.Success else UiState.Error("Offer not found")
+                                            } catch (e: Exception) {
+                                                _uiState.value = UiState.Error("Error fetching offer: ${e.message}")
                                             }
                                         }
-                                    }
-                                
-                                    // Stops location monitoring when the ViewModel is cleared
-                                    override fun onCleared() {
-                                        super.onCleared()
-                                        locationBasedOfferService.stopMonitoring()
                                     }
                                 
                                     private fun saveOffersToLocalDatabase(offers: List<Offer>) {
@@ -2191,14 +2173,19 @@
                                         }
                                     }
                                 
-                                    // Sealed class representing the UI state
+                                    override fun onCleared() {
+                                        super.onCleared()
+                                        locationBasedOfferService.stopMonitoring()
+                                    }
+                                
                                     sealed class UiState {
                                         object Idle : UiState()
                                         object Loading : UiState()
                                         object Success : UiState()
                                         data class Error(val message: String) : UiState()
                                     }
-                                }                                ```
+                                }
+                                ```
                             - AccountViewModel.kt
                                 ```
                                 package com.isis3510.spendiq.viewmodel
@@ -2219,7 +2206,7 @@
                                  * the current money state and associated transactions.
                                  */
                                 class AccountViewModel : ViewModel() {
-                                    private val accountRepository = AccountRepository()
+                                    private val accountRepository = AccountRepository.getInstance() // Singleton instance of the repository
                                 
                                     // State flows
                                     private val _accounts = MutableStateFlow<List<Account>>(emptyList())
@@ -2288,12 +2275,12 @@
                                     /**
                                      * Deletes an account of the specified type.
                                      *
-                                     * @param accountType The type of account to delete.
+                                     * @param accountId The ID of the account to delete.
                                      */
-                                    fun deleteAccount(accountType: String) {
+                                    fun deleteAccount(accountId: String) {
                                         viewModelScope.launch {
                                             _uiState.value = UiState.Loading // Set loading state
-                                            accountRepository.deleteAccount(accountType).collect { result ->
+                                            accountRepository.deleteAccount(accountId).collect { result ->
                                                 _uiState.value = when {
                                                     result.isSuccess -> {
                                                         fetchAccounts() // Refresh accounts
@@ -2304,6 +2291,25 @@
                                                     }
                                                     else -> UiState.Error("Unexpected error") // Handle unexpected state
                                                 }
+                                            }
+                                        }
+                                    }
+                                
+                                    /**
+                                     * Updates the balance of a specified account.
+                                     *
+                                     * @param accountId The ID of the account to update.
+                                     * @param amountDelta The change in amount (can be positive or negative).
+                                     */
+                                    fun updateAccountBalance(accountId: String, amountDelta: Long) {
+                                        viewModelScope.launch {
+                                            _uiState.value = UiState.Loading // Set loading state
+                                            try {
+                                                accountRepository.updateAccountBalance(accountId, amountDelta)
+                                                fetchAccounts() // Refresh accounts after updating balance
+                                                _uiState.value = UiState.Success
+                                            } catch (e: Exception) {
+                                                _uiState.value = UiState.Error(e.message ?: "Failed to update account balance")
                                             }
                                         }
                                     }
@@ -2498,6 +2504,38 @@
                                     }
                                 }
                                 ```
+                            - DataStoreUtils.kt
+                                ```
+                                package com.isis3510.spendiq.utils
+                                
+                                import android.content.Context
+                                import androidx.datastore.preferences.core.booleanPreferencesKey
+                                import androidx.datastore.preferences.core.edit
+                                import androidx.datastore.preferences.preferencesDataStore
+                                import kotlinx.coroutines.flow.Flow
+                                import kotlinx.coroutines.flow.map
+                                
+                                // Extension property for DataStore
+                                private val Context.dataStore by preferencesDataStore(name = "user_preferences")
+                                
+                                object DataStoreUtils {
+                                    private val INCLUDE_LOCATION_KEY = booleanPreferencesKey("include_location")
+                                
+                                    // Save the "Include Location" state to DataStore
+                                    suspend fun setIncludeLocation(context: Context, includeLocation: Boolean) {
+                                        context.dataStore.edit { preferences ->
+                                            preferences[INCLUDE_LOCATION_KEY] = includeLocation
+                                        }
+                                    }
+                                
+                                    // Retrieve the "Include Location" state from DataStore
+                                    fun getIncludeLocation(context: Context): Flow<Boolean> {
+                                        return context.dataStore.data.map { preferences ->
+                                            preferences[INCLUDE_LOCATION_KEY] ?: false // Default value: false
+                                        }
+                                    }
+                                }
+                                ```
                             - OfferMapper.kt
                                 ```
                                 package com.isis3510.spendiq.utils
@@ -2535,39 +2573,132 @@
                                 }
                                 
                                 ```
+                            - DatabaseTestUtility.kt
+                                ```
+                                package com.isis3510.spendiq.utils
+                                
+                                import android.content.Context
+                                import android.util.Log
+                                import com.isis3510.spendiq.model.local.database.DatabaseOffer
+                                import com.isis3510.spendiq.model.local.database.DatabaseProvider
+                                import kotlinx.coroutines.CoroutineScope
+                                import kotlinx.coroutines.Dispatchers
+                                import kotlinx.coroutines.launch
+                                
+                                object DatabaseTestUtility {
+                                    private const val TAG = "DatabaseTestUtility"
+                                
+                                    fun verifyDatabaseContent(context: Context) {
+                                        val scope = CoroutineScope(Dispatchers.IO)
+                                        scope.launch {
+                                            try {
+                                                val database = DatabaseProvider.getDatabase(context)
+                                                val offers = database.offerDao().getAllOffers()
+                                
+                                                Log.d(TAG, "Number of offers in database: ${offers.size}")
+                                                offers.forEach { offer ->
+                                                    Log.d(TAG, """
+                                                        Offer ID: ${offer.id}
+                                                        Name: ${offer.placeName}
+                                                        Description: ${offer.offerDescription}
+                                                        Location: (${offer.latitude}, ${offer.longitude})
+                                                        Distance: ${offer.distance}
+                                                        ----------------------------------------
+                                                    """.trimIndent())
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Error verifying database content", e)
+                                            }
+                                        }
+                                    }
+                                
+                                    fun insertTestOffer(context: Context) {
+                                        val scope = CoroutineScope(Dispatchers.IO)
+                                        scope.launch {
+                                            try {
+                                                val testOffer = DatabaseOffer(
+                                                    id = "test-offer-1",
+                                                    placeName = "Test Store",
+                                                    offerDescription = "Test Offer Description",
+                                                    shopImage = null,
+                                                    recommendationReason = "Test Reason",
+                                                    latitude = 4.6097100,
+                                                    longitude = -74.0817500,
+                                                    distance = 100f
+                                                )
+                                
+                                                val database = DatabaseProvider.getDatabase(context)
+                                                database.offerDao().insertOffer(testOffer)
+                                                Log.d(TAG, "Test offer inserted successfully")
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Error inserting test offer", e)
+                                            }
+                                        }
+                                    }
+                                }                                ```
                         - **model/**
                             - **repository/**
                                 - AccountRepository.kt
                                     ```
                                     package com.isis3510.spendiq.model.repository
                                     
+                                    import android.content.Context
                                     import android.util.Log
                                     import androidx.compose.ui.graphics.Color
+                                    import com.google.gson.Gson
+                                    import com.google.gson.reflect.TypeToken
                                     import com.isis3510.spendiq.model.data.Account
                                     import com.isis3510.spendiq.model.singleton.FirebaseManager
                                     import kotlinx.coroutines.flow.Flow
                                     import kotlinx.coroutines.flow.flow
                                     import kotlinx.coroutines.tasks.await
+                                    import java.io.File
                                     
                                     /**
                                      * Repository class for managing accounts in the application.
-                                     * This class interacts with Firebase Firestore to perform CRUD operations
-                                     * on user accounts and provides access to account data through coroutines.
+                                     * This class interacts with Firebase Firestore and handles offline data
+                                     * storage using internal storage to maintain user accounts.
                                      */
-                                    class AccountRepository {
-                                        // Firebase Firestore and Authentication instances
+                                    class AccountRepository private constructor(private val context: Context) {
                                         private val firestore = FirebaseManager.firestore
                                         private val auth = FirebaseManager.auth
+                                        private val fileName = "accounts_backup.json" // File for offline storage
+                                    
+                                        companion object {
+                                            @Volatile
+                                            private var INSTANCE: AccountRepository? = null
+                                    
+                                            /**
+                                             * Initialize the repository instance with a context.
+                                             */
+                                            fun initialize(context: Context) {
+                                                if (INSTANCE == null) {
+                                                    synchronized(this) {
+                                                        if (INSTANCE == null) {
+                                                            INSTANCE = AccountRepository(context)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                    
+                                            /**
+                                             * Retrieve the singleton instance of the repository.
+                                             */
+                                            fun getInstance(): AccountRepository {
+                                                return INSTANCE ?: throw IllegalStateException("AccountRepository must be initialized first.")
+                                            }
+                                        }
                                     
                                         /**
                                          * Retrieves all accounts associated with the currently authenticated user.
-                                         * Emits a Result containing a list of Account objects.
+                                         * Tries to fetch from Firebase; if unavailable, loads accounts from internal storage.
                                          */
                                         fun getAccounts(): Flow<Result<List<Account>>> = flow {
                                             try {
                                                 // Retrieve the current user's ID
                                                 val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
-                                                // Fetch account documents from Firestore
+                                    
+                                                // Attempt to fetch accounts from Firebase
                                                 val snapshot = firestore.collection("accounts")
                                                     .whereEqualTo("user_id", userId)
                                                     .get()
@@ -2583,20 +2714,43 @@
                                                         color = getColorForAccount(doc.getString("name") ?: "")
                                                     )
                                                 }
-                                                // Emit the successful result
-                                                emit(Result.success(accounts))
-                                            } catch (e: Exception) {
-                                                Log.e("AccountRepository", "Error fetching accounts", e)
-                                                // Emit failure result on exception
-                                                emit(Result.failure(e))
+                                    
+                                                if (accounts.isNotEmpty()) {
+                                                    // Save accounts to local storage for offline use
+                                                    saveAccountsToLocal(accounts)
+                                                    Log.d("AccountRepository", "Fetched accounts from Firebase: $accounts")
+                                                    emit(Result.success(accounts))
+                                                } else {
+                                                    Log.w("AccountRepository", "No accounts found on Firebase for the user.")
+                                    
+                                                    // Fallback: Load accounts from local storage
+                                                    val localAccounts = loadAccountsFromLocal()
+                                                    if (!localAccounts.isNullOrEmpty()) {
+                                                        Log.d("AccountRepository", "Loaded accounts from local storage as a fallback: $localAccounts")
+                                                        emit(Result.success(localAccounts))
+                                                    } else {
+                                                        Log.e("AccountRepository", "No accounts found in local storage.")
+                                                        emit(Result.failure(Exception("No accounts found in Firebase or local storage.")))
+                                                    }
+                                                }
+                                            } catch (firebaseException: Exception) {
+                                                Log.e("AccountRepository", "Error fetching accounts from Firebase, falling back to local storage", firebaseException)
+                                    
+                                                // Fallback: Load accounts from local storage
+                                                val localAccounts = loadAccountsFromLocal()
+                                                if (!localAccounts.isNullOrEmpty()) {
+                                                    Log.d("AccountRepository", "Loaded accounts from local storage: $localAccounts")
+                                                    emit(Result.success(localAccounts))
+                                                } else {
+                                                    Log.e("AccountRepository", "No accounts found in local storage.")
+                                                    emit(Result.failure(firebaseException))
+                                                }
                                             }
                                         }
                                     
+                                    
                                         /**
                                          * Creates a new account for the currently authenticated user.
-                                         * Emits a Result indicating the success or failure of the operation.
-                                         *
-                                         * @param accountType The type/name of the account to create.
                                          */
                                         fun createAccount(accountType: String): Flow<Result<Unit>> = flow {
                                             try {
@@ -2609,25 +2763,20 @@
                                                         "user_id" to userId
                                                     )
                                                 ).await()
-                                                // Emit success result
                                                 emit(Result.success(Unit))
                                             } catch (e: Exception) {
                                                 Log.e("AccountRepository", "Error creating account", e)
-                                                // Emit failure result on exception
                                                 emit(Result.failure(e))
                                             }
                                         }
                                     
                                         /**
                                          * Deletes an account and its associated transactions from Firestore.
-                                         * Emits a Result indicating the success or failure of the operation.
-                                         *
-                                         * @param accountId The ID of the account to delete.
                                          */
                                         fun deleteAccount(accountId: String): Flow<Result<Unit>> = flow {
                                             try {
-                                                // Reference to the account document
                                                 val accountRef = firestore.collection("accounts").document(accountId)
+                                    
                                                 // Fetch transactions associated with the account
                                                 val transactionsSnapshot = accountRef.collection("transactions").get().await()
                                     
@@ -2639,23 +2788,17 @@
                                                     transaction.delete(accountRef)
                                                 }.await()
                                     
-                                                // Emit success result
                                                 emit(Result.success(Unit))
                                             } catch (e: Exception) {
                                                 Log.e("AccountRepository", "Error deleting account", e)
-                                                // Emit failure result on exception
                                                 emit(Result.failure(e))
                                             }
                                         }
                                     
                                         /**
                                          * Updates the balance of a specified account.
-                                         *
-                                         * @param accountId The ID of the account to update.
-                                         * @param amountDelta The change in amount (can be positive or negative).
                                          */
                                         suspend fun updateAccountBalance(accountId: String, amountDelta: Long) {
-                                            // Reference to the account document
                                             val accountRef = firestore.collection("accounts").document(accountId)
                                     
                                             // Perform a Firestore transaction to update the account balance
@@ -2667,10 +2810,48 @@
                                         }
                                     
                                         /**
+                                         * Saves the list of accounts to internal storage as a JSON file.
+                                         * Ensures not to overwrite existing storage with empty data.
+                                         */
+                                        private fun saveAccountsToLocal(accounts: List<Account>) {
+                                            try {
+                                                if (accounts.isEmpty()) {
+                                                    Log.w("AccountRepository", "Empty accounts list, skipping save to local storage.")
+                                                    return
+                                                }
+                                    
+                                                val file = File(context.filesDir, fileName)
+                                                val json = Gson().toJson(accounts)
+                                                file.writeText(json)
+                                                Log.d("AccountRepository", "Accounts saved to local storage: $accounts")
+                                            } catch (e: Exception) {
+                                                Log.e("AccountRepository", "Error saving accounts locally", e)
+                                            }
+                                        }
+                                    
+                                        /**
+                                         * Loads the list of accounts from internal storage if available.
+                                         */
+                                        private fun loadAccountsFromLocal(): List<Account>? {
+                                            return try {
+                                                val file = File(context.filesDir, fileName)
+                                                if (file.exists()) {
+                                                    val json = file.readText()
+                                                    val accounts = Gson().fromJson<List<Account>>(json, object : TypeToken<List<Account>>() {}.type)
+                                                    Log.d("AccountRepository", "Loaded accounts from local storage: $accounts")
+                                                    accounts
+                                                } else {
+                                                    Log.e("AccountRepository", "Local file not found: $fileName")
+                                                    null
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e("AccountRepository", "Error loading accounts locally", e)
+                                                null
+                                            }
+                                        }
+                                    
+                                        /**
                                          * Returns a Color associated with an account name.
-                                         *
-                                         * @param accountName The name of the account.
-                                         * @return The corresponding Color for the account.
                                          */
                                         private fun getColorForAccount(accountName: String): Color {
                                             return when (accountName) {
@@ -2680,7 +2861,7 @@
                                                 "Lulo" -> Color(0xFFE8FF00)
                                                 "Davivienda" -> Color(0xFFed1c27)
                                                 "BBVA" -> Color(0xFF072146)
-                                                else -> Color.Gray // Default color for unrecognized accounts
+                                                else -> Color.Gray
                                             }
                                         }
                                     }
@@ -3018,7 +3199,7 @@
                                         private val auth = FirebaseManager.auth
                                         private val firestore = FirebaseManager.firestore
                                         private val anomalyRepository = AnomalyRepository() // For anomaly analysis
-                                        private val accountRepository = AccountRepository() // For account balance updates
+                                        private val accountRepository = AccountRepository.getInstance()
                                     
                                         companion object {
                                             // Default location used when no location is available
@@ -3620,31 +3801,35 @@
                                     import com.google.firebase.firestore.FirebaseFirestoreSettings
                                     import com.google.firebase.storage.FirebaseStorage
                                     
-                                    /**
-                                     * Singleton object to manage Firebase services.
-                                     *
-                                     * This object provides lazy-loaded instances of Firebase Authentication,
-                                     * Firestore Database, and Firebase Storage. By using a singleton pattern,
-                                     * it ensures that there is only one instance of each service throughout
-                                     * the application lifecycle, which can help to optimize resource usage.
-                                     */
-                                    object FirebaseManager {
-                                        // Lazy initialization of Firebase Authentication instance
-                                        val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
-                                    
-                                        // Lazy initialization of Firestore Database instance with persistence disabled
-                                        val firestore: FirebaseFirestore by lazy {
-                                            FirebaseFirestore.getInstance().apply {
-                                                firestoreSettings = FirebaseFirestoreSettings.Builder()
-                                                    .setPersistenceEnabled(false) // Disables local persistence
-                                                    .build()
-                                            }
+                                    class FirebaseManager private constructor() {
+                                        val auth: FirebaseAuth = FirebaseAuth.getInstance()
+                                        val firestore: FirebaseFirestore = FirebaseFirestore.getInstance().apply {
+                                            firestoreSettings = FirebaseFirestoreSettings.Builder()
+                                                .setPersistenceEnabled(false)
+                                                .build()
                                         }
+                                        val storage: FirebaseStorage = FirebaseStorage.getInstance()
                                     
-                                        // Lazy initialization of Firebase Storage instance
-                                        val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
-                                    }
-                                    ```
+                                        companion object {
+                                            @Volatile
+                                            private var instance: FirebaseManager? = null
+                                    
+                                            fun getInstance(): FirebaseManager {
+                                                return instance ?: synchronized(this) {
+                                                    instance ?: FirebaseManager().also { instance = it }
+                                                }
+                                            }
+                                    
+                                            val auth: FirebaseAuth
+                                                get() = getInstance().auth
+                                    
+                                            val firestore: FirebaseFirestore
+                                                get() = getInstance().firestore
+                                    
+                                            val storage: FirebaseStorage
+                                                get() = getInstance().storage
+                                        }
+                                    }                                    ```
                             - **data/**
                                 - Account.kt
                                     ```
@@ -3834,6 +4019,8 @@
                                     import com.isis3510.spendiq.model.data.Account
                                     import com.isis3510.spendiq.services.LocationService
                                     import com.isis3510.spendiq.viewmodel.TransactionViewModel
+                                    import com.isis3510.spendiq.utils.DataStoreUtils
+                                    import kotlinx.coroutines.flow.collectLatest
                                     
                                     /**
                                      * AddTransactionModal composable function
@@ -3874,6 +4061,13 @@
                                         val calendar = Calendar.getInstance()
                                         val locationService = remember { LocationService(context) }
                                         val scope = rememberCoroutineScope()
+                                    
+                                        // Initialize DataStore state
+                                        LaunchedEffect(Unit) {
+                                            DataStoreUtils.getIncludeLocation(context).collectLatest { savedState ->
+                                                isLocationEnabled = savedState // Retrieve saved "Include Location" state
+                                            }
+                                        }
                                     
                                         // Date picker dialog configuration
                                         val datePickerDialog = DatePickerDialog(
@@ -4035,12 +4229,14 @@
                                                             checked = isLocationEnabled,
                                                             onCheckedChange = { enabled ->
                                                                 isLocationEnabled = enabled
-                                                                if (enabled) {
-                                                                    scope.launch {
+                                                                scope.launch {
+                                                                    // Save the new state to DataStore
+                                                                    DataStoreUtils.setIncludeLocation(context, enabled)
+                                                                    if (enabled) {
                                                                         location = locationService.getCurrentLocation()
+                                                                    } else {
+                                                                        location = null
                                                                     }
-                                                                } else {
-                                                                    location = null
                                                                 }
                                                             }
                                                         )
@@ -4756,8 +4952,11 @@
                                 package com.isis3510.spendiq.views
                                 
                                 import android.Manifest
+                                import android.app.AlertDialog
+                                import android.content.ComponentName
                                 import android.content.Intent
                                 import android.content.pm.PackageManager
+                                import android.net.Uri
                                 import android.os.Build
                                 import android.os.Bundle
                                 import android.provider.Settings
@@ -4779,80 +4978,221 @@
                                 import androidx.navigation.compose.composable
                                 import androidx.navigation.compose.rememberNavController
                                 import androidx.navigation.navArgument
-                                import com.isis3510.spendiq.views.accounts.AccountsScreen
+                                import androidx.work.Configuration
+                                import androidx.work.WorkManager
+                                import com.isis3510.spendiq.model.repository.AccountRepository
+                                import com.isis3510.spendiq.services.LocationBasedOfferService
+                                import com.isis3510.spendiq.utils.DatabaseTestUtility
+                                import com.isis3510.spendiq.views.accounts.*
+                                import com.isis3510.spendiq.views.auth.*
                                 import com.isis3510.spendiq.views.main.MainContent
-                                import com.isis3510.spendiq.views.splash.SplashScreen
-                                import com.isis3510.spendiq.views.auth.AuthenticationScreen
-                                import com.isis3510.spendiq.views.auth.LoginScreen
-                                import com.isis3510.spendiq.views.auth.RegisterScreen
+                                import com.isis3510.spendiq.views.offers.*
                                 import com.isis3510.spendiq.views.profile.*
+                                import com.isis3510.spendiq.views.splash.SplashScreen
                                 import com.isis3510.spendiq.views.theme.SpendiQTheme
                                 import com.isis3510.spendiq.viewmodel.*
-                                import com.isis3510.spendiq.views.accounts.AccountTransactionsScreen
-                                import com.isis3510.spendiq.views.accounts.TransactionDetailsScreen
-                                import com.isis3510.spendiq.views.offers.OffersScreen
-                                import com.isis3510.spendiq.views.offers.SpecialSalesDetail
                                 
                                 class MainActivity : FragmentActivity() {
                                     companion object {
-                                        private const val TAG = "MainActivity" // Tag for logging purposes
+                                        private const val TAG = "MainActivity"
                                     }
                                 
-                                    // Array of permissions required by the app
+                                    private lateinit var locationService: LocationBasedOfferService
+                                
                                     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-                                    private val REQUIRED_PERMISSIONS = arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,  // Location permission
-                                        Manifest.permission.POST_NOTIFICATIONS     // Notifications permission
+                                    private val requiredPermissions = arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                                        Manifest.permission.POST_NOTIFICATIONS
                                     )
                                 
-                                    // Launcher for requesting multiple permissions
                                     private val requestPermissionLauncher = registerForActivityResult(
                                         ActivityResultContracts.RequestMultiplePermissions()
                                     ) { permissions ->
-                                        // Log whether all required permissions were granted or some were denied
                                         if (permissions.all { it.value }) {
-                                            Log.d(TAG, "All required permissions granted")
+                                            Log.d(TAG, "All initial permissions granted")
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                                requestBackgroundLocationWithRationale()
+                                            } else {
+                                                initializeLocationService()
+                                            }
                                         } else {
                                             Log.d(TAG, "Some permissions were denied")
+                                            showPermissionSettingsDialog()
                                         }
                                     }
                                 
-                                    // Launcher specifically for requesting location permission
-                                    private val requestLocationPermissionLauncher =
-                                        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-                                            // Log the result of the location permission request
-                                            if (isGranted) {
-                                                Log.d(TAG, "Location permission granted")
-                                            } else {
-                                                Log.d(TAG, "Location permission denied")
-                                            }
+                                    private val requestBackgroundLocationLauncher = registerForActivityResult(
+                                        ActivityResultContracts.RequestPermission()
+                                    ) { isGranted ->
+                                        if (isGranted) {
+                                            Log.d(TAG, "Background location permission granted")
+                                            initializeLocationService()
+                                        } else {
+                                            Log.d(TAG, "Background location permission denied")
+                                            showPermissionSettingsDialog()
                                         }
+                                    }
                                 
                                     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
                                     override fun onCreate(savedInstanceState: Bundle?) {
                                         super.onCreate(savedInstanceState)
                                 
-                                        // Check if notification service access is enabled; if not, request it
-                                        if (!isNotificationServiceEnabled()) {
-                                            requestNotificationPermission()
-                                        }
+                                        // Configure WorkManager
+                                        val workManagerConfig = Configuration.Builder()
+                                            .setMinimumLoggingLevel(Log.DEBUG)
+                                            .build()
+                                        WorkManager.initialize(this, workManagerConfig)
                                 
-                                        // Request location permission if it is not already granted
-                                        requestLocationPermission()
+                                        AccountRepository.initialize(this)
                                 
-                                        // Check if all required permissions are granted; if not, request them
+                                        // Initialize LocationService
+                                        locationService = LocationBasedOfferService(this)
+                                
+                                        // Request initial permissions
                                         if (!hasRequiredPermissions()) {
-                                            requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
+                                            requestPermissionLauncher.launch(requiredPermissions)
+                                        } else {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasBackgroundLocationPermission()) {
+                                                requestBackgroundLocationWithRationale()
+                                            } else {
+                                                initializeLocationService()
+                                            }
                                         }
                                 
-                                        // Initialize the main content view with Jetpack Compose and theme setup
+                                        // Ensure notification service is enabled
+                                        if (!isNotificationServiceEnabled()) {
+                                            showNotificationServiceDialog()
+                                        }
+                                
+                                        // Debug database content
+                                        DatabaseTestUtility.verifyDatabaseContent(this)
+                                
+                                        // Observe WorkManager tasks
+                                        observeWorkInfo()
+                                
+                                        // Initialize the app UI
+                                        initializeUI()
+                                    }
+                                
+                                    private fun initializeLocationService() {
+                                        Log.d(TAG, "Initializing location service")
+                                        locationService.startMonitoring()
+                                        DatabaseTestUtility.insertTestOffer(this)
+                                    }
+                                
+                                    private fun observeWorkInfo() {
+                                        WorkManager.getInstance(this)
+                                            .getWorkInfosByTagLiveData("location_notification_work")
+                                            .observe(this) { workInfoList ->
+                                                workInfoList?.forEach { workInfo ->
+                                                    Log.d(TAG, "Work info state: ${workInfo.state}")
+                                                }
+                                            }
+                                    }
+                                
+                                    private fun requestBackgroundLocationWithRationale() {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                            AlertDialog.Builder(this)
+                                                .setTitle("Background Location Required")
+                                                .setMessage("This app needs background location access to notify you about nearby offers even when the app is closed. Please grant 'Allow all the time' in the next screen.")
+                                                .setPositiveButton("OK") { _, _ ->
+                                                    requestBackgroundLocationLauncher.launch(
+                                                        Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                                                    )
+                                                }
+                                                .setNegativeButton("Cancel") { dialog, _ ->
+                                                    dialog.dismiss()
+                                                    showPermissionSettingsDialog()
+                                                }
+                                                .create()
+                                                .show()
+                                        }
+                                    }
+                                
+                                    private fun showPermissionSettingsDialog() {
+                                        AlertDialog.Builder(this)
+                                            .setTitle("Permissions Required")
+                                            .setMessage("Required permissions are needed for full app functionality. Please grant them in Settings.")
+                                            .setPositiveButton("Settings") { _, _ ->
+                                                openAppSettings()
+                                            }
+                                            .setNegativeButton("Cancel") { dialog, _ ->
+                                                dialog.dismiss()
+                                            }
+                                            .create()
+                                            .show()
+                                    }
+                                
+                                    private fun showNotificationServiceDialog() {
+                                        AlertDialog.Builder(this)
+                                            .setTitle("Notification Access Required")
+                                            .setMessage("Please enable notification access for automatic transaction tracking.")
+                                            .setPositiveButton("Enable") { _, _ ->
+                                                requestNotificationPermission()
+                                            }
+                                            .setNegativeButton("Later") { dialog, _ ->
+                                                dialog.dismiss()
+                                            }
+                                            .create()
+                                            .show()
+                                    }
+                                
+                                    private fun openAppSettings() {
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                            data = Uri.fromParts("package", packageName, null)
+                                            startActivity(this)
+                                        }
+                                    }
+                                
+                                    private fun requestNotificationPermission() {
+                                        startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                    }
+                                
+                                    private fun isNotificationServiceEnabled(): Boolean {
+                                        val pkgName = packageName
+                                        val flat = Settings.Secure.getString(
+                                            contentResolver,
+                                            "enabled_notification_listeners"
+                                        )
+                                        if (!flat.isNullOrEmpty()) {
+                                            val names = flat.split(":").toTypedArray()
+                                            for (name in names) {
+                                                val componentName = ComponentName.unflattenFromString(name)
+                                                if (componentName != null && componentName.packageName == pkgName) {
+                                                    return true
+                                                }
+                                            }
+                                        }
+                                        return false
+                                    }
+                                
+                                    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+                                    private fun hasRequiredPermissions(): Boolean {
+                                        return requiredPermissions.all {
+                                            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+                                        }
+                                    }
+                                
+                                    private fun hasBackgroundLocationPermission(): Boolean {
+                                        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                            ContextCompat.checkSelfPermission(
+                                                this,
+                                                Manifest.permission.ACCESS_BACKGROUND_LOCATION
+                                            ) == PackageManager.PERMISSION_GRANTED
+                                        } else {
+                                            true
+                                        }
+                                    }
+                                
+                                    @RequiresApi(Build.VERSION_CODES.O)
+                                    private fun initializeUI() {
                                         setContent {
                                             SpendiQTheme {
                                                 Surface(
                                                     modifier = Modifier.fillMaxSize(),
                                                     color = MaterialTheme.colorScheme.background
                                                 ) {
-                                                    // Set up navigation controller for managing screen navigation
                                                     val navController = rememberNavController()
                                                     val authViewModel: AuthViewModel = viewModel()
                                                     val accountViewModel: AccountViewModel = viewModel()
@@ -4863,9 +5203,7 @@
                                                     val connectivityViewModel: ConnectivityViewModel = viewModel()
                                                     val userData by userViewModel.userData.collectAsState()
                                 
-                                                    // Configure navigation destinations
                                                     NavHost(navController = navController, startDestination = "splash") {
-                                                        // Define each composable destination with corresponding screen
                                                         composable("splash") {
                                                             SplashScreen(navController, authViewModel)
                                                         }
@@ -4911,7 +5249,6 @@
                                                         composable("profileInfoScreen") {
                                                             ProfileInfoScreen(navController, transactionViewModel, accountViewModel)
                                                         }
-                                                        // Define destination for account transactions with accountId as argument
                                                         composable(
                                                             route = "accountTransactions/{accountId}",
                                                             arguments = listOf(navArgument("accountId") { type = NavType.StringType })
@@ -4921,14 +5258,12 @@
                                                                 backStackEntry.arguments?.getString("accountId") ?: ""
                                                             )
                                                         }
-                                                        // Define destination for special sales detail with offerId as argument
                                                         composable(
                                                             route = "specialSalesDetail/{offerId}",
                                                             arguments = listOf(navArgument("offerId") { type = NavType.StringType })
                                                         ) { backStackEntry ->
                                                             val offerId = backStackEntry.arguments?.getString("offerId")
                                                             if (offerId != null) {
-                                                                // Fetch offer details based on the offerId
                                                                 LaunchedEffect(offerId) {
                                                                     offersViewModel.getOfferById(offerId)
                                                                 }
@@ -4936,7 +5271,6 @@
                                                                 val selectedOffer by offersViewModel.selectedOffer.collectAsState()
                                                                 val uiState by offersViewModel.uiState.collectAsState()
                                 
-                                                                // Display loading, error, or success UI based on UI state
                                                                 when (uiState) {
                                                                     is OffersViewModel.UiState.Loading -> {
                                                                         Box(modifier = Modifier.fillMaxSize()) {
@@ -4971,7 +5305,6 @@
                                                                 }
                                                             }
                                                         }
-                                                        // Define destination for transaction details with accountId and transactionId as arguments
                                                         composable(
                                                             route = "transactionDetails/{accountId}/{transactionId}",
                                                             arguments = listOf(
@@ -4995,36 +5328,9 @@
                                         }
                                     }
                                 
-                                    // Check if all permissions in REQUIRED_PERMISSIONS array are granted
-                                    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-                                    private fun hasRequiredPermissions(): Boolean {
-                                        return REQUIRED_PERMISSIONS.all {
-                                            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-                                        }
-                                    }
-                                
-                                    // Function to request notification listener permission
-                                    private fun requestNotificationPermission() {
-                                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                                        startActivity(intent)
-                                    }
-                                
-                                    // Function to check if notification service is enabled
-                                    private fun isNotificationServiceEnabled(): Boolean {
-                                        val packageName = applicationContext.packageName
-                                        val enabledListeners = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
-                                        return enabledListeners?.contains(packageName) == true
-                                    }
-                                
-                                    // Function to request location permission if not already granted
-                                    private fun requestLocationPermission() {
-                                        if (ContextCompat.checkSelfPermission(
-                                                this,
-                                                Manifest.permission.ACCESS_FINE_LOCATION
-                                            ) != PackageManager.PERMISSION_GRANTED
-                                        ) {
-                                            requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                                        }
+                                    override fun onDestroy() {
+                                        super.onDestroy()
+                                        // Service will continue running in the background
                                     }
                                 }
                                 ```
@@ -8328,8 +8634,12 @@
                                     ```
                                     package com.isis3510.spendiq.views.accounts
                                     
+                                    import android.app.Activity
                                     import android.content.Intent
                                     import android.net.Uri
+                                    import android.speech.RecognizerIntent
+                                    import androidx.activity.compose.rememberLauncherForActivityResult
+                                    import androidx.activity.result.contract.ActivityResultContracts
                                     import androidx.compose.foundation.background
                                     import androidx.compose.foundation.clickable
                                     import androidx.compose.foundation.layout.*
@@ -8338,6 +8648,7 @@
                                     import androidx.compose.foundation.shape.CircleShape
                                     import androidx.compose.material.icons.Icons
                                     import androidx.compose.material.icons.automirrored.filled.ArrowBack
+                                    import androidx.compose.material.icons.filled.Face
                                     import androidx.compose.material.icons.filled.KeyboardArrowDown
                                     import androidx.compose.material.icons.filled.KeyboardArrowUp
                                     import androidx.compose.material.icons.filled.LocationOn
@@ -8361,37 +8672,6 @@
                                     import java.text.SimpleDateFormat
                                     import java.util.*
                                     
-                                    /**
-                                     * AccountTransactionsScreen composable function
-                                     *
-                                     * Displays a list of transactions for a specific account. This screen allows users to view,
-                                     * search, and filter transactions associated with an account. Users can also access detailed
-                                     * views of individual transactions and see location information if available.
-                                     *
-                                     * Key Features:
-                                     * - Transaction Listing: Displays transactions with details such as name, amount, type (income/expense),
-                                     *   and indicators for any anomalies related to location or amount.
-                                     * - Search Functionality: Allows users to filter transactions by name using a search bar.
-                                     * - Date Grouping: Groups transactions by date for better organization and readability.
-                                     * - Location Handling: Includes a feature to view the location associated with a transaction using
-                                     *   the device's map application.
-                                     *
-                                     * UI Structure:
-                                     * - Scaffold with a TopAppBar that includes the account name and a back navigation button.
-                                     * - Search field for filtering transactions.
-                                     * - A LazyColumn that displays transactions grouped by date, with the ability to click on each
-                                     *   transaction for further details.
-                                     *
-                                     * Supporting Components:
-                                     * - `TransactionItem`: A composable that represents an individual transaction and displays relevant
-                                     *   details.
-                                     * - `AnomalyIndicator`: Visual feedback indicating any anomalies in the transaction data.
-                                     *
-                                     * @param navController [NavController] to handle navigation actions within the app.
-                                     * @param accountName The name of the account for which transactions are being displayed.
-                                     * @param viewModel [TransactionViewModel] to manage and provide transaction data.
-                                     */
-                                    
                                     @OptIn(ExperimentalMaterial3Api::class)
                                     @Composable
                                     fun AccountTransactionsScreen(
@@ -8399,20 +8679,36 @@
                                         accountName: String,
                                         viewModel: TransactionViewModel = viewModel()
                                     ) {
-                                        // State for managing search query
                                         var searchQuery by remember { mutableStateOf("") }
-                                        // State for collecting transactions and UI state
                                         val transactions by viewModel.transactions.collectAsState()
                                         val uiState by viewModel.uiState.collectAsState()
                                         var isNavigating by remember { mutableStateOf(false) }
                                         val coroutineScope = rememberCoroutineScope()
+                                        val context = LocalContext.current
                                     
-                                        // Load transactions for the specified account
+                                        // Voice recognition launcher
+                                        val speechRecognizerLauncher = rememberLauncherForActivityResult(
+                                            contract = ActivityResultContracts.StartActivityForResult()
+                                        ) { result ->
+                                            if (result.resultCode == Activity.RESULT_OK) {
+                                                val recognizedText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+                                                if (!recognizedText.isNullOrBlank()) {
+                                                    searchQuery = recognizedText
+                                                }
+                                            }
+                                        }
+                                    
+                                        // Create a speech-to-text intent
+                                        val speechToTextIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                                            putExtra(RecognizerIntent.EXTRA_PROMPT, "Di algo para buscar")
+                                        }
+                                    
                                         LaunchedEffect(accountName) {
                                             viewModel.fetchTransactions(accountName)
                                         }
                                     
-                                        // Scaffold layout with TopAppBar
                                         Scaffold(
                                             topBar = {
                                                 TopAppBar(
@@ -8460,18 +8756,23 @@
                                                             .fillMaxSize()
                                                             .padding(innerPadding)
                                                     ) {
-                                                        // Search Field for filtering transactions
                                                         OutlinedTextField(
                                                             value = searchQuery,
                                                             onValueChange = { searchQuery = it },
                                                             label = { Text("Buscar") },
                                                             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                                                            trailingIcon = {
+                                                                IconButton(onClick = {
+                                                                    speechRecognizerLauncher.launch(speechToTextIntent)
+                                                                }) {
+                                                                    Icon(Icons.Default.Face, contentDescription = "Voice Search")
+                                                                }
+                                                            },
                                                             modifier = Modifier
                                                                 .fillMaxWidth()
                                                                 .padding(16.dp)
                                                         )
                                     
-                                                        // Handle empty transaction list
                                                         if (transactions.isEmpty()) {
                                                             Box(
                                                                 modifier = Modifier.fillMaxSize(),
@@ -8480,24 +8781,18 @@
                                                                 Text("No hay transacciones aún", style = MaterialTheme.typography.bodyLarge)
                                                             }
                                                         } else {
-                                                            // LazyColumn to display transactions
                                                             LazyColumn(
                                                                 modifier = Modifier.fillMaxSize()
                                                             ) {
-                                                                // Filter transactions based on the search query
                                                                 val filteredTransactions = transactions.filter {
                                                                     it.transactionName.contains(searchQuery, ignoreCase = true)
                                                                 }
-                                    
-                                                                // Group transactions by normalized date
                                                                 val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.dateTime.toDate()) }
                                                                 val sortedDates = groupedTransactions.keys.sortedDescending()
                                     
-                                                                // Iterate through grouped dates to display transactions
                                                                 sortedDates.forEach { date ->
                                                                     val transactionsForDate = groupedTransactions[date] ?: return@forEach
                                     
-                                                                    // Display date header
                                                                     item {
                                                                         Text(
                                                                             text = formatDate(date),
@@ -8507,7 +8802,6 @@
                                                                         )
                                                                     }
                                     
-                                                                    // Display each transaction for the given date
                                                                     items(transactionsForDate.sortedByDescending { it.dateTime }) { transaction ->
                                                                         TransactionItem(transaction, navController, accountName)
                                                                     }
@@ -8520,26 +8814,13 @@
                                         }
                                     }
                                     
-                                    /**
-                                     * TransactionItem composable function
-                                     *
-                                     * Displays the details of a single transaction, including its name, amount, type, and any associated
-                                     * anomalies. Provides a clickable interface to navigate to detailed transaction information, and shows
-                                     * location information if applicable.
-                                     *
-                                     * @param transaction [Transaction] the transaction data to display.
-                                     * @param navController [NavController] to handle navigation to transaction details.
-                                     * @param accountName The name of the account associated with the transaction.
-                                     */
                                     @Composable
                                     fun TransactionItem(transaction: Transaction, navController: NavController, accountName: String) {
                                         val context = LocalContext.current
-                                    
-                                        // Determine background color based on anomalies
                                         val backgroundColor = when {
-                                            transaction.locationAnomaly && transaction.amountAnomaly -> Color(0xFFFFE0E0) // Light red
-                                            transaction.locationAnomaly || transaction.amountAnomaly -> Color(0xFFFFECB3) // Light orange
-                                            else -> Color(0xFFF5F5F5) // Light grey
+                                            transaction.locationAnomaly && transaction.amountAnomaly -> Color(0xFFFFE0E0)
+                                            transaction.locationAnomaly || transaction.amountAnomaly -> Color(0xFFFFECB3)
+                                            else -> Color(0xFFF5F5F5)
                                         }
                                     
                                         Card(
@@ -8562,7 +8843,6 @@
                                                     modifier = Modifier.fillMaxWidth(),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    // Show an icon based on transaction type
                                                     Icon(
                                                         imageVector = if (transaction.transactionType == "Income") Icons.Default.KeyboardArrowUp
                                                         else Icons.Default.KeyboardArrowDown,
@@ -8585,7 +8865,6 @@
                                                     )
                                                 }
                                     
-                                                // Anomaly indicators for location and amount
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -8602,7 +8881,6 @@
                                                     )
                                                 }
                                     
-                                                // Location button to open maps if location is available
                                                 if (transaction.location != null) {
                                                     Row(
                                                         verticalAlignment = Alignment.CenterVertically,
@@ -8632,14 +8910,6 @@
                                         }
                                     }
                                     
-                                    /**
-                                     * AnomalyIndicator composable function
-                                     *
-                                     * Displays a visual indicator for transaction anomalies, such as location or amount anomalies.
-                                     *
-                                     * @param label String to display next to the anomaly indicator.
-                                     * @param isAnomaly Boolean indicating whether the anomaly exists.
-                                     */
                                     @Composable
                                     private fun AnomalyIndicator(
                                         label: String,
@@ -8665,8 +8935,6 @@
                                             )
                                         }
                                     }
-                                    
-                                    // Utility functions for date and currency formatting
                                     
                                     private fun normalizeDate(date: Date): Date {
                                         val calendar = Calendar.getInstance()
@@ -9608,8 +9876,9 @@
                             - **main/**
                                 - MainContent.kt
                                     ```
-                                        package com.isis3510.spendiq.views.main
+                                    package com.isis3510.spendiq.views.main
                                     
+                                    import android.content.Context
                                     import android.os.Build
                                     import androidx.annotation.RequiresApi
                                     import androidx.compose.animation.core.EaseInOutCubic
@@ -9620,9 +9889,6 @@
                                     import androidx.compose.foundation.lazy.LazyColumn
                                     import androidx.compose.foundation.lazy.items
                                     import androidx.compose.foundation.text.KeyboardOptions
-                                    import androidx.compose.material.icons.Icons
-                                    import androidx.compose.material.icons.filled.KeyboardArrowDown
-                                    import androidx.compose.material.icons.filled.KeyboardArrowUp
                                     import androidx.compose.material3.*
                                     import androidx.compose.runtime.*
                                     import androidx.compose.ui.Alignment
@@ -9659,6 +9925,16 @@
                                     import java.util.*
                                     import java.text.NumberFormat
                                     
+                                    // Utilidades para SharedPreferences
+                                    fun saveIsMoneyVisible(context: Context, isVisible: Boolean) {
+                                        val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
+                                        sharedPreferences.edit().putBoolean("isMoneyVisible", isVisible).apply()
+                                    }
+                                    
+                                    fun getIsMoneyVisible(context: Context): Boolean {
+                                        val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
+                                        return sharedPreferences.getBoolean("isMoneyVisible", true) // Valor por defecto: true
+                                    }
                                     
                                     @RequiresApi(Build.VERSION_CODES.O)
                                     @Composable
@@ -9675,18 +9951,23 @@
                                         var showAddTransactionModal by remember { mutableStateOf(false) }
                                         val uiState by transactionViewModel.uiState.collectAsState()
                                         val transactions by transactionViewModel.transactions.collectAsState()
-                                        var isMoneyVisible by remember { mutableStateOf(true) }
+                                        val context = LocalContext.current
+                                        var isMoneyVisible by remember { mutableStateOf(getIsMoneyVisible(context)) } // Obtener el estado inicial desde SharedPreferences
+                                    
                                         val (totalIncome, totalExpenses) = remember(transactions) {
                                             transactionViewModel.getIncomeAndExpenses()
                                         }
                                         val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
+                                    
+                                        LaunchedEffect(isMoneyVisible) {
+                                            saveIsMoneyVisible(context, isMoneyVisible) // Guardar estado en SharedPreferences cada vez que cambia
+                                        }
                                     
                                         LaunchedEffect(Unit) {
                                             accountViewModel.fetchAccounts()
                                             promoViewModel.fetchOffers()
                                             transactionViewModel.fetchAllTransactions()
                                         }
-                                    
                                     
                                         Scaffold(
                                             bottomBar = {
@@ -9740,7 +10021,7 @@
                                                         )
                                                         Spacer(modifier = Modifier.width(16.dp))
                                                         IconButton(
-                                                            onClick = { isMoneyVisible = !isMoneyVisible }
+                                                            onClick = { isMoneyVisible = !isMoneyVisible } // Cambiar visibilidad y guardar automáticamente
                                                         ) {
                                                             Icon(
                                                                 painter = painterResource(id = if (isMoneyVisible) R.drawable.round_visibility_24 else R.drawable.baseline_visibility_off_24),
@@ -9769,7 +10050,6 @@
                                                     Text("User Balance Over Last 30 Days", style = MaterialTheme.typography.headlineMedium)
                                                     Spacer(modifier = Modifier.height(16.dp))
                                     
-                                                    // Muestra un indicador de carga si la UI está en estado de carga
                                                     if (uiState is TransactionViewModel.UiState.Loading) {
                                                         CircularProgressIndicator()
                                                     } else {
@@ -9779,7 +10059,6 @@
                                                             val movements = dailyTransactions.map { it.amount }
                                                             val moveLabels = dailyTransactions.map { it.day }
                                     
-                                                            // Crear el gráfico de líneas
                                                             LineChart(
                                                                 modifier = Modifier
                                                                     .height(300.dp)
@@ -10586,135 +10865,152 @@
                                 ```
                                 package com.isis3510.spendiq.services
                                 
+                                import android.content.Context
+                                import android.util.Log
+                                import androidx.work.*
+                                import java.util.concurrent.TimeUnit
+                                
+                                class LocationBasedOfferService(private val context: Context) {
+                                    private val TAG = "LocationBasedOfferService"
+                                
+                                    fun startMonitoring() {
+                                        Log.d(TAG, "Starting location-based offer monitoring")
+                                        setupPeriodicWork()
+                                    }
+                                
+                                    private fun setupPeriodicWork() {
+                                        // Define work constraints
+                                        val constraints = Constraints.Builder()
+                                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                                            .build()
+                                
+                                        // Create periodic work request that runs every 15 minutes
+                                        val workRequest = PeriodicWorkRequestBuilder<LocationNotificationWorker>(
+                                            15, TimeUnit.MINUTES, // Minimum interval allowed by WorkManager
+                                            5, TimeUnit.MINUTES  // Flex interval
+                                        )
+                                            .setConstraints(constraints)
+                                            .addTag("location_notification_work")
+                                            .build()
+                                
+                                        // Enqueue the work request
+                                        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                                            "LocationNotificationWork",
+                                            ExistingPeriodicWorkPolicy.UPDATE, // Replace existing if any
+                                            workRequest
+                                        )
+                                
+                                        Log.d(TAG, "Periodic work request set up")
+                                    }
+                                
+                                    fun stopMonitoring() {
+                                        Log.d(TAG, "Stopping location-based offer monitoring")
+                                        WorkManager.getInstance(context).cancelAllWorkByTag("location_notification_work")
+                                    }
+                                }                                ```
+                            - LocationNotificationWorker.kt
+                                ```
+                                package com.isis3510.spendiq.services
+                                
                                 import android.Manifest
                                 import android.app.NotificationChannel
                                 import android.app.NotificationManager
                                 import android.content.Context
                                 import android.content.pm.PackageManager
+                                import android.location.Location
                                 import android.os.Build
-                                import android.os.Looper
+                                import android.util.Log
                                 import androidx.core.app.ActivityCompat
                                 import androidx.core.app.NotificationCompat
-                                import com.google.android.gms.location.*
+                                import androidx.work.CoroutineWorker
+                                import androidx.work.WorkerParameters
+                                import com.google.android.gms.location.LocationServices
                                 import com.isis3510.spendiq.R
-                                import com.isis3510.spendiq.model.data.Offer
-                                import kotlinx.coroutines.CoroutineScope
-                                import kotlinx.coroutines.Dispatchers
-                                import kotlinx.coroutines.launch
+                                import com.isis3510.spendiq.model.local.database.DatabaseProvider
+                                import kotlinx.coroutines.tasks.await
                                 import kotlin.math.*
                                 
-                                // This service listens for location updates and sends notifications for nearby offers.
-                                class LocationBasedOfferService(private val context: Context) {
-                                    private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
+                                class LocationNotificationWorker(
+                                    private val context: Context,
+                                    workerParams: WorkerParameters
+                                ) : CoroutineWorker(context, workerParams) {
+                                    private val TAG = "LocationNotificationWorker"
+                                    private val channelId = "OfferNotificationChannel"
                                     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                    private val channelId = "OfferNotificationChannel" // Channel ID for notifications
-                                    private val scope = CoroutineScope(Dispatchers.IO) // Coroutine scope for background tasks
-                                    private var activeOffers = listOf<Offer>() // List of offers to monitor
+                                    private val database = DatabaseProvider.getDatabase(context)
+                                    private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
                                 
-                                    // Track the last notification time and the last notified offer ID
-                                    private var lastNotificationTime: Long = 0
-                                    private var lastNotifiedOfferId: String? = null
-                                    private val NOTIFICATION_COOLDOWN = 3 * 60 * 1000 // Cooldown period of 15 minutes
-                                    private val MAX_NOTIFICATION_DISTANCE = 1000.0 // Maximum distance for notifications in meters
-                                
-                                    // Callback to receive location updates
-                                    private val locationCallback = object : LocationCallback() {
-                                        override fun onLocationResult(locationResult: LocationResult) {
-                                            locationResult.lastLocation?.let { currentLocation ->
-                                                checkNearbyOffers(currentLocation.latitude, currentLocation.longitude)
-                                            }
-                                        }
-                                    }
-                                
-                                    init {
-                                        createNotificationChannel() // Create the notification channel on initialization
-                                    }
-                                
-                                    /**
-                                     * Starts monitoring for nearby offers by setting up location updates.
-                                     * @param offers List of offers to monitor for proximity.
-                                     */
-                                    fun startMonitoring(offers: List<Offer>) {
-                                        if (!hasLocationPermission()) {
-                                            return // Exit if location permission is not granted
-                                        }
-                                
-                                        activeOffers = offers // Update the list of active offers
-                                
-                                        // Create a location request for high accuracy updates
-                                        val locationRequest = LocationRequest.create().apply {
-                                            priority = LocationRequest.PRIORITY_HIGH_ACCURACY // Use high accuracy for location updates
-                                            interval = 60000 // Request location updates every minute
-                                            fastestInterval = 30000 // Fastest update interval
-                                        }
-                                
+                                    override suspend fun doWork(): Result {
+                                        Log.d(TAG, "Starting work execution")
                                         try {
-                                            // Request location updates with the specified location request and callback
-                                            fusedLocationClient.requestLocationUpdates(
-                                                locationRequest,
-                                                locationCallback,
-                                                Looper.getMainLooper() // Use the main looper for callbacks
-                                            )
-                                        } catch (e: SecurityException) {
-                                            // Handle the exception if permissions are missing
-                                        }
-                                    }
+                                            createNotificationChannel()
                                 
-                                    /**
-                                     * Stops monitoring for offers by removing location updates.
-                                     */
-                                    fun stopMonitoring() {
-                                        fusedLocationClient.removeLocationUpdates(locationCallback) // Remove location updates
-                                        activeOffers = emptyList() // Clear the list of active offers
-                                    }
-                                
-                                    /**
-                                     * Checks for offers that are nearby the current location.
-                                     * @param currentLat Current latitude of the device.
-                                     * @param currentLon Current longitude of the device.
-                                     */
-                                    private fun checkNearbyOffers(currentLat: Double, currentLon: Double) {
-                                        scope.launch {
-                                            val currentTime = System.currentTimeMillis() // Get the current time
-                                
-                                            // Ensure enough time has passed since the last notification
-                                            if (currentTime - lastNotificationTime < NOTIFICATION_COOLDOWN) {
-                                                return@launch
+                                            // Get current location
+                                            val location = getCurrentLocation()
+                                            if (location == null) {
+                                                Log.w(TAG, "Could not get current location")
+                                                return Result.success()
                                             }
                                 
-                                            // Find the closest offer within the specified range
-                                            val closestOffer = activeOffers
-                                                .filter { offer ->
-                                                    offer.id != null &&
-                                                            offer.latitude != null &&
-                                                            offer.longitude != null &&
-                                                            offer.id != lastNotifiedOfferId // Exclude the last notified offer
-                                                }
+                                            // Get all offers from local database
+                                            val offers = database.offerDao().getAllOffers()
+                                            Log.d(TAG, "Retrieved ${offers.size} offers from database")
+                                
+                                            // Find closest offer within range
+                                            val closestOffer = offers
                                                 .map { offer ->
-                                                    Pair(offer, calculateDistance(
-                                                        currentLat, currentLon,
-                                                        offer.latitude!!, offer.longitude!!
-                                                    ))
+                                                    val distance = calculateDistance(
+                                                        location.latitude, location.longitude,
+                                                        offer.latitude, offer.longitude
+                                                    )
+                                                    Pair(offer, distance)
                                                 }
-                                                .filter { (_, distance) -> distance <= MAX_NOTIFICATION_DISTANCE } // Filter by maximum distance
-                                                .minByOrNull { (_, distance) -> distance } // Find the closest offer
+                                                .filter { (_, distance) -> distance <= MAX_NOTIFICATION_DISTANCE }
+                                                .minByOrNull { (_, distance) -> distance }
                                 
+                                            // Send notification for closest offer if found
                                             closestOffer?.let { (offer, distance) ->
-                                                sendOfferNotification(offer, distance.toInt()) // Send notification for the offer
-                                                lastNotificationTime = currentTime // Update the last notification time
-                                                lastNotifiedOfferId = offer.id // Update the last notified offer ID
+                                                Log.d(TAG, "Found nearby offer: ${offer.placeName} at ${distance.toInt()}m")
+                                                val notification = NotificationCompat.Builder(context, channelId)
+                                                    .setContentTitle("Special Offer Nearby!")
+                                                    .setContentText("${offer.placeName} is ${formatDistance(distance)} away")
+                                                    .setStyle(NotificationCompat.BigTextStyle()
+                                                        .bigText("${offer.placeName} (${formatDistance(distance)})\n${offer.offerDescription}")
+                                                    )
+                                                    .setSmallIcon(R.drawable.notification)
+                                                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                                                    .setAutoCancel(true)
+                                                    .build()
+                                
+                                                notificationManager.notify(offer.id.hashCode(), notification)
+                                                Log.d(TAG, "Notification sent for offer: ${offer.placeName}")
                                             }
+                                
+                                            return Result.success()
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error during work execution", e)
+                                            return Result.failure()
                                         }
                                     }
                                 
-                                    /**
-                                     * Calculates the distance between two geographical points using the Haversine formula.
-                                     * @param lat1 Latitude of the first point.
-                                     * @param lon1 Longitude of the first point.
-                                     * @param lat2 Latitude of the second point.
-                                     * @param lon2 Longitude of the second point.
-                                     * @return The distance in meters.
-                                     */
+                                    private suspend fun getCurrentLocation(): Location? {
+                                        if (ActivityCompat.checkSelfPermission(
+                                                context,
+                                                Manifest.permission.ACCESS_FINE_LOCATION
+                                            ) != PackageManager.PERMISSION_GRANTED
+                                        ) {
+                                            Log.w(TAG, "Location permission not granted")
+                                            return null
+                                        }
+                                
+                                        return try {
+                                            fusedLocationClient.lastLocation.await()
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error getting location", e)
+                                            null
+                                        }
+                                    }
+                                
                                     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
                                         val r = 6371e3 // Earth's radius in meters
                                         val φ1 = lat1 * Math.PI / 180
@@ -10722,73 +11018,38 @@
                                         val Δφ = (lat2 - lat1) * Math.PI / 180
                                         val Δλ = (lon2 - lon1) * Math.PI / 180
                                 
-                                        // Haversine formula
                                         val a = sin(Δφ / 2) * sin(Δφ / 2) +
                                                 cos(φ1) * cos(φ2) *
                                                 sin(Δλ / 2) * sin(Δλ / 2)
                                         val c = 2 * atan2(sqrt(a), sqrt(1 - a))
                                 
-                                        return r * c // Return the distance
+                                        return r * c
                                     }
                                 
-                                    /**
-                                     * Sends a notification to the user about a nearby offer.
-                                     * @param offer The offer details to include in the notification.
-                                     * @param distance The distance to the offer.
-                                     */
-                                    private fun sendOfferNotification(offer: Offer, distance: Int) {
-                                        val distanceText = when {
+                                    private fun formatDistance(distance: Double): String {
+                                        return when {
                                             distance < 100 -> "less than 100 meters"
-                                            distance < 1000 -> "${(distance / 100) * 100} meters"
-                                            else -> "${distance / 1000.0} km"
+                                            distance < 1000 -> "${(distance / 100).toInt() * 100} meters"
+                                            else -> String.format("%.1f km", distance / 1000)
                                         }
-                                
-                                        // Build and send the notification
-                                        val notification = NotificationCompat.Builder(context, channelId)
-                                            .setContentTitle("Special Offer Nearby!")
-                                            .setContentText("${offer.placeName} (${distanceText} away): ${offer.offerDescription}")
-                                            .setStyle(NotificationCompat.BigTextStyle()
-                                                .bigText("${offer.placeName} (${distanceText} away): ${offer.offerDescription}\n${offer.recommendationReason ?: ""}")
-                                            )
-                                            .setSmallIcon(R.drawable.notification) // Icon for the notification
-                                            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                                            .setAutoCancel(true) // Dismiss the notification when clicked
-                                            .build()
-                                
-                                        notificationManager.notify(OFFER_NOTIFICATION_ID, notification) // Notify using the ID
                                     }
                                 
-                                    /**
-                                     * Creates a notification channel for API 26 and above.
-                                     */
                                     private fun createNotificationChannel() {
                                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                            val name = "Nearby Offers" // Name of the notification channel
-                                            val descriptionText = "Notifications for nearby special offers" // Description of the channel
-                                            val importance = NotificationManager.IMPORTANCE_DEFAULT // Importance level
+                                            val name = "Nearby Offers"
+                                            val descriptionText = "Notifications for nearby special offers"
+                                            val importance = NotificationManager.IMPORTANCE_DEFAULT
                                             val channel = NotificationChannel(channelId, name, importance).apply {
-                                                description = descriptionText // Set the description
+                                                description = descriptionText
                                             }
-                                            notificationManager.createNotificationChannel(channel) // Create the channel
+                                            notificationManager.createNotificationChannel(channel)
                                         }
-                                    }
-                                
-                                    /**
-                                     * Checks if the application has location permissions.
-                                     * @return True if location permissions are granted, false otherwise.
-                                     */
-                                    private fun hasLocationPermission(): Boolean {
-                                        return ActivityCompat.checkSelfPermission(
-                                            context,
-                                            Manifest.permission.ACCESS_FINE_LOCATION
-                                        ) == PackageManager.PERMISSION_GRANTED // Check for fine location permission
                                     }
                                 
                                     companion object {
-                                        private const val OFFER_NOTIFICATION_ID = 1001 // Notification ID for offer notifications
+                                        private const val MAX_NOTIFICATION_DISTANCE = 1000.0 // 1 kilometer
                                     }
-                                }
-                                ```
+                                }                                ```
         - ic_launcher-playstore.png
             ```
             Error reading file: 'utf-8' codec can't decode byte 0x89 in position 0: invalid start byte
