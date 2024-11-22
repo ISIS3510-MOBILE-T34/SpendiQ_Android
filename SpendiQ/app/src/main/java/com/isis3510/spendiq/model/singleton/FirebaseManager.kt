@@ -2,23 +2,35 @@ package com.isis3510.spendiq.model.singleton
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.storage.FirebaseStorage
 
-/**
- * Singleton object to manage Firebase services.
- *
- * This object provides lazy-loaded instances of Firebase Authentication,
- * Firestore Database, and Firebase Storage. By using a singleton pattern,
- * it ensures that there is only one instance of each service throughout
- * the application lifecycle, which can help to optimize resource usage.
- */
-object FirebaseManager {
-    // Lazy initialization of Firebase Authentication instance
-    val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+class FirebaseManager private constructor() {
+    val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    val firestore: FirebaseFirestore = FirebaseFirestore.getInstance().apply {
+        firestoreSettings = FirebaseFirestoreSettings.Builder()
+            .setPersistenceEnabled(false)
+            .build()
+    }
+    val storage: FirebaseStorage = FirebaseStorage.getInstance()
 
-    // Lazy initialization of Firestore Database instance
-    val firestore: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    companion object {
+        @Volatile
+        private var instance: FirebaseManager? = null
 
-    // Lazy initialization of Firebase Storage instance
-    val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
+        fun getInstance(): FirebaseManager {
+            return instance ?: synchronized(this) {
+                instance ?: FirebaseManager().also { instance = it }
+            }
+        }
+
+        val auth: FirebaseAuth
+            get() = getInstance().auth
+
+        val firestore: FirebaseFirestore
+            get() = getInstance().firestore
+
+        val storage: FirebaseStorage
+            get() = getInstance().storage
+    }
 }

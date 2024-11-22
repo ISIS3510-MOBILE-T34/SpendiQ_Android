@@ -1,12 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.isis3510.spendiq">
+    xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
 
     <application
         android:allowBackup="true"
@@ -18,20 +28,19 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SpendiQ"
         tools:targetApi="31"
-        android:networkSecurityConfig="@xml/network_security_config"> <!-- Added line -->
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAknJmX2ZYLzwoddFByZnpGXyDmmcqS8cI"/>
+            android:value="AIzaSyAknJmX2ZYLzwoddFByZnpGXyDmmcqS8cI" />
 
         <!-- MainActivity -->
         <activity
             android:name=".views.MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.SpendiQ"
             android:screenOrientation="portrait"
+            android:theme="@style/Theme.SpendiQ"
             android:windowSoftInputMode="adjustPan">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -39,10 +48,22 @@
             </intent-filter>
         </activity>
 
+        <!-- WorkManager Provider -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
-        <!-- Registering NotificationListenerService -->
+        <!-- NotificationListenerService -->
         <service
             android:name=".services.NotificationListener"
+            android:label="@string/app_name"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
             android:exported="false">
             <intent-filter>
@@ -50,6 +71,18 @@
             </intent-filter>
         </service>
 
-    </application>
+        <!-- Location Service -->
+        <service
+            android:name=".services.LocationBasedOfferService"
+            android:foregroundServiceType="location"
+            android:exported="false"
+            tools:ignore="ForegroundServicePermission" />
 
+        <service
+            android:name=".services.DataFetchService"
+            android:enabled="true"
+            android:exported="false"
+            tools:ignore="ForegroundServicePermission"
+            android:foregroundServiceType="dataSync"/>
+    </application>
 </manifest>
