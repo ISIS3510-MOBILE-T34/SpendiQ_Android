@@ -6,6 +6,8 @@ import android.content.SharedPreferences
 import android.util.Base64
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.crypto.AEADBadTagException
 
 /**
@@ -30,13 +32,23 @@ class LDServicesFacade(private val context: Context) {
      * @param email The user's email to be stored.
      * @param password The user's password to be stored.
      */
-    fun storeCredentials(email: String, password: String) {
-        val encryptedEmail = Base64.encodeToString(email.toByteArray(), Base64.DEFAULT) // Encrypt email
-        val encryptedPassword = Base64.encodeToString(password.toByteArray(), Base64.DEFAULT) // Encrypt password
-        encryptedPrefs.edit().apply {
-            putString("user_email", encryptedEmail) // Store encrypted email
-            putString("user_password", encryptedPassword) // Store encrypted password
-            apply() // Commit changes asynchronously
+    suspend fun storeCredentials(email: String, password: String) {
+        withContext(Dispatchers.IO) {
+            val encryptedEmail = Base64.encodeToString(email.toByteArray(), Base64.DEFAULT)
+            val encryptedPassword = Base64.encodeToString(password.toByteArray(), Base64.DEFAULT)
+            encryptedPrefs.edit().apply {
+                putString("user_email", encryptedEmail)
+                putString("user_password", encryptedPassword)
+                apply()
+            }
+        }
+    }
+
+    suspend fun getStoredCredentials(): Pair<String?, String?> {
+        return withContext(Dispatchers.IO) {
+            val encryptedEmail = getEncryptedEmail()
+            val encryptedPassword = getEncryptedPassword()
+            Pair(encryptedEmail, encryptedPassword)
         }
     }
 
