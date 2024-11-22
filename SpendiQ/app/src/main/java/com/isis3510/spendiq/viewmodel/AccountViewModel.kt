@@ -59,6 +59,12 @@ class AccountViewModel : ViewModel() {
         }
     }
 
+    suspend fun fetchAccountsFinal() {
+        accountRepository.getAccounts().collect {
+
+        }
+    }
+
     /**
      * Creates a new account of the specified type.
      *

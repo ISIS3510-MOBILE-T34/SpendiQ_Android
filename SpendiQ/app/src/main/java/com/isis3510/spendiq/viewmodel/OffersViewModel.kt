@@ -52,6 +52,20 @@ class OffersViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    suspend fun fetchOffersFinal() {
+        try {
+            repository.getOffers().collect { result ->
+                val remoteOffers = result.getOrNull()
+
+                if (!remoteOffers.isNullOrEmpty()) {
+                    saveOffersToLocalDatabase(remoteOffers)
+                }
+            }
+        } catch (e: Exception) {
+
+        }
+    }
+
     private suspend fun loadOffersFromLocalDatabase() {
         try {
             val localOffers = offerDao.getAllOffers().map { it.toDomainModel() }
