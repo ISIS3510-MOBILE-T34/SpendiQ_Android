@@ -135,7 +135,7 @@ fun AccountsScreen(
                 onClick = { showEditModal = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Edit Accounts")
+                Text("Edit Accounts", color = Color.White)
             }
         }
     }
@@ -334,7 +334,7 @@ fun EditAccountModal(
                 enabled = selectedAccountType.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(selectedAction)
+                Text(selectedAction, color = Color.White)
             }
         }
     }
