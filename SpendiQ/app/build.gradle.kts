@@ -94,6 +94,8 @@ dependencies {
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.play.services.maps)
     implementation(libs.androidx.espresso.core)
+    implementation(libs.androidx.lifecycle.process)
+    implementation(libs.androidx.lifecycle.service)
 
     // Testing
     testImplementation(libs.junit)

@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -31,6 +32,7 @@ import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.isis3510.spendiq.model.repository.AccountRepository
 import com.isis3510.spendiq.services.LocationBasedOfferService
+import com.isis3510.spendiq.utils.AppLifecycleObserver
 import com.isis3510.spendiq.utils.DatabaseTestUtility
 import com.isis3510.spendiq.views.accounts.*
 import com.isis3510.spendiq.views.auth.*
@@ -108,6 +110,8 @@ class MainActivity : FragmentActivity() {
                 initializeLocationService()
             }
         }
+
+        ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleObserver(this))
 
         // Ensure notification service is enabled
         if (!isNotificationServiceEnabled()) {
