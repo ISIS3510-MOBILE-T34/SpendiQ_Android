@@ -102,24 +102,30 @@ fun MapScreen(
 
                 // Add markers to appropriate list
                 if (transaction.transactionType == "Income") {
+                    val title = buildString {
+                        append("Income: ${transaction.amount} ")
+                        append("- ${transaction.transactionName}")
+                        append(" on ${transaction.dateTime.toDate().toLocaleString()}") // Adding transaction name and date
+                        if (transaction.amountAnomaly) append(" (Amount Anomaly)")
+                        if (transaction.locationAnomaly) append(" (Location Anomaly)")
+                    }
+
                     incomeMarkers.add(
-                        MarkerOptions().position(position).title("Income: ${transaction.amount}").icon(markerIcon)
+                        MarkerOptions().position(position).title(title).icon(markerIcon)
                     )
                 } else if (transaction.transactionType == "Expense") {
+                    val title = buildString {
+                        append("Expense: ${transaction.amount} ")
+                        append("- ${transaction.transactionName}")
+                        append(" on ${transaction.dateTime.toDate().toLocaleString()}") // Adding transaction name and date
+                        if (transaction.amountAnomaly) append(" (Amount Anomaly)")
+                        if (transaction.locationAnomaly) append(" (Location Anomaly)")
+                    }
+
                     expenseMarkers.add(
-                        MarkerOptions().position(position).title("Expense: ${transaction.amount}").icon(markerIcon)
+                        MarkerOptions().position(position).title(title).icon(markerIcon)
                     )
                 }
-            }
-        }
-
-        // For markers that are in the same position, update their title with the count
-        markerCounts.forEach { (position, count) ->
-            incomeMarkers.find { it.position == position }?.apply {
-                title("Transactions: $count")
-            }
-            expenseMarkers.find { it.position == position }?.apply {
-                title("Transactions: $count")
             }
         }
     }
