@@ -91,12 +91,12 @@ class AccountViewModel : ViewModel() {
     /**
      * Deletes an account of the specified type.
      *
-     * @param accountId The ID of the account to delete.
+     * @param accountName The Name of the account to delete.
      */
-    fun deleteAccount(accountId: String) {
+    fun deleteAccount(accountName: String) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading // Set loading state
-            accountRepository.deleteAccount(accountId).collect { result ->
+            accountRepository.deleteAccount(accountName).collect { result ->
                 _uiState.value = when {
                     result.isSuccess -> {
                         fetchAccounts() // Refresh accounts

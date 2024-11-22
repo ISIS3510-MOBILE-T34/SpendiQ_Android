@@ -240,6 +240,15 @@ fun AddTransactionModal(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Reset")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Location toggle row with switch
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = "Location",
