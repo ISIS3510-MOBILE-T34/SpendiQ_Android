@@ -5,15 +5,20 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.isis3510.spendiq.model.cache.MovementsCache
 import com.isis3510.spendiq.model.data.DailyTransaction
 import com.isis3510.spendiq.model.data.Transaction
+import com.isis3510.spendiq.model.iterator.MonthlyTransactionIterator
 import com.isis3510.spendiq.model.iterator.TransactionIterator
 import com.isis3510.spendiq.model.repository.TransactionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import java.util.Calendar
 
 /**
  * TransactionViewModel class
@@ -56,7 +61,8 @@ import java.time.temporal.ChronoUnit
  * - Logs errors encountered during transaction operations for easier debugging.
  */
 class TransactionViewModel(
-    private val transactionRepository: TransactionRepository = TransactionRepository()
+    private val transactionRepository: TransactionRepository = TransactionRepository(),
+    private val movementsCache: MovementsCache = MovementsCache()
 ) : ViewModel() {
     // MutableStateFlow for transactions
     private val _transactions = MutableStateFlow<List<Transaction>>(emptyList())
@@ -75,6 +81,12 @@ class TransactionViewModel(
 
     // Public immutable StateFlow for the UI state
     val uiState: StateFlow<UiState> = _uiState
+
+    // MutableStateFlow para gastos mensuales
+    private val _monthlyExpenses = MutableStateFlow<Pair<Long, Long>>(0L to 0L)
+
+    // Public immutable StateFlow for the UI state
+    val monthlyExpenses: StateFlow<Pair<Long, Long>> = _monthlyExpenses
 
     // Fetch transactions for a specific account
     fun fetchTransactions(accountName: String) {
@@ -196,12 +208,26 @@ class TransactionViewModel(
     //Calculate total income and expenses in te last 30 days
     @RequiresApi(Build.VERSION_CODES.O)
     fun getIncomeAndExpensesLast30Days(): List<DailyTransaction> {
+        val cacheKey = "last30days"
+
         val iterator = TransactionIterator(transactions.value)
         while (iterator.hasNext()) {
             iterator.next()
         }
-        return iterator.getDailyTransactions()
+        val dailyTransactions = iterator.getDailyTransactions()
+        movementsCache.saveMovements(cacheKey, dailyTransactions) // Guardar en caché
+        return dailyTransactions
     }
+
+    fun getCachedIncomeAndExpensesLast30Days(): List<DailyTransaction> {
+        val cacheKey = "last30days"
+
+        movementsCache.getMovements(cacheKey)?.let {
+            return it
+        }
+        return emptyList()
+    }
+
 
     // Fetch all transactions
     fun fetchAllTransactions() {
@@ -231,6 +257,34 @@ class TransactionViewModel(
     // Clear the selected transaction
     fun clearSelectedTransaction() {
         _selectedTransaction.value = null
+    }
+
+    // Función para obtener y almacenar gastos mensuales en caché
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun fetchAndCacheMonthlyExpenses() {
+        Log.d("TransactionViewModel", "fetchAndCacheMonthlyExpenses called")
+        val cacheKey = "monthlyExpenses"
+
+        // Obtener los gastos del mes actual y anterior
+        val (currentMonth, previousMonth) = getCurrentAndPreviousMonthExpenses()
+        Log.d("Current Month Expense: ", "$currentMonth")
+        Log.d("Previous Month Expense: ", "$previousMonth")
+
+        // Guardar los gastos en caché
+        movementsCache.saveMovements(cacheKey, listOf(
+            DailyTransaction("Current Month", currentMonth.toDouble()),
+            DailyTransaction("Previous Month", previousMonth.toDouble())
+        ))
+
+        // Actualizar el StateFlow con los nuevos valores
+        _monthlyExpenses.value = Pair(currentMonth, previousMonth)
+    }
+
+    // Función para obtener gastos del mes actual y anterior
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun getCurrentAndPreviousMonthExpenses(): Pair<Long, Long> {
+        val iterator = MonthlyTransactionIterator(transactions.value)
+        return iterator.getMonthlyExpenses()
     }
 
     // Sealed class for UI state management

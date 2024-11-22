@@ -5,6 +5,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,6 +38,7 @@ import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.google.firebase.Timestamp
 import com.isis3510.spendiq.R
+import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.CreatePieChart
 import ir.ehsannarmani.compose_charts.LineChart
@@ -58,6 +61,7 @@ fun MainContent(
     accountViewModel: AccountViewModel,
     promoViewModel: OffersViewModel,
     transactionViewModel: TransactionViewModel,
+    connectivityViewModel: ConnectivityViewModel
 ) {
     val accounts by accountViewModel.accounts.collectAsState()
     val promos by promoViewModel.offers.collectAsState()
@@ -69,12 +73,20 @@ fun MainContent(
     val (totalIncome, totalExpenses) = remember(transactions) {
         transactionViewModel.getIncomeAndExpenses()
     }
+    val monthlyExpenses by transactionViewModel.monthlyExpenses.collectAsState()
+    val (currentMonthExpenses, previousMonthExpenses) = monthlyExpenses
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
+    val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
 
     LaunchedEffect(Unit) {
         accountViewModel.fetchAccounts()
         promoViewModel.fetchOffers()
         transactionViewModel.fetchAllTransactions()
+        transactionViewModel.uiState.collect { state ->
+            if (state is TransactionViewModel.UiState.Success) {
+                transactionViewModel.fetchAndCacheMonthlyExpenses()
+            }
+        }
     }
 
 
@@ -138,6 +150,41 @@ fun MainContent(
                         )
                     }
                 }
+
+                // Calcular el porcentaje de cambio
+                val percentageChange = if (previousMonthExpenses > 0) {
+                    ((currentMonthExpenses - previousMonthExpenses).toDouble() / previousMonthExpenses) * 100
+                } else {
+                    0.0
+                }
+                // Determinar el color basado en el gasto
+                val colorME = if (currentMonthExpenses > previousMonthExpenses) Color(0xffc33ba5) else Color(0xFF94B719)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
+                    Text(
+                        text = if (currentMonthExpenses > previousMonthExpenses) "+" else "-",
+                        color = colorME,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "$currentMonthExpenses",
+                        color = colorME,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "(${percentageChange.toInt()}%) TODAY",
+                        color = colorME,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Icon(
+                        painter = painterResource(id = if (currentMonthExpenses > previousMonthExpenses) R.drawable.arrowup24 else R.drawable.arrowdown24),
+                        contentDescription = "",
+                        tint = colorME
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
@@ -164,7 +211,12 @@ fun MainContent(
                     CircularProgressIndicator()
                 } else {
                     if (totalIncome > 0 || totalExpenses > 0) {
-                        val dailyTransactions = transactionViewModel.getIncomeAndExpensesLast30Days()
+
+                        val dailyTransactions = if (isNetworkAvailable) {
+                            transactionViewModel.getIncomeAndExpensesLast30Days()
+                        } else {
+                            transactionViewModel.getCachedIncomeAndExpensesLast30Days()
+                        }
 
                         val movements = dailyTransactions.map { it.amount }
                         val moveLabels = dailyTransactions.map { it.day }

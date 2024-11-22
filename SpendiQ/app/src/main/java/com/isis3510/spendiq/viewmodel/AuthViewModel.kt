@@ -306,19 +306,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
      * Logs in the user using stored biometric credentials.
      */
     fun loginWithBiometrics() {
-        val (encryptedEmail, encryptedPassword) = biometricHelper.getStoredCredentials()
+        viewModelScope.launch {
+            val (encryptedEmail, encryptedPassword) = biometricHelper.getStoredCredentials() // Cambiado a función suspendida
 
-        if (encryptedEmail == null || encryptedPassword == null) {
-            _authState.value = AuthState.Error("Biometrics are not enabled. Please, enable them and try again")
-            return
-        }
+            if (encryptedEmail == null || encryptedPassword == null) {
+                _authState.value = AuthState.Error("Biometrics are not enabled. Please, enable them and try again")
+                return@launch
+            }
 
-        try {
-            val email = String(Base64.decode(encryptedEmail, Base64.DEFAULT))
-            val password = String(Base64.decode(encryptedPassword, Base64.DEFAULT))
-            login(email, password)
-        } catch (e: Exception) {
-            _authState.value = AuthState.Error("Error processing credentials: ${e.message}")
+            try {
+                val email = String(Base64.decode(encryptedEmail, Base64.DEFAULT))
+                val password = String(Base64.decode(encryptedPassword, Base64.DEFAULT))
+                login(email, password)
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error("Error processing credentials: ${e.message}")
+            }
         }
     }
 
