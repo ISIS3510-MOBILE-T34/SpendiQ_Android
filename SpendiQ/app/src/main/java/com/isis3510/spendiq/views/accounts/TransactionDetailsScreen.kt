@@ -371,7 +371,7 @@ fun TransactionDetailsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = transaction != null
                 ) {
-                    Text("Save Changes")
+                    Text("Save Changes", color = Color.White)
                 }
             }
         }
