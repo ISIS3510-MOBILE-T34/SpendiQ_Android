@@ -24,6 +24,7 @@ import com.isis3510.spendiq.model.data.Offer
 import androidx.navigation.NavController
 import com.squareup.picasso.Picasso
 import android.widget.ImageView
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
 import com.isis3510.spendiq.R
@@ -171,7 +172,7 @@ fun SpecialSalesDetail(
                     ) {
                         Icon(Icons.Default.LocationOn, contentDescription = null) // Location icon
                         Spacer(modifier = Modifier.width(8.dp)) // Spacing between icon and text
-                        Text("Open in Maps") // Button label
+                        Text("Open in Maps", color = Color.White) // Button label
                     }
                 }
 
