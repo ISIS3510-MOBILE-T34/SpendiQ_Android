@@ -342,18 +342,18 @@ fun AccountItem(account: Account, navController: NavController) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = account.name,
-                color = androidx.compose.ui.graphics.Color.White,
+                color = Color.White,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = account.type,
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f)
+                color = Color.White.copy(alpha = 0.7f)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "$ ${account.amount}",
-                color = androidx.compose.ui.graphics.Color.White,
+                color = Color.White,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -376,7 +376,7 @@ fun PromoItem(promo: Offer, onClick: () -> Unit) {
             Text(
                 "Recommended: ${promo.recommendationReason}",
                 fontSize = 12.sp,
-                color = androidx.compose.ui.graphics.Color.Gray
+                color = Color.Gray
             )
             Spacer(modifier = Modifier.height(4.dp))
             promo.shopImage?.let {
