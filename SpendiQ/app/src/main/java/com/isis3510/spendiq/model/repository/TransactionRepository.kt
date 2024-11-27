@@ -21,7 +21,7 @@ class TransactionRepository {
     private val auth = FirebaseManager.auth
     private val firestore = FirebaseManager.firestore
     private val anomalyRepository = AnomalyRepository() // For anomaly analysis
-    private val accountRepository = AccountRepository() // For account balance updates
+    private val accountRepository = AccountRepository.getInstance()
 
     companion object {
         // Default location used when no location is available

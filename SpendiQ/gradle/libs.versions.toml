@@ -15,16 +15,24 @@ okhttp = "4.11.0"
 playServicesAuth = "21.2.0"
 playServicesLocation = "21.3.0"
 retrofit = "2.9.0"
+roomCompilerVersion = "2.5.2"
+roomRuntime = "2.6.1"
 securityCrypto = "1.1.0-alpha06"
 firebaseStorageKtx = "21.0.1"
 firebaseCrashlyticsBuildtools = "3.0.2"
 playServicesMaps = "19.0.0"
 roomCompiler = "2.6.1"
+workRuntimeKtx = "2.10.0"
+lifecycleProcess = "2.8.7"
+lifecycleService = "2.8.7"
 
 [libraries]
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-room-compiler-v252 = { module = "androidx.room:room-compiler", version.ref = "roomCompilerVersion" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -48,6 +56,8 @@ play-services-location = { module = "com.google.android.gms:play-services-locati
 play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
+androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleProcess" }
+androidx-lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", version.ref = "lifecycleService" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
