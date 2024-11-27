@@ -2,8 +2,11 @@
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -51,9 +54,10 @@ import ir.ehsannarmani.compose_charts.models.ZeroLineProperties
 import java.text.SimpleDateFormat
 import java.util.*
 import java.text.NumberFormat
+import kotlin.math.abs
 
 
-@RequiresApi(Build.VERSION_CODES.O)
+    @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainContent(
     navController: NavController,
@@ -73,6 +77,7 @@ fun MainContent(
     val (totalIncome, totalExpenses) = remember(transactions) {
         transactionViewModel.getIncomeAndExpenses()
     }
+    val dailyTransactions by transactionViewModel.incomeAndExpensesLast30Days.collectAsState()
     val monthlyExpenses by transactionViewModel.monthlyExpenses.collectAsState()
     val (currentMonthExpenses, previousMonthExpenses) = monthlyExpenses
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
@@ -84,13 +89,37 @@ fun MainContent(
         transactionViewModel.fetchAllTransactions()
         transactionViewModel.uiState.collect { state ->
             if (state is TransactionViewModel.UiState.Success) {
-                transactionViewModel.fetchAndCacheMonthlyExpenses()
+                transactionViewModel.fetchAndCacheMonthlyExpenses(isNetworkAvailable)
+                transactionViewModel.fetchIncomeAndExpensesLast30Days(isNetworkAvailable)
             }
         }
     }
 
-
     Scaffold(
+        topBar = {
+            AnimatedVisibility(
+                visible = !isNetworkAvailable,
+                enter = slideInVertically(
+                    // Enters by sliding down from offset -fullHeight to 0.
+                    initialOffsetY = { fullHeight -> -fullHeight }
+                ),
+                exit = slideOutVertically(
+                    // Exits by sliding up from offset 0 to -fullHeight.
+                    targetOffsetY = { fullHeight -> -fullHeight }
+                )
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Red
+                ) {
+                    Text(
+                        text = "You are offline! You will not see any updates until the connection is restored.",
+                        modifier = Modifier.padding(16.dp),
+                        color = Color.White
+                    )
+                }
+            }
+        },
         bottomBar = {
             BottomNavigation(
                 navController = navController,
@@ -165,24 +194,22 @@ fun MainContent(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
                     Text(
-                        text = if (currentMonthExpenses > previousMonthExpenses) "+" else "-",
+                        text = "You have spend ",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Text(
+                        text = "${abs(percentageChange.toInt())}%",
                         color = colorME,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = "$currentMonthExpenses",
+                        text = if (currentMonthExpenses > previousMonthExpenses) " MORE" else " LESS",
                         color = colorME,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = "(${percentageChange.toInt()}%) TODAY",
-                        color = colorME,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Icon(
-                        painter = painterResource(id = if (currentMonthExpenses > previousMonthExpenses) R.drawable.arrowup24 else R.drawable.arrowdown24),
-                        contentDescription = "",
-                        tint = colorME
+                        text = " vs. last month",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -212,57 +239,62 @@ fun MainContent(
                 } else {
                     if (totalIncome > 0 || totalExpenses > 0) {
 
-                        val dailyTransactions = if (isNetworkAvailable) {
-                            transactionViewModel.getIncomeAndExpensesLast30Days()
-                        } else {
-                            transactionViewModel.getCachedIncomeAndExpensesLast30Days()
-                        }
+                        if (dailyTransactions.isNotEmpty()) {
+                            val movements = dailyTransactions.map { it.amount }
+                            val moveLabels = dailyTransactions.map { it.day }
 
-                        val movements = dailyTransactions.map { it.amount }
-                        val moveLabels = dailyTransactions.map { it.day }
-
-                        // Crear el gráfico de líneas
-                        LineChart(
-                            modifier = Modifier
-                                .height(300.dp)
-                                .fillMaxSize().padding(horizontal = 22.dp),
-                            data = remember {
-                                listOf(
-                                    Line(
-                                        label = "Movements",
-                                        values = movements,
-                                        color = SolidColor(Color(0xffb3cb54)),
-                                        firstGradientFillColor = Color(0xFF94B719).copy(alpha = .5f),
-                                        secondGradientFillColor = Color.Transparent,
-                                        strokeAnimationSpec = tween(2000, easing = EaseInOutCubic),
-                                        drawStyle = DrawStyle.Stroke(width = 2.dp),
-                                        dotProperties = DotProperties(
-                                            enabled = true,
-                                            color = SolidColor(Color.White),
-                                            strokeWidth = 2.dp,
-                                            radius = 3.5.dp,
-                                            strokeColor = SolidColor(Color(0xFF94B719)),
+                            // Crear el gráfico de líneas
+                            LineChart(
+                                modifier = Modifier
+                                    .height(300.dp)
+                                    .fillMaxSize().padding(horizontal = 22.dp),
+                                data = remember {
+                                    listOf(
+                                        Line(
+                                            label = "Movements",
+                                            values = movements,
+                                            color = SolidColor(Color(0xffb3cb54)),
+                                            firstGradientFillColor = Color(0xFF94B719).copy(alpha = .5f),
+                                            secondGradientFillColor = Color.Transparent,
+                                            strokeAnimationSpec = tween(2000, easing = EaseInOutCubic),
+                                            drawStyle = DrawStyle.Stroke(width = 2.dp),
+                                            dotProperties = DotProperties(
+                                                enabled = true,
+                                                color = SolidColor(Color.White),
+                                                strokeWidth = 2.dp,
+                                                radius = 3.5.dp,
+                                                strokeColor = SolidColor(Color(0xFF94B719)),
+                                            )
                                         )
                                     )
-                                )
-                            },
-                            labelProperties = LabelProperties(
-                                enabled = true,
-                                textStyle = MaterialTheme.typography.labelSmall,
-                                padding = 16.dp,
-                                labels = moveLabels ),
-                            curvedEdges = false,
-                            zeroLineProperties = ZeroLineProperties(
-                                enabled = true,
-                                color = SolidColor(Color(0xffc33ba5)),
-                                thickness = 1.5.dp
-                            ),
-                            animationMode = AnimationMode.Together(delayBuilder = {
-                                it * 500L
-                            }),
-                        )
+                                },
+                                labelProperties = LabelProperties(
+                                    enabled = true,
+                                    textStyle = MaterialTheme.typography.labelSmall,
+                                    padding = 16.dp,
+                                    labels = moveLabels ),
+                                curvedEdges = false,
+                                zeroLineProperties = ZeroLineProperties(
+                                    enabled = true,
+                                    color = SolidColor(Color(0xffc33ba5)),
+                                    thickness = 1.5.dp
+                                ),
+                                animationMode = AnimationMode.Together(delayBuilder = {
+                                    it * 500L
+                                }),
+                            )
+                        } else {
+                            Text(
+                                text = "Information not available at the moment."
+                            )
+                            // Tal vez poner una imagen aqui
+                        }
+
                     } else {
-                        Text("You don't have any transactions.")
+                        Text(
+                            text = "You don't have any transactions."
+                        )
+                        // Tal vez poner una imagen aqui
                     }
                 }
 
