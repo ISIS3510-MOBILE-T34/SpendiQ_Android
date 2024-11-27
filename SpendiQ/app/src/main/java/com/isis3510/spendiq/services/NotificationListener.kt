@@ -98,7 +98,6 @@ class NotificationListener : NotificationListenerService() {
             if (!transactionExists(userId, company, amount, currentTimestamp, "Income")) {
                 addTransaction(userId, amount, company, "Income", location, automatic = true) // Add transaction
                 updateNuAccountBalance(userId, amount) // Update account balance
-                showNotification("Income Recorded", "Income of $$amount from $company has been recorded.") // Show notification
             }
         }
     }
@@ -136,7 +135,6 @@ class NotificationListener : NotificationListenerService() {
             if (!transactionExists(userId, company, amount, currentTimestamp, "Expense")) {
                 addTransaction(userId, amount, company, "Expense", location, automatic = true) // Add transaction
                 updateNuAccountBalance(userId, -amount) // Update account balance
-                showNotification("Expense Recorded", "Expense of $$amount to $company has been recorded.") // Show notification
             }
         }
     }
@@ -289,13 +287,6 @@ class NotificationListener : NotificationListenerService() {
     }
 
     /**
-     * This method is called when a notification is removed.
-     */
-    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        super.onNotificationRemoved(sbn)
-    }
-
-    /**
      * Retrieves the current user's ID.
      *
      * @return The user's ID as a String, or null if not authenticated.
@@ -303,31 +294,5 @@ class NotificationListener : NotificationListenerService() {
     private fun getCurrentUserId(): String? {
         val user = FirebaseAuth.getInstance().currentUser
         return user?.uid // Return user ID or null
-    }
-
-    /**
-     * Displays a notification to the user.
-     *
-     * @param title The title of the notification.
-     * @param content The content/message of the notification.
-     */
-    private fun showNotification(title: String, content: String) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "SpendiQ_Channel"
-        val channelName = "SpendiQ Notifications"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_DEFAULT)
-            notificationManager.createNotificationChannel(channel) // Create notification channel for API 26+
-        }
-
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setSmallIcon(R.drawable.notification)
-            .setAutoCancel(true) // Automatically remove the notification when tapped
-            .build()
-
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification) // Show notification
     }
 }

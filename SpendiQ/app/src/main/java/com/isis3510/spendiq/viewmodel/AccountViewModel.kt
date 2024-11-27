@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  * the current money state and associated transactions.
  */
 class AccountViewModel : ViewModel() {
-    private val accountRepository = AccountRepository()
+    private val accountRepository = AccountRepository.getInstance() // Singleton instance of the repository
 
     // State flows
     private val _accounts = MutableStateFlow<List<Account>>(emptyList())
@@ -59,6 +59,12 @@ class AccountViewModel : ViewModel() {
         }
     }
 
+    suspend fun fetchAccountsFinal() {
+        accountRepository.getAccounts().collect {
+
+        }
+    }
+
     /**
      * Creates a new account of the specified type.
      *
@@ -85,12 +91,12 @@ class AccountViewModel : ViewModel() {
     /**
      * Deletes an account of the specified type.
      *
-     * @param accountType The type of account to delete.
+     * @param accountId The ID of the account to delete.
      */
-    fun deleteAccount(accountType: String) {
+    fun deleteAccount(accountId: String) {
         viewModelScope.launch {
             _uiState.value = UiState.Loading // Set loading state
-            accountRepository.deleteAccount(accountType).collect { result ->
+            accountRepository.deleteAccount(accountId).collect { result ->
                 _uiState.value = when {
                     result.isSuccess -> {
                         fetchAccounts() // Refresh accounts
@@ -101,6 +107,25 @@ class AccountViewModel : ViewModel() {
                     }
                     else -> UiState.Error("Unexpected error") // Handle unexpected state
                 }
+            }
+        }
+    }
+
+    /**
+     * Updates the balance of a specified account.
+     *
+     * @param accountId The ID of the account to update.
+     * @param amountDelta The change in amount (can be positive or negative).
+     */
+    fun updateAccountBalance(accountId: String, amountDelta: Long) {
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading // Set loading state
+            try {
+                accountRepository.updateAccountBalance(accountId, amountDelta)
+                fetchAccounts() // Refresh accounts after updating balance
+                _uiState.value = UiState.Success
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error(e.message ?: "Failed to update account balance")
             }
         }
     }
