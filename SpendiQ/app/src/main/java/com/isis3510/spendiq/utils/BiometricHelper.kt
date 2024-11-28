@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.fragment.app.FragmentActivity
 import com.isis3510.spendiq.model.facade.ExternalServicesFacade
 import com.isis3510.spendiq.model.facade.LDServicesFacade
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * BiometricHelper is a utility class that handles biometric authentication
@@ -42,8 +44,10 @@ class BiometricHelper(private val context: Context) {
      * @param email The user's email to be stored.
      * @param password The user's password to be stored.
      */
-    fun storeCredentials(email: String, password: String) {
-        ldServicesFacade.storeCredentials(email, password) // Use the local data service to store credentials
+    suspend fun storeCredentials(email: String, password: String) {
+        withContext(Dispatchers.IO) {
+            ldServicesFacade.storeCredentials(email, password)
+        }
     }
 
     /**
@@ -52,14 +56,10 @@ class BiometricHelper(private val context: Context) {
      * @return A pair containing the encrypted email and password.
      *         Both values may be null if no credentials are stored.
      */
-    fun getStoredCredentials(): Pair<String?, String?> {
-        val encryptedEmail = ldServicesFacade.getEncryptedEmail() // Get the stored encrypted email
-        val encryptedPassword = ldServicesFacade.getEncryptedPassword() // Get the stored encrypted password
-
-        return Pair(
-            encryptedEmail,
-            encryptedPassword
-        ) // Return the credentials as a pair
+    suspend fun getStoredCredentials(): Pair<String?, String?> {
+        return withContext(Dispatchers.IO) {
+            ldServicesFacade.getStoredCredentials()
+        }
     }
 
     /**
