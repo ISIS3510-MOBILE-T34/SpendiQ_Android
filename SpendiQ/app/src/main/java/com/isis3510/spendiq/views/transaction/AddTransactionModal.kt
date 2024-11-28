@@ -64,6 +64,14 @@ fun AddTransactionModal(
     LaunchedEffect(Unit) {
         DataStoreUtils.getIncludeLocation(context).collectLatest { savedState ->
             isLocationEnabled = savedState // Retrieve saved "Include Location" state
+            if (savedState) {
+                try {
+                    location = locationService.getCurrentLocation()
+                    Log.d("Location", "Initial location retrieved: $location")
+                } catch (e: Exception) {
+                    Log.e("Location", "Error retrieving location: ${e.message}")
+                }
+            }
         }
     }
 
@@ -133,13 +141,7 @@ fun AddTransactionModal(
                 value = transactionName,
                 onValueChange = {
                     transactionName = it
-
-                    // Log the updated transactionName
-                    Log.d("TransactionName", "Updated transactionName: $transactionName")
-
-                    // Put the updated value into the cache and log it
                     cache.put("transactionName", transactionName)
-                    Log.d("Cache", "Saved to cache: ${cache.get("transactionName")}")
                 },
                 label = { Text("Transaction Name") },
                 modifier = Modifier.fillMaxWidth(),
@@ -226,24 +228,6 @@ fun AddTransactionModal(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Reset button
-                Button(
-                    onClick = {
-                        // Clear form and cache
-                        amount = ""
-                        transactionName = ""
-                        selectedDate = Timestamp.now()
-                        selectedTransactionType = "Expense"
-                        selectedAccount = null
-                        cache.evictAll()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Reset", color = Color.White)
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
                 // Location toggle row with switch
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -262,24 +246,28 @@ fun AddTransactionModal(
                         onCheckedChange = { enabled ->
                             isLocationEnabled = enabled
                             scope.launch {
-                                // Save the new state to DataStore
                                 DataStoreUtils.setIncludeLocation(context, enabled)
                                 if (enabled) {
-                                    location = locationService.getCurrentLocation()
+                                    try {
+                                        location = locationService.getCurrentLocation()
+                                        Log.d("Location", "Retrieved location: $location")
+                                    } catch (e: Exception) {
+                                        Log.e("Location", "Error retrieving location: ${e.message}")
+                                        location = null
+                                    }
                                 } else {
                                     location = null
                                 }
                             }
                         },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White, // White thumb (circle)
-                            uncheckedThumbColor = Color.White, // White thumb when unchecked
-                            checkedTrackColor = MaterialTheme.colorScheme.primary, // Primary color when checked
-                            uncheckedTrackColor = Color.Gray // Gray track when unchecked
+                            checkedThumbColor = Color.White,
+                            uncheckedThumbColor = Color.White,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            uncheckedTrackColor = Color.Gray
                         )
                     )
                 }
-
 
                 Spacer(modifier = Modifier.height(8.dp))
 

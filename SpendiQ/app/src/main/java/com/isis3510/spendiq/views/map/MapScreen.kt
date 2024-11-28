@@ -3,7 +3,6 @@ package com.isis3510.spendiq.views.map
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.PorterDuff
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -17,14 +16,16 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color as ComposeColor
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import com.google.maps.android.heatmaps.HeatmapTileProvider
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.Marker
 import androidx.navigation.NavController
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,62 +35,42 @@ fun MapScreen(
     accountViewModel: AccountViewModel = viewModel(),
     transactionViewModel: TransactionViewModel = viewModel()
 ) {
-    // Fetch accounts and transactions
+    // Observe accounts and transactions
     val accounts by accountViewModel.accounts.collectAsState()
     val transactions by transactionViewModel.transactions.collectAsState()
 
-    // Log the number of accounts and transactions
-    LaunchedEffect(accounts) {
-        Log.d("MapScreen", "Number of accounts fetched: ${accounts.size}")
-    }
-
-    LaunchedEffect(transactions) {
-        Log.d("MapScreen", "Number of transactions fetched: ${transactions.size}")
-        transactions.forEach { transaction ->
-            Log.d("MapScreen", "Transaction ID: ${transaction.id}, Type: ${transaction.transactionType}, Amount: ${transaction.amount}")
-        }
-    }
-
-    // Handle the camera position and default location
-    val defaultLocation = LatLng(4.6097100, -74.0817500) // Default to Bogota
+    // Default location (Bogota)
+    val defaultLocation = LatLng(4.6097100, -74.0817500)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 10f)
     }
 
-    // Store markers for income and expense transactions
+    // Marker and heatmap data
     val incomeMarkers = remember { mutableStateListOf<MarkerOptions>() }
     val expenseMarkers = remember { mutableStateListOf<MarkerOptions>() }
+    val heatmapPoints = remember { mutableStateListOf<LatLng>() }
 
-    // Fetch all accounts and their transactions when the screen is loaded
-    LaunchedEffect(Unit) {
-        accountViewModel.fetchAccounts() // Fetch accounts first
-        accounts.forEach { account ->
-            // Log account ID before fetching transactions
-            Log.d("MapScreen", "Fetching transactions for account: ${account.id}")
-            transactionViewModel.fetchTransactions(account.id) // Fetch transactions for each account
-        }
-    }
-
-    // Separate markers for Income and Expense
-    LaunchedEffect(transactions) {
+    // Fetch accounts and transactions dynamically
+    LaunchedEffect(accounts) {
         incomeMarkers.clear()
         expenseMarkers.clear()
+        heatmapPoints.clear()
 
-        val markerCounts = mutableMapOf<LatLng, Int>() // Store counts of markers at the same location
+        // Fetch transactions for all accounts
+        accounts.forEach { account ->
+            transactionViewModel.fetchTransactions(account.id)
+        }
 
+        // Update markers and heatmap points after transactions are fetched
         transactions.forEach { transaction ->
-            // Log each transaction's location
             val position = LatLng(transaction.location?.latitude ?: 0.0, transaction.location?.longitude ?: 0.0)
+            if (position.latitude != 0.0 && position.longitude != 0.0) {
+                heatmapPoints.add(position)
+            }
 
-            // Find the corresponding account for the transaction
+            // Create markers
             val account = accounts.firstOrNull { it.id == transaction.accountId }
-
-            // Check if account is found and if location is valid
             if (account != null && position.latitude != 0.0 && position.longitude != 0.0) {
-                // Increase the marker count at the same location
-                markerCounts[position] = markerCounts.getOrDefault(position, 0) + 1
-
-                // Generate the custom marker
                 val markerIcon = when (transaction.transactionType) {
                     "Income" -> BitmapDescriptorFactory.fromBitmap(
                         generateCustomMarker(account.color, "Income")
@@ -97,47 +78,41 @@ fun MapScreen(
                     "Expense" -> BitmapDescriptorFactory.fromBitmap(
                         generateCustomMarker(account.color, "Expense")
                     )
-                    else -> BitmapDescriptorFactory.defaultMarker() // Default if not income or expense
+                    else -> BitmapDescriptorFactory.defaultMarker()
                 }
 
-                // Add markers to appropriate list
-                if (transaction.transactionType == "Income") {
-                    val title = buildString {
-                        append("Income: ${transaction.amount} ")
-                        append("- ${transaction.transactionName}")
-                        append(" on ${transaction.dateTime.toDate().toLocaleString()}") // Adding transaction name and date
-                        if (transaction.amountAnomaly) append(" (Amount Anomaly)")
-                        if (transaction.locationAnomaly) append(" (Location Anomaly)")
-                    }
+                val title = buildString {
+                    append("${transaction.transactionType}: ${transaction.amount} ")
+                    append("- ${transaction.transactionName}")
+                    append(" on ${
+                        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(transaction.dateTime.toDate())
+                    }")
+                    if (transaction.amountAnomaly) append(" (Amount Anomaly)")
+                    if (transaction.locationAnomaly) append(" (Location Anomaly)")
+                }
 
+                if (transaction.transactionType == "Income") {
                     incomeMarkers.add(
                         MarkerOptions().position(position).title(title).icon(markerIcon)
                     )
                 } else if (transaction.transactionType == "Expense") {
-                    val title = buildString {
-                        append("Expense: ${transaction.amount} ")
-                        append("- ${transaction.transactionName}")
-                        append(" on ${transaction.dateTime.toDate().toLocaleString()}") // Adding transaction name and date
-                        if (transaction.amountAnomaly) append(" (Amount Anomaly)")
-                        if (transaction.locationAnomaly) append(" (Location Anomaly)")
-                    }
-
                     expenseMarkers.add(
                         MarkerOptions().position(position).title(title).icon(markerIcon)
                     )
                 }
             }
         }
+
+        Log.d("Heatmap", "Heatmap points updated: $heatmapPoints")
     }
 
-    // Scaffold layout for the map with back button in the TopAppBar
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Transaction Locations") },
+                title = { Text("Transaction Locations & Heatmap") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
@@ -148,10 +123,24 @@ fun MapScreen(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState
             ) {
+                // Add heatmap if there are points
+                if (heatmapPoints.isNotEmpty()) {
+                    val heatmapTileProvider = HeatmapTileProvider.Builder()
+                        .data(heatmapPoints)
+                        .opacity(0.7) // Adjust opacity for visibility
+                        .radius(50) // Larger radius for density
+                        .build()
+                    TileOverlay(tileProvider = heatmapTileProvider)
+                    Log.d("Heatmap", "Heatmap added with ${heatmapPoints.size} points")
+                } else {
+                    Log.d("Heatmap", "No points for heatmap")
+                }
+
                 // Add income markers
                 incomeMarkers.forEach { marker ->
                     Marker(state = MarkerState(position = marker.position), title = marker.title, icon = marker.icon)
                 }
+
                 // Add expense markers
                 expenseMarkers.forEach { marker ->
                     Marker(state = MarkerState(position = marker.position), title = marker.title, icon = marker.icon)
@@ -161,9 +150,8 @@ fun MapScreen(
     }
 }
 
-// Helper function to generate a custom marker
+// Helper function to generate custom marker
 fun generateCustomMarker(accountColor: ComposeColor, type: String): Bitmap {
-    // Create a bitmap to draw the custom marker
     val width = 100
     val height = 100
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
