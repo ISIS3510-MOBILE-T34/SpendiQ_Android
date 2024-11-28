@@ -115,6 +115,9 @@ dependencies {
     implementation("io.github.ehsannarmani:compose-charts:0.0.14")
 
     val roomVersion = "2.6.1"
+
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
+    kapt("com.google.dagger:dagger-compiler:2.52")
     implementation("androidx.room:room-runtime:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
