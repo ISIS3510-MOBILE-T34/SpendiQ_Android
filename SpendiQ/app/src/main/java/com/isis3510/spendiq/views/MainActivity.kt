@@ -274,7 +274,7 @@ class MainActivity : FragmentActivity() {
                             RegisterScreen(navController, authViewModel)
                         }
                         composable("main") {
-                            MainContent(navController, authViewModel, accountViewModel, transactionViewModel, connectivityViewModel)
+                            MainContent(navController, authViewModel, accountViewModel, offersViewModel, transactionViewModel, connectivityViewModel)
                         }
                         composable("promos") {
                             OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel)
