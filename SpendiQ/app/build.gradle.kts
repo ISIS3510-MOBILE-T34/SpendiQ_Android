@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
-    id("kotlin-kapt")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -115,8 +115,11 @@ dependencies {
     implementation("io.github.ehsannarmani:compose-charts:0.0.14")
 
     val roomVersion = "2.6.1"
+
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.0")
+    ksp("com.google.dagger:dagger-compiler:2.52")
     implementation("androidx.room:room-runtime:$roomVersion")
-    kapt("androidx.room:room-compiler:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     implementation("androidx.work:work-runtime-ktx:2.8.0")
     implementation("androidx.startup:startup-runtime:1.1.1")

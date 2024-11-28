@@ -171,7 +171,6 @@ class AccountRepository private constructor(private val context: Context) {
         }
     }
 
-
     /**
      * Updates the balance of a specified account.
      */
