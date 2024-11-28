@@ -155,13 +155,6 @@ class AccountRepository private constructor(private val context: Context) {
                 // Fetch transactions associated with the account
                 val transactionsSnapshot = accountRef.collection("transactions").get().await()
 
-            // Perform a Firestore transaction to delete the account and its transactions
-            firestore.runTransaction { transaction ->
-                for (transactionDoc in transactionsSnapshot.documents) {
-                    transaction.delete(transactionDoc.reference)
-                }
-                transaction.delete(accountRef)
-            }.await()
                 // Perform a Firestore transaction to delete the account and its transactions
                 firestore.runTransaction { transaction ->
                     for (transactionDoc in transactionsSnapshot.documents) {
