@@ -2,6 +2,7 @@ package com.isis3510.spendiq.views.offers
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +27,7 @@ import com.squareup.picasso.Picasso
 import android.widget.ImageView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.viewinterop.AndroidView
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AccountViewModel
@@ -61,11 +63,21 @@ fun SpecialSalesDetail(
     offer: Offer,
     navController: NavController,
     transactionViewModel: TransactionViewModel,
-    accountViewModel: AccountViewModel
+    accountViewModel: AccountViewModel,
+    firebaseAnalytics: FirebaseAnalytics
 ) {
     // Context for starting external intents
     val context = LocalContext.current
     var isNavigating by remember { mutableStateOf(false) }
+
+    // Registra el evento de visualización de la promoción
+    LaunchedEffect(Unit) {
+        val bundle = Bundle().apply {
+            putString("offer_id", offer.id) // Suponiendo que `offer` tiene un ID
+            putString("offer_name", offer.placeName)
+        }
+        firebaseAnalytics.logEvent("view_promotion", bundle)
+    }
 
     // Scaffold component to manage top-level layout including top bar
     Scaffold(
@@ -212,6 +224,22 @@ fun SpecialSalesDetail(
                             color = MaterialTheme.colorScheme.onPrimaryContainer // Text color
                         )
                     }
+                }
+
+                Button(
+                    onClick = {
+                        // Registra el evento de redención
+                        val bundle = Bundle().apply {
+                            putString("offer_id", offer.id) // Suponiendo que `offer` tiene un ID
+                            putString("offer_name", offer.placeName)
+                        }
+                        firebaseAnalytics.logEvent("redeem_offer", bundle)
+
+                        // Lógica para redimir la oferta
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Redeem")
                 }
             }
         }
