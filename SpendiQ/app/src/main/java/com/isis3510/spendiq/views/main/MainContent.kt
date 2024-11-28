@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -34,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.firebase.Timestamp
 import com.isis3510.spendiq.R
-import coil.compose.rememberImagePainter
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.views.common.BottomNavigation
@@ -43,7 +39,6 @@ import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
-import com.isis3510.spendiq.views.common.CreatePieChart
 import ir.ehsannarmani.compose_charts.LineChart
 import ir.ehsannarmani.compose_charts.models.AnimationMode
 import ir.ehsannarmani.compose_charts.models.DotProperties
@@ -84,15 +79,13 @@ fun MainContent(
     val transactions by transactionViewModel.transactions.collectAsState()
     val context = LocalContext.current
     var isMoneyVisible by remember { mutableStateOf(getIsMoneyVisible(context)) }
-
-    val (totalIncome, totalExpenses) = remember(transactions) {
-        transactionViewModel.getIncomeAndExpenses()
-    }
     val dailyTransactions by transactionViewModel.incomeAndExpensesLast30Days.collectAsState()
     val monthlyExpenses by transactionViewModel.monthlyExpenses.collectAsState()
     val (currentMonthExpenses, previousMonthExpenses) = monthlyExpenses
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
     val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
+    val totalIncomeAndExpenses = transactionViewModel.totalIncomeAndExpenses.collectAsState(initial = 0L to 0L).value
+    val (totalIncome, totalExpenses) = totalIncomeAndExpenses
 
     LaunchedEffect(isMoneyVisible) {
         saveIsMoneyVisible(context, isMoneyVisible)
@@ -105,6 +98,7 @@ fun MainContent(
             if (state is TransactionViewModel.UiState.Success) {
                 transactionViewModel.fetchAndCacheMonthlyExpenses(isNetworkAvailable)
                 transactionViewModel.fetchIncomeAndExpensesLast30Days(isNetworkAvailable)
+                transactionViewModel.calculateIncomeAndExpenses(isNetworkAvailable)
             }
         }
     }
