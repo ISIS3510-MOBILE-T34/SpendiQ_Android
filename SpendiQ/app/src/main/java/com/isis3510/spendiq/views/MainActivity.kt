@@ -43,6 +43,7 @@ import com.isis3510.spendiq.views.profile.*
 import com.isis3510.spendiq.views.splash.SplashScreen
 import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.*
+import com.isis3510.spendiq.views.map.MapScreen
 
 class MainActivity : FragmentActivity() {
     companion object {
@@ -273,7 +274,7 @@ class MainActivity : FragmentActivity() {
                             RegisterScreen(navController, authViewModel)
                         }
                         composable("main") {
-                            MainContent(navController, authViewModel, accountViewModel, offersViewModel, transactionViewModel, connectivityViewModel)
+                            MainContent(navController, authViewModel, accountViewModel, transactionViewModel, connectivityViewModel)
                         }
                         composable("promos") {
                             OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel)
@@ -304,6 +305,9 @@ class MainActivity : FragmentActivity() {
                         }
                         composable("profileInfoScreen") {
                             ProfileInfoScreen(navController, transactionViewModel, accountViewModel)
+                        }
+                        composable("mapScreen") {
+                            MapScreen(navController, accountViewModel, transactionViewModel)
                         }
                         composable(
                             route = "accountTransactions/{accountId}",

@@ -122,4 +122,5 @@ dependencies {
     implementation("androidx.startup:startup-runtime:1.1.1")
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     implementation("com.squareup.picasso:picasso:2.71828")
+    implementation("com.google.maps.android:android-maps-utils:2.3.0")
 }

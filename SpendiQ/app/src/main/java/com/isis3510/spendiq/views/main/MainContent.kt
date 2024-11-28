@@ -32,6 +32,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.Timestamp
+import com.isis3510.spendiq.R
 import coil.compose.rememberImagePainter
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.model.data.Transaction
@@ -39,8 +41,6 @@ import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
-import com.google.firebase.Timestamp
-import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.CreatePieChart
@@ -66,7 +66,7 @@ fun getIsMoneyVisible(context: Context): Boolean {
     return sharedPreferences.getBoolean("isMoneyVisible", true)
 }
 
-    @RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainContent(
     navController: NavController,

@@ -150,7 +150,7 @@ fun AddTransactionModal(
 
             // Date picker button
             Button(onClick = { datePickerDialog.show() }) {
-                Text("Select Date: ${selectedDate.toDate().toString().substring(0, 10)}")
+                Text("Select Date: ${selectedDate.toDate().toString().substring(0, 10)}", color = Color.White)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -239,7 +239,16 @@ fun AddTransactionModal(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Reset")
+                    Text("Reset", color = Color.White)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Location toggle row with switch
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = "Location",
@@ -261,9 +270,16 @@ fun AddTransactionModal(
                                     location = null
                                 }
                             }
-                        }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White, // White thumb (circle)
+                            uncheckedThumbColor = Color.White, // White thumb when unchecked
+                            checkedTrackColor = MaterialTheme.colorScheme.primary, // Primary color when checked
+                            uncheckedTrackColor = Color.Gray // Gray track when unchecked
+                        )
                     )
                 }
+
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -298,7 +314,7 @@ fun AddTransactionModal(
                             selectedAccount != null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Add Transaction")
+                    Text("Add Transaction", color = Color.White)
                 }
             } else {
                 Text(

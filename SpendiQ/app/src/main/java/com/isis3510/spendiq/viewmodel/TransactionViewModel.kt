@@ -13,6 +13,7 @@ import com.isis3510.spendiq.model.iterator.TransactionIterator
 import com.isis3510.spendiq.model.repository.TransactionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -109,6 +110,26 @@ class TransactionViewModel(
                 }
             }
         }
+    }
+
+    suspend fun getTransactions(accountName: String): List<Transaction> {
+        // Create an empty list to hold the transactions
+        var transactionsList = emptyList<Transaction>()
+
+        // Fetch transactions directly from the repository without updating the UI state
+        viewModelScope.launch {
+            val result = transactionRepository.getTransactions(accountName).first() // Get the result from the flow
+
+            // If the result is successful, assign the value to transactionsList
+            if (result.isSuccess) {
+                transactionsList = result.getOrNull() ?: emptyList()
+            } else {
+                // Handle failure case (log or return empty list)
+                Log.e("TransactionViewModel", "Failed to fetch transactions for account $accountName: ${result.exceptionOrNull()?.message}")
+            }
+        }
+
+        return transactionsList
     }
 
     // Get details for a specific transaction

@@ -131,12 +131,29 @@ class AccountRepository private constructor(private val context: Context) {
     /**
      * Deletes an account and its associated transactions from Firestore.
      */
-    fun deleteAccount(accountId: String): Flow<Result<Unit>> = flow {
+    fun deleteAccount(accountType: String): Flow<Result<Unit>> = flow {
         try {
-            val accountRef = firestore.collection("accounts").document(accountId)
+            val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
 
-            // Fetch transactions associated with the account
-            val transactionsSnapshot = accountRef.collection("transactions").get().await()
+            // Retrieve accounts that match the accountType for the current user
+            val accountsSnapshot = firestore.collection("accounts")
+                .whereEqualTo("user_id", userId)
+                .whereEqualTo("name", accountType)  // Match the account by its type (name)
+                .get()
+                .await()
+
+            // If no account is found with the given accountType
+            if (accountsSnapshot.isEmpty) {
+                throw Exception("No account found with type: $accountType")
+            }
+
+            // Loop through all the accounts with the matching type
+            for (doc in accountsSnapshot.documents) {
+                val accountId = doc.id
+                val accountRef = firestore.collection("accounts").document(accountId)
+
+                // Fetch transactions associated with the account
+                val transactionsSnapshot = accountRef.collection("transactions").get().await()
 
             // Perform a Firestore transaction to delete the account and its transactions
             firestore.runTransaction { transaction ->
@@ -145,6 +162,14 @@ class AccountRepository private constructor(private val context: Context) {
                 }
                 transaction.delete(accountRef)
             }.await()
+                // Perform a Firestore transaction to delete the account and its transactions
+                firestore.runTransaction { transaction ->
+                    for (transactionDoc in transactionsSnapshot.documents) {
+                        transaction.delete(transactionDoc.reference)
+                    }
+                    transaction.delete(accountRef)
+                }.await()
+            }
 
             emit(Result.success(Unit))
         } catch (e: Exception) {
