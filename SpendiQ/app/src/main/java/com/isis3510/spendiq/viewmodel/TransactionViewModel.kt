@@ -93,6 +93,10 @@ class TransactionViewModel(
     private val _incomeAndExpensesLast30Days = MutableStateFlow<List<DailyTransaction>>(emptyList())
     val incomeAndExpensesLast30Days: StateFlow<List<DailyTransaction>> = _incomeAndExpensesLast30Days
 
+    // MutableStateFlow para ingresos y gastos totales
+    private val _totalIncomeAndExpenses = MutableStateFlow<Pair<Long, Long>>(0L to 0L)
+    val totalIncomeAndExpenses: StateFlow<Pair<Long, Long>> = _totalIncomeAndExpenses
+
     // Fetch transactions for a specific account
     fun fetchTransactions(accountName: String) {
         viewModelScope.launch {
@@ -212,24 +216,42 @@ class TransactionViewModel(
     }
 
     // Calculate total income and expenses
-    fun getIncomeAndExpenses(): Pair<Long, Long> {
-        var totalIncome = 0L
-        var totalExpenses = 0L
+    fun calculateIncomeAndExpenses(isNetworkAvailable: Boolean) {
+        viewModelScope.launch {
+            if (isNetworkAvailable) {
+                var totalIncome = 0L
+                var totalExpenses = 0L
 
-        transactions.value.forEach { transaction ->
-            if (transaction.transactionType == "Income") {
-                totalIncome += transaction.amount
-            } else if (transaction.transactionType == "Expense") {
-                totalExpenses += transaction.amount
+                transactions.value.forEach { transaction ->
+                    if (transaction.transactionType == "Income") {
+                        totalIncome += transaction.amount
+                    } else if (transaction.transactionType == "Expense") {
+                        totalExpenses += transaction.amount
+                    }
+                }
+
+                Log.d("TransactionViewModel", "Expenses: $totalExpenses")
+                Log.d("TransactionViewModel", "Income: $totalIncome")
+
+                // Guardar en caché
+                movementsCache.saveMovements("totalIncomeAndExpenses", listOf(
+                    DailyTransaction("Total Income", totalIncome.toDouble()),
+                    DailyTransaction("Total Expenses", totalExpenses.toDouble())
+                ))
+
+                // Actualizar el StateFlow con los nuevos valores
+                _totalIncomeAndExpenses.value = Pair(totalIncome, totalExpenses)
+            } else {
+                // Recuperar del caché
+                val cachedTransactions = movementsCache.getMovements("totalIncomeAndExpenses") ?: emptyList()
+                val cachedIncome = cachedTransactions.find { it.day == "Total Income" }?.amount?.toLong() ?: 0L
+                val cachedExpenses = cachedTransactions.find { it.day == "Total Expenses" }?.amount?.toLong() ?: 0L
+
+                // Actualizar el StateFlow con los valores del caché
+                _totalIncomeAndExpenses.value = Pair(cachedIncome, cachedExpenses)
             }
         }
-
-        Log.d("TransactionViewModel", "Expenses: $totalExpenses")
-        Log.d("TransactionViewModel", "Income: $totalIncome")
-
-        return Pair(totalIncome, totalExpenses)
     }
-
     //Calculate total income and expenses in te last 30 days
     @RequiresApi(Build.VERSION_CODES.O)
     fun fetchIncomeAndExpensesLast30Days(isNetworkAvailable: Boolean) {
@@ -245,9 +267,11 @@ class TransactionViewModel(
                 val dailyTransactions = iterator.getDailyTransactions()
                 movementsCache.saveMovements(cacheKey, dailyTransactions) // Guardar en caché
                 _incomeAndExpensesLast30Days.value = dailyTransactions // Actualizar el StateFlow
+                Log.d("TransactionViewmodel", "Cached Last 30 days: $dailyTransactions")
             } else {
                 // Obtener los datos del caché
                 val cachedTransactions = movementsCache.getMovements(cacheKey) ?: emptyList()
+                Log.d("TransactionViewmodel", "Recovered Last 30 days: $cachedTransactions")
                 _incomeAndExpensesLast30Days.value = cachedTransactions // Actualizar el StateFlow
             }
         }
