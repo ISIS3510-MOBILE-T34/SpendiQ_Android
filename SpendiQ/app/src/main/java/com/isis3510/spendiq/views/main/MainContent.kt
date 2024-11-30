@@ -3,8 +3,11 @@ package com.isis3510.spendiq.views.main
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseInOutCubic
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,7 +39,6 @@ import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
-import com.isis3510.spendiq.views.common.CreatePieChart
 import ir.ehsannarmani.compose_charts.LineChart
 import ir.ehsannarmani.compose_charts.models.AnimationMode
 import ir.ehsannarmani.compose_charts.models.DotProperties
@@ -44,9 +46,10 @@ import ir.ehsannarmani.compose_charts.models.DrawStyle
 import ir.ehsannarmani.compose_charts.models.LabelProperties
 import ir.ehsannarmani.compose_charts.models.Line
 import ir.ehsannarmani.compose_charts.models.ZeroLineProperties
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
+import java.text.NumberFormat
+import kotlin.math.abs
 
 fun saveIsMoneyVisible(context: Context, isVisible: Boolean) {
     val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
@@ -64,24 +67,25 @@ fun MainContent(
     navController: NavController,
     authViewModel: AuthViewModel,
     accountViewModel: AccountViewModel,
+    promoViewModel: OffersViewModel,
     transactionViewModel: TransactionViewModel,
     connectivityViewModel: ConnectivityViewModel
 ) {
     val accounts by accountViewModel.accounts.collectAsState()
+    val promos by promoViewModel.offers.collectAsState()
     val currentMoney by accountViewModel.currentMoney.collectAsState()
     var showAddTransactionModal by remember { mutableStateOf(false) }
     val uiState by transactionViewModel.uiState.collectAsState()
     val transactions by transactionViewModel.transactions.collectAsState()
     val context = LocalContext.current
     var isMoneyVisible by remember { mutableStateOf(getIsMoneyVisible(context)) }
-
-    val (totalIncome, totalExpenses) = remember(transactions) {
-        transactionViewModel.getIncomeAndExpenses()
-    }
+    val dailyTransactions by transactionViewModel.incomeAndExpensesLast30Days.collectAsState()
     val monthlyExpenses by transactionViewModel.monthlyExpenses.collectAsState()
     val (currentMonthExpenses, previousMonthExpenses) = monthlyExpenses
     val currencyFormatter = NumberFormat.getCurrencyInstance(Locale.getDefault())
     val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
+    val totalIncomeAndExpenses = transactionViewModel.totalIncomeAndExpenses.collectAsState(initial = 0L to 0L).value
+    val (totalIncome, totalExpenses) = totalIncomeAndExpenses
 
     LaunchedEffect(isMoneyVisible) {
         saveIsMoneyVisible(context, isMoneyVisible)
@@ -92,12 +96,38 @@ fun MainContent(
         transactionViewModel.fetchAllTransactions()
         transactionViewModel.uiState.collect { state ->
             if (state is TransactionViewModel.UiState.Success) {
-                transactionViewModel.fetchAndCacheMonthlyExpenses()
+                transactionViewModel.fetchAndCacheMonthlyExpenses(isNetworkAvailable)
+                transactionViewModel.fetchIncomeAndExpensesLast30Days(isNetworkAvailable)
+                transactionViewModel.calculateIncomeAndExpenses(isNetworkAvailable)
             }
         }
     }
 
     Scaffold(
+        topBar = {
+            AnimatedVisibility(
+                visible = !isNetworkAvailable,
+                enter = slideInVertically(
+                    // Enters by sliding down from offset -fullHeight to 0.
+                    initialOffsetY = { fullHeight -> -fullHeight }
+                ),
+                exit = slideOutVertically(
+                    // Exits by sliding up from offset 0 to -fullHeight.
+                    targetOffsetY = { fullHeight -> -fullHeight }
+                )
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Red
+                ) {
+                    Text(
+                        text = "You are offline! You will not see any updates until the connection is restored.",
+                        modifier = Modifier.padding(16.dp),
+                        color = Color.White
+                    )
+                }
+            }
+        },
         bottomBar = {
             BottomNavigation(
                 navController = navController,
@@ -172,24 +202,22 @@ fun MainContent(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
                     Text(
-                        text = if (currentMonthExpenses > previousMonthExpenses) "+" else "-",
+                        text = "You have spend ",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Text(
+                        text = "${abs(percentageChange.toInt())}%",
                         color = colorME,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = "$currentMonthExpenses",
+                        text = if (currentMonthExpenses > previousMonthExpenses) " MORE" else " LESS",
                         color = colorME,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        text = "(${percentageChange.toInt()}%) TODAY",
-                        color = colorME,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Icon(
-                        painter = painterResource(id = if (currentMonthExpenses > previousMonthExpenses) R.drawable.arrowup24 else R.drawable.arrowdown24),
-                        contentDescription = "",
-                        tint = colorME
+                        text = " vs. last month",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
@@ -218,56 +246,62 @@ fun MainContent(
                 } else {
                     if (totalIncome > 0 || totalExpenses > 0) {
 
-                        val dailyTransactions = if (isNetworkAvailable) {
-                            transactionViewModel.getIncomeAndExpensesLast30Days()
-                        } else {
-                            transactionViewModel.getCachedIncomeAndExpensesLast30Days()
-                        }
+                        if (dailyTransactions.isNotEmpty()) {
+                            val movements = dailyTransactions.map { it.amount }
+                            val moveLabels = dailyTransactions.map { it.day }
 
-                        val movements = dailyTransactions.map { it.amount }
-                        val moveLabels = dailyTransactions.map { it.day }
-
-                        LineChart(
-                            modifier = Modifier
-                                .height(300.dp)
-                                .fillMaxSize().padding(horizontal = 22.dp),
-                            data = remember {
-                                listOf(
-                                    Line(
-                                        label = "Movements",
-                                        values = movements,
-                                        color = SolidColor(Color(0xffb3cb54)),
-                                        firstGradientFillColor = Color(0xFF94B719).copy(alpha = .5f),
-                                        secondGradientFillColor = Color.Transparent,
-                                        strokeAnimationSpec = tween(2000, easing = EaseInOutCubic),
-                                        drawStyle = DrawStyle.Stroke(width = 2.dp),
-                                        dotProperties = DotProperties(
-                                            enabled = true,
-                                            color = SolidColor(Color.White),
-                                            strokeWidth = 2.dp,
-                                            radius = 3.5.dp,
-                                            strokeColor = SolidColor(Color(0xFF94B719)),
+                            // Crear el gráfico de líneas
+                            LineChart(
+                                modifier = Modifier
+                                    .height(300.dp)
+                                    .fillMaxSize().padding(horizontal = 22.dp),
+                                data = remember {
+                                    listOf(
+                                        Line(
+                                            label = "Movements",
+                                            values = movements,
+                                            color = SolidColor(Color(0xffb3cb54)),
+                                            firstGradientFillColor = Color(0xFF94B719).copy(alpha = .5f),
+                                            secondGradientFillColor = Color.Transparent,
+                                            strokeAnimationSpec = tween(2000, easing = EaseInOutCubic),
+                                            drawStyle = DrawStyle.Stroke(width = 2.dp),
+                                            dotProperties = DotProperties(
+                                                enabled = true,
+                                                color = SolidColor(Color.White),
+                                                strokeWidth = 2.dp,
+                                                radius = 3.5.dp,
+                                                strokeColor = SolidColor(Color(0xFF94B719)),
+                                            )
                                         )
                                     )
-                                )
-                            },
-                            labelProperties = LabelProperties(
-                                enabled = true,
-                                textStyle = MaterialTheme.typography.labelSmall,
-                                padding = 16.dp,
-                                labels = moveLabels ),
-                            curvedEdges = false,
-                            zeroLineProperties = ZeroLineProperties(
-                                enabled = true,
-                                color = SolidColor(Color(0xffc33ba5)),
-                                thickness = 1.5.dp
-                            ),
-                            animationMode = AnimationMode.Together(delayBuilder = {
-                                it * 500L
-                            }),
-                        )
+                                },
+                                labelProperties = LabelProperties(
+                                    enabled = true,
+                                    textStyle = MaterialTheme.typography.labelSmall,
+                                    padding = 16.dp,
+                                    labels = moveLabels ),
+                                curvedEdges = false,
+                                zeroLineProperties = ZeroLineProperties(
+                                    enabled = true,
+                                    color = SolidColor(Color(0xffc33ba5)),
+                                    thickness = 1.5.dp
+                                ),
+                                animationMode = AnimationMode.Together(delayBuilder = {
+                                    it * 500L
+                                }),
+                            )
+                        } else {
+                            Text(
+                                text = "Information not available at the moment."
+                            )
+                            // Tal vez poner una imagen aqui
+                        }
+
                     } else {
-                        Text("You don't have any transactions.")
+                        Text(
+                            text = "You don't have any transactions."
+                        )
+                        // Tal vez poner una imagen aqui
                     }
                 }
             }
@@ -303,18 +337,18 @@ fun AccountItem(account: Account, navController: NavController) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = account.name,
-                color = androidx.compose.ui.graphics.Color.White,
+                color = Color.White,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = account.type,
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.7f)
+                color = Color.White.copy(alpha = 0.7f)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "$ ${account.amount}",
-                color = androidx.compose.ui.graphics.Color.White,
+                color = Color.White,
                 fontWeight = FontWeight.Bold
             )
         }

@@ -89,6 +89,14 @@ class TransactionViewModel(
     // Public immutable StateFlow for the UI state
     val monthlyExpenses: StateFlow<Pair<Long, Long>> = _monthlyExpenses
 
+    // MutableStateFlow para ingresos y gastos de los últimos 30 días
+    private val _incomeAndExpensesLast30Days = MutableStateFlow<List<DailyTransaction>>(emptyList())
+    val incomeAndExpensesLast30Days: StateFlow<List<DailyTransaction>> = _incomeAndExpensesLast30Days
+
+    // MutableStateFlow para ingresos y gastos totales
+    private val _totalIncomeAndExpenses = MutableStateFlow<Pair<Long, Long>>(0L to 0L)
+    val totalIncomeAndExpenses: StateFlow<Pair<Long, Long>> = _totalIncomeAndExpenses
+
     // Fetch transactions for a specific account
     fun fetchTransactions(accountName: String) {
         viewModelScope.launch {
@@ -208,45 +216,65 @@ class TransactionViewModel(
     }
 
     // Calculate total income and expenses
-    fun getIncomeAndExpenses(): Pair<Long, Long> {
-        var totalIncome = 0L
-        var totalExpenses = 0L
+    fun calculateIncomeAndExpenses(isNetworkAvailable: Boolean) {
+        viewModelScope.launch {
+            if (isNetworkAvailable) {
+                var totalIncome = 0L
+                var totalExpenses = 0L
 
-        transactions.value.forEach { transaction ->
-            if (transaction.transactionType == "Income") {
-                totalIncome += transaction.amount
-            } else if (transaction.transactionType == "Expense") {
-                totalExpenses += transaction.amount
+                transactions.value.forEach { transaction ->
+                    if (transaction.transactionType == "Income") {
+                        totalIncome += transaction.amount
+                    } else if (transaction.transactionType == "Expense") {
+                        totalExpenses += transaction.amount
+                    }
+                }
+
+                Log.d("TransactionViewModel", "Expenses: $totalExpenses")
+                Log.d("TransactionViewModel", "Income: $totalIncome")
+
+                // Guardar en caché
+                movementsCache.saveMovements("totalIncomeAndExpenses", listOf(
+                    DailyTransaction("Total Income", totalIncome.toDouble()),
+                    DailyTransaction("Total Expenses", totalExpenses.toDouble())
+                ))
+
+                // Actualizar el StateFlow con los nuevos valores
+                _totalIncomeAndExpenses.value = Pair(totalIncome, totalExpenses)
+            } else {
+                // Recuperar del caché
+                val cachedTransactions = movementsCache.getMovements("totalIncomeAndExpenses") ?: emptyList()
+                val cachedIncome = cachedTransactions.find { it.day == "Total Income" }?.amount?.toLong() ?: 0L
+                val cachedExpenses = cachedTransactions.find { it.day == "Total Expenses" }?.amount?.toLong() ?: 0L
+
+                // Actualizar el StateFlow con los valores del caché
+                _totalIncomeAndExpenses.value = Pair(cachedIncome, cachedExpenses)
             }
         }
-
-        Log.d("TransactionViewModel", "Expenses: $totalExpenses")
-        Log.d("TransactionViewModel", "Income: $totalIncome")
-
-        return Pair(totalIncome, totalExpenses)
     }
-
     //Calculate total income and expenses in te last 30 days
     @RequiresApi(Build.VERSION_CODES.O)
-    fun getIncomeAndExpensesLast30Days(): List<DailyTransaction> {
-        val cacheKey = "last30days"
+    fun fetchIncomeAndExpensesLast30Days(isNetworkAvailable: Boolean) {
+        viewModelScope.launch {
+            val cacheKey = "last30days"
 
-        val iterator = TransactionIterator(transactions.value)
-        while (iterator.hasNext()) {
-            iterator.next()
+            if (isNetworkAvailable) {
+                // Obtener los datos de la red
+                val iterator = TransactionIterator(transactions.value)
+                while (iterator.hasNext()) {
+                    iterator.next()
+                }
+                val dailyTransactions = iterator.getDailyTransactions()
+                movementsCache.saveMovements(cacheKey, dailyTransactions) // Guardar en caché
+                _incomeAndExpensesLast30Days.value = dailyTransactions // Actualizar el StateFlow
+                Log.d("TransactionViewmodel", "Cached Last 30 days: $dailyTransactions")
+            } else {
+                // Obtener los datos del caché
+                val cachedTransactions = movementsCache.getMovements(cacheKey) ?: emptyList()
+                Log.d("TransactionViewmodel", "Recovered Last 30 days: $cachedTransactions")
+                _incomeAndExpensesLast30Days.value = cachedTransactions // Actualizar el StateFlow
+            }
         }
-        val dailyTransactions = iterator.getDailyTransactions()
-        movementsCache.saveMovements(cacheKey, dailyTransactions) // Guardar en caché
-        return dailyTransactions
-    }
-
-    fun getCachedIncomeAndExpensesLast30Days(): List<DailyTransaction> {
-        val cacheKey = "last30days"
-
-        movementsCache.getMovements(cacheKey)?.let {
-            return it
-        }
-        return emptyList()
     }
 
 
@@ -282,23 +310,36 @@ class TransactionViewModel(
 
     // Función para obtener y almacenar gastos mensuales en caché
     @RequiresApi(Build.VERSION_CODES.O)
-    fun fetchAndCacheMonthlyExpenses() {
-        Log.d("TransactionViewModel", "fetchAndCacheMonthlyExpenses called")
+    fun fetchAndCacheMonthlyExpenses(isNetworkAvailable: Boolean) {
         val cacheKey = "monthlyExpenses"
 
-        // Obtener los gastos del mes actual y anterior
-        val (currentMonth, previousMonth) = getCurrentAndPreviousMonthExpenses()
-        Log.d("Current Month Expense: ", "$currentMonth")
-        Log.d("Previous Month Expense: ", "$previousMonth")
+        // Verificar si hay conexión a Internet
+        if (isNetworkAvailable) {
+            // Obtener los gastos del mes actual y anterior
+            val (currentMonth, previousMonth) = getCurrentAndPreviousMonthExpenses()
 
-        // Guardar los gastos en caché
-        movementsCache.saveMovements(cacheKey, listOf(
-            DailyTransaction("Current Month", currentMonth.toDouble()),
-            DailyTransaction("Previous Month", previousMonth.toDouble())
-        ))
+            // Guardar los gastos en caché
+            movementsCache.saveMovements(cacheKey, listOf(
+                DailyTransaction("Current Month", currentMonth.toDouble()),
+                DailyTransaction("Previous Month", previousMonth.toDouble())
+            ))
 
-        // Actualizar el StateFlow con los nuevos valores
-        _monthlyExpenses.value = Pair(currentMonth, previousMonth)
+            // Actualizar el StateFlow con los nuevos valores
+            _monthlyExpenses.value = Pair(currentMonth, previousMonth)
+        } else {
+            // Si no hay conexión, obtener los gastos del caché
+            val cachedExpenses = movementsCache.getMovements(cacheKey) ?: emptyList()
+            val currentMonth = cachedExpenses.find { it.day == "Current Month" }?.amount?.toLong() ?: 0L
+            val previousMonth = cachedExpenses.find { it.day == "Previous Month" }?.amount?.toLong() ?: 0L
+
+            // Si ambos son 0, asignar 0.0 a los gastos mensuales
+            if (cachedExpenses.isEmpty()) {
+                _monthlyExpenses.value = Pair(0L, 0L) // Asignar 0.0 si el caché está vacío
+            } else {
+                // Actualizar el StateFlow con los valores del caché
+                _monthlyExpenses.value = Pair(currentMonth, previousMonth)
+            }
+        }
     }
 
     // Función para obtener gastos del mes actual y anterior

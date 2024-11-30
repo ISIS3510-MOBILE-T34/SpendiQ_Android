@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.work.Configuration
 import androidx.work.WorkManager
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.isis3510.spendiq.model.repository.AccountRepository
 import com.isis3510.spendiq.services.LocationBasedOfferService
 import com.isis3510.spendiq.utils.AppLifecycleObserver
@@ -50,6 +51,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private lateinit var locationService: LocationBasedOfferService
+    private lateinit var firebaseAnalytics: FirebaseAnalytics
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private val requiredPermissions = arrayOf(
@@ -89,6 +91,7 @@ class MainActivity : FragmentActivity() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        firebaseAnalytics = FirebaseAnalytics.getInstance(this)
 
         // Configure WorkManager
         val workManagerConfig = Configuration.Builder()
@@ -271,7 +274,7 @@ class MainActivity : FragmentActivity() {
                             RegisterScreen(navController, authViewModel)
                         }
                         composable("main") {
-                            MainContent(navController, authViewModel, accountViewModel, transactionViewModel, connectivityViewModel)
+                            MainContent(navController, authViewModel, accountViewModel, offersViewModel, transactionViewModel, connectivityViewModel)
                         }
                         composable("promos") {
                             OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel)
@@ -354,7 +357,8 @@ class MainActivity : FragmentActivity() {
                                                 offer = offer,
                                                 navController = navController,
                                                 accountViewModel = accountViewModel,
-                                                transactionViewModel = transactionViewModel
+                                                transactionViewModel = transactionViewModel,
+                                                firebaseAnalytics = firebaseAnalytics
                                             )
                                         }
                                     }
