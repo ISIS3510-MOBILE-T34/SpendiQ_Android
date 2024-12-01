@@ -43,6 +43,7 @@ import com.isis3510.spendiq.views.profile.*
 import com.isis3510.spendiq.views.splash.SplashScreen
 import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.*
+import com.isis3510.spendiq.views.chat.ChatbotView
 import com.isis3510.spendiq.views.map.MapScreen
 
 class MainActivity : FragmentActivity() {
@@ -259,6 +260,7 @@ class MainActivity : FragmentActivity() {
                     val userViewModel: UserViewModel = viewModel()
                     val connectivityViewModel: ConnectivityViewModel = viewModel()
                     val userData by userViewModel.userData.collectAsState()
+                    val chatbotViewModel: ChatbotViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {
@@ -381,6 +383,12 @@ class MainActivity : FragmentActivity() {
                                 accountId = accountId,
                                 transactionId = transactionId,
                                 transactionViewModel = transactionViewModel
+                            )
+                        }
+                        composable("chatbot") {
+                            ChatbotView(
+                                navController = navController,
+                                chatbotViewModel = chatbotViewModel
                             )
                         }
                     }

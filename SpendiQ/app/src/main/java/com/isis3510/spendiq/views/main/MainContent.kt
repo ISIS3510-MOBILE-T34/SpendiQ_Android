@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -134,6 +136,13 @@ fun MainContent(
                 transactionViewModel,
                 accountViewModel
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate("chatbot") }, // Navegar a la vista del chatbot
+            ) {
+                Icon(Icons.Filled.Face, "ChatBot Icon.")
+            }
         }
     ) { innerPadding ->
         LazyColumn(
