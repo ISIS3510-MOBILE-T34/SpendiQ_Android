@@ -240,7 +240,9 @@ fun SpecialSalesDetail(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Redeem")
+                    Text(
+                        text="Redeem",
+                        color = Color.White)
                 }
             }
         }
