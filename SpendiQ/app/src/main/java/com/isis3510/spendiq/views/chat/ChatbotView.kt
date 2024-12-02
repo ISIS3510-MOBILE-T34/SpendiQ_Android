@@ -1,7 +1,6 @@
 package com.isis3510.spendiq.views.chat
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -20,23 +19,37 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.isis3510.spendiq.viewmodel.ChatbotViewModel
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.text.style.TextAlign
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 
 @Composable
 fun ChatbotView(
     navController: NavController,
-    chatbotViewModel: ChatbotViewModel
+    chatbotViewModel: ChatbotViewModel,
+    connectivityViewModel: ConnectivityViewModel,
+    firebaseAnalytics: FirebaseAnalytics
 ) {
     var userInput by remember { mutableStateOf("") }
-    var chatbotResponse by remember { mutableStateOf("") }
+    val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
+    val isBotActive = chatbotViewModel.isBotActive.value
+
+    // Verificar el estado del bot al iniciar la vista
+    LaunchedEffect(Unit) {
+        chatbotViewModel.checkBotStatus()
+    }
 
     Scaffold(
         containerColor = Color.White,
         topBar = {
-            ToolbarMessage(modifier = Modifier, navController = navController)
+            ToolbarMessage(
+                modifier = Modifier,
+                navController = navController,
+                isNetworkAvailable = isNetworkAvailable,
+                isBotActive = isBotActive)
         },
         floatingActionButton = {
             WriteMessageCard(
@@ -45,10 +58,12 @@ fun ChatbotView(
                 onValueChange = { userInput = it },
                 onClickSend = {
                     if (userInput.isNotEmpty()) {
-                        chatbotViewModel.sendMessage(userInput)
+                        chatbotViewModel.sendMessage(userInput, firebaseAnalytics)
                         userInput = ""
                     }
                 },
+                isNetworkAvailable = isNetworkAvailable,
+                isBotActive = isBotActive
             )
         },
         floatingActionButtonPosition = FabPosition.Center
@@ -82,7 +97,9 @@ fun ChatbotView(
 @Composable
 fun ToolbarMessage(
     modifier: Modifier = Modifier,
-    navController: NavController
+    navController: NavController,
+    isNetworkAvailable: Boolean,
+    isBotActive: Boolean
 ) {
     Column(
         modifier = modifier.fillMaxWidth()
@@ -121,14 +138,14 @@ fun ToolbarMessage(
                         modifier = Modifier
                             .align(Alignment.CenterVertically)
                             .size(6.dp)
-                            .background(color = Color(0xffb3cb54), shape = CircleShape)
+                            .background(color = if (!isNetworkAvailable) Color.Red else if (!isBotActive) Color(0xFFDAA70C) else Color(0xffb3cb54), shape = CircleShape)
                     )
 
                     Spacer(modifier = Modifier.width(4.dp))
 
                     Text(
-                        text = "Online",
-                        color = Color(0xffb3cb54),
+                        text = if (!isNetworkAvailable) "Offline" else if (!isBotActive) "Bot Inactive" else "Online",
+                        color = if (!isNetworkAvailable) Color.Red else if (!isBotActive) Color(0xFFDAA70C) else Color(0xffb3cb54),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Medium,
                             fontSize = 12.sp
@@ -153,7 +170,9 @@ fun WriteMessageCard(
     modifier: Modifier = Modifier,
     value: String,
     onValueChange: (String) -> Unit,
-    onClickSend: () -> Unit
+    onClickSend: () -> Unit,
+    isNetworkAvailable: Boolean,
+    isBotActive: Boolean
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -176,14 +195,15 @@ fun WriteMessageCard(
             },
             trailingIcon = {
                 IconButton(
-                    onClick = { onClickSend() }
+                    onClick = { onClickSend() },
+                    enabled = isNetworkAvailable && isBotActive
                 ){
                     Icon(
                         imageVector = Icons.Default.Send,
                         contentDescription = "Sending Button",
                         modifier = Modifier
                             .size(24.dp),
-                        tint = Color(0xFF5875DD)
+                        tint = if (isNetworkAvailable && isBotActive) Color(0xFF5875DD) else Color(0xA1858586),
                     )
                 }
 
@@ -262,16 +282,4 @@ fun ReceiverMessageItemCard(
             )
         }
     }
-}
-
-// Preview de la vista Chatbot
-@Preview(showBackground = true)
-@Composable
-fun ChatbotViewPreview() {
-    // Crea un NavController falso para la vista previa
-    val navController = rememberNavController()
-    // Crea un ChatbotViewModel falso para la vista previa
-    val chatbotViewModel = ChatbotViewModel() // Asegúrate de que este ViewModel tenga un constructor sin parámetros
-
-    ChatbotView(navController = navController, chatbotViewModel = chatbotViewModel)
 }

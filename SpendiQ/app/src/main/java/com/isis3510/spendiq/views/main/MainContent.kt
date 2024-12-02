@@ -2,6 +2,7 @@ package com.isis3510.spendiq.views.main
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseInOutCubic
@@ -40,6 +41,7 @@ import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
+import com.isis3510.spendiq.viewmodel.OnboardingViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import ir.ehsannarmani.compose_charts.LineChart
 import ir.ehsannarmani.compose_charts.models.AnimationMode
@@ -71,7 +73,8 @@ fun MainContent(
     accountViewModel: AccountViewModel,
     promoViewModel: OffersViewModel,
     transactionViewModel: TransactionViewModel,
-    connectivityViewModel: ConnectivityViewModel
+    connectivityViewModel: ConnectivityViewModel,
+    onboardingViewModel: OnboardingViewModel
 ) {
     val accounts by accountViewModel.accounts.collectAsState()
     val promos by promoViewModel.offers.collectAsState()
@@ -88,6 +91,7 @@ fun MainContent(
     val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
     val totalIncomeAndExpenses = transactionViewModel.totalIncomeAndExpenses.collectAsState(initial = 0L to 0L).value
     val (totalIncome, totalExpenses) = totalIncomeAndExpenses
+    val isOnboardingShown = onboardingViewModel.isOnboardingShown.value
 
     LaunchedEffect(isMoneyVisible) {
         saveIsMoneyVisible(context, isMoneyVisible)
@@ -139,7 +143,17 @@ fun MainContent(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate("chatbot") }, // Navegar a la vista del chatbot
+                onClick = {
+                    Log.d("FECK", "$isOnboardingShown")
+                    if (!isOnboardingShown) {
+                        navController.navigate("onboarding")
+                        onboardingViewModel.setOnboardingShown(true)
+                    } else {
+                        navController.navigate("chatbot")
+                        onboardingViewModel.setOnboardingShown(false)
+                    }
+
+                          },
             ) {
                 Icon(Icons.Filled.Face, "ChatBot Icon.")
             }

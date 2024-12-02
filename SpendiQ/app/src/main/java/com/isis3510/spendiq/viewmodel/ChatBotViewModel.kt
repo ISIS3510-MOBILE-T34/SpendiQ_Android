@@ -1,9 +1,12 @@
 package com.isis3510.spendiq.viewmodel
 
+import android.os.Bundle
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.isis3510.spendiq.services.ApiService
 import kotlinx.coroutines.launch
 
@@ -14,11 +17,20 @@ class ChatbotViewModel : ViewModel() {
     private val _messages = mutableStateListOf<ChatMessage>()
     val messages: List<ChatMessage> get() = _messages
 
+    // Estado del bot
+    var isBotActive = mutableStateOf(true)
+
     // Función para enviar un mensaje al backend
-    fun sendMessage(message: String) {
+    fun sendMessage(message: String, firebaseAnalytics: FirebaseAnalytics) {
         // Agregar el mensaje del usuario a la lista
         Log.d("ChatbotViewModel", "message: $message")
         _messages.add(ChatMessage(content = message, fromUser = true))
+
+        // Enviar evento a Firebase Analytics
+        val bundle = Bundle().apply {
+            putString("user_message", message) // Puedes agregar más información si lo deseas
+        }
+        firebaseAnalytics.logEvent("chatbot_message_sent", bundle) // Nombre del evento
 
         viewModelScope.launch {
             try {
@@ -31,6 +43,23 @@ class ChatbotViewModel : ViewModel() {
                 // Manejo de errores
                 Log.d("ChatbotViewModel", "Error: ${e.message}")
                 _messages.add(ChatMessage(content = "Error: ${e.message}", fromUser = false))
+            }
+        }
+    }
+
+    // Función para verificar el estado del bot
+    fun checkBotStatus() {
+        viewModelScope.launch {
+            try {
+                // Enviar un mensaje de prueba al bot
+                val response = ApiService.create().sendChatMessage(mapOf("message" to "¿Estás activo?"))
+                // Si recibimos una respuesta, el bot está activo
+                isBotActive.value = true
+                Log.d("ChatbotViewModel", "Bot is active: ${response.response}")
+            } catch (e: Exception) {
+                // Si hay un error, asumimos que el bot no está activo
+                isBotActive.value = false
+                Log.d("ChatbotViewModel", "Error checking bot status: ${e.message}")
             }
         }
     }
