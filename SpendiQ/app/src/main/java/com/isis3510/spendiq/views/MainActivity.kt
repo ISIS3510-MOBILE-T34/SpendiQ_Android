@@ -45,6 +45,7 @@ import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.*
 import com.isis3510.spendiq.views.chat.ChatbotView
 import com.isis3510.spendiq.views.map.MapScreen
+import com.isis3510.spendiq.views.onboarding.OnBoardingScreen
 
 class MainActivity : FragmentActivity() {
     companion object {
@@ -261,6 +262,7 @@ class MainActivity : FragmentActivity() {
                     val connectivityViewModel: ConnectivityViewModel = viewModel()
                     val userData by userViewModel.userData.collectAsState()
                     val chatbotViewModel: ChatbotViewModel = viewModel()
+                    val onboardingViewModel: OnboardingViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {
@@ -276,7 +278,7 @@ class MainActivity : FragmentActivity() {
                             RegisterScreen(navController, authViewModel)
                         }
                         composable("main") {
-                            MainContent(navController, authViewModel, accountViewModel, offersViewModel, transactionViewModel, connectivityViewModel)
+                            MainContent(navController, authViewModel, accountViewModel, offersViewModel, transactionViewModel, connectivityViewModel, onboardingViewModel)
                         }
                         composable("promos") {
                             OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel)
@@ -388,8 +390,13 @@ class MainActivity : FragmentActivity() {
                         composable("chatbot") {
                             ChatbotView(
                                 navController = navController,
-                                chatbotViewModel = chatbotViewModel
+                                chatbotViewModel = chatbotViewModel,
+                                connectivityViewModel = connectivityViewModel,
+                                firebaseAnalytics = firebaseAnalytics
                             )
+                        }
+                        composable("onboarding") {
+                            OnBoardingScreen(navController)
                         }
                     }
                 }
