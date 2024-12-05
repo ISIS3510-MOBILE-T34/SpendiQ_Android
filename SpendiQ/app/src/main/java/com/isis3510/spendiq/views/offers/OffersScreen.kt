@@ -193,7 +193,6 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            // Use Picasso for image loading
             offer.shopImage?.let { imageUrl ->
                 AndroidView(
                     modifier = Modifier
