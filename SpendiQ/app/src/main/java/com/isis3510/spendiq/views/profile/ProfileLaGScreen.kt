@@ -31,8 +31,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.viewmodel.LimitsViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
 import java.text.NumberFormat
@@ -73,7 +75,8 @@ class NumberFormatTransformation : VisualTransformation {
 fun ProfileLaGScreen(
     navController: NavController,
     transactionViewModel: TransactionViewModel,
-    accountViewModel: AccountViewModel
+    accountViewModel: AccountViewModel,
+    limitsViewModel: LimitsViewModel = remember { LimitsViewModel() }
 ) {
     val MAX_EXPENSES = 10
     val MAX_NAME_LENGTH = 50
@@ -107,6 +110,25 @@ fun ProfileLaGScreen(
 
     // Obtener el CoroutineScope
     val coroutineScope = rememberCoroutineScope()
+
+
+    val auth = FirebaseAuth.getInstance()
+    val userId = auth.currentUser?.uid ?: ""
+
+    // Cargar datos locales al iniciar la vista
+    LaunchedEffect(Unit) {
+        limitsViewModel.getLimitsFromLocal(userId) { limits ->
+            if (limits != null) {
+                selectedFrequency = limits.frequency
+                isByExpenseChecked = limits.isByExpenseChecked
+                isByQuantityChecked = limits.isByQuantityChecked
+                amountText = limits.totalAmount
+
+                expenses.clear()
+                expenses.addAll(limits.expenses.map { Expense(it.name, it.amount) })
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -510,10 +532,35 @@ fun ProfileLaGScreen(
             // Botón "Guardar" siempre disponible en la parte inferior
             Button(
                 onClick = {
-                    // Implementar lógica para guardar en Firebase
-                    Toast.makeText(context, "Guardando en Firebase...", Toast.LENGTH_SHORT).show()
-                    // Aquí debes llamar a tu función para guardar en Firebase
-                    // Por ejemplo: viewModel.saveLimitsAndGoals(expenses, amountText, selectedFrequency)
+                    val limits = LimitsEntity(
+                        userId = userId,
+                        frequency = selectedFrequency,
+                        isByExpenseChecked = isByExpenseChecked,
+                        isByQuantityChecked = isByQuantityChecked,
+                        expenses = expenses.map { ExpenseEntity(it.name, it.amount) },
+                        totalAmount = amountText
+                    )
+
+                    // Guardar localmente
+                    limitsViewModel.saveLimitsLocally(limits)
+
+                    // Verificar conexión a Internet
+                    if (isConnected(context)) {
+                        // Guardar en Firebase
+                        limitsViewModel.saveLimitsToFirebase(limits,
+                            onSuccess = {
+                                Toast.makeText(context, "Límites guardados en Firebase", Toast.LENGTH_SHORT).show()
+                            },
+                            onFailure = {
+                                Toast.makeText(context, "Error al guardar en Firebase", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    } else {
+                        // Programar sincronización
+                        scheduleSyncWork(context)
+                        Toast.makeText(context, "Sin conexión. Se sincronizará cuando haya Internet", Toast.LENGTH_SHORT).show()
+                    }
+
                     hasChanges = false
                 },
                 enabled = hasChanges,
