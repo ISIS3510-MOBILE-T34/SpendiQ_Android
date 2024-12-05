@@ -45,6 +45,8 @@ import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.*
 import com.isis3510.spendiq.views.chat.ChatbotView
 import com.isis3510.spendiq.views.map.MapScreen
+import androidx.compose.ui.platform.LocalContext
+import com.isis3510.spendiq.viewmodel.LimitsViewModelFactory
 import com.isis3510.spendiq.views.onboarding.OnBoardingScreen
 
 class MainActivity : FragmentActivity() {
@@ -261,8 +263,14 @@ class MainActivity : FragmentActivity() {
                     val userViewModel: UserViewModel = viewModel()
                     val connectivityViewModel: ConnectivityViewModel = viewModel()
                     val userData by userViewModel.userData.collectAsState()
+                    val context = LocalContext.current
+                    val limitsViewModel: LimitsViewModel = viewModel(
+                        factory = LimitsViewModelFactory(context)
+                    )
+
                     val chatbotViewModel: ChatbotViewModel = viewModel()
                     val onboardingViewModel: OnboardingViewModel = viewModel()
+
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {

@@ -1,6 +1,8 @@
 // ProfileStatisticsScreen.kt
 package com.isis3510.spendiq.views.profile
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.painterResource
@@ -29,6 +32,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.model.data.Transaction
+import ir.ehsannarmani.compose_charts.ColumnChart
+import ir.ehsannarmani.compose_charts.models.BarProperties
+import ir.ehsannarmani.compose_charts.models.Bars
+import ir.ehsannarmani.compose_charts.models.LabelProperties
 import kotlin.math.abs
 import android.graphics.Paint as AndroidPaint
 
@@ -135,7 +142,7 @@ fun ProfileStatisticsScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp),
-                        data = accountBalances.toMap(),
+                        data = accountBalances,
                         isDarkTheme = isDarkTheme
                     )
                 } else {
@@ -244,104 +251,49 @@ fun BarChart(
     data: Map<String, Double>,
     isDarkTheme: Boolean = isSystemInDarkTheme()
 ) {
-    val step = 10000.0
-    val maxPositiveAmount = data.values.filter { it > 0 }.maxOrNull() ?: 0.0
-    val maxNegativeAmount = data.values.filter { it < 0 }.minOrNull() ?: 0.0
-    val maxAmount = maxOf(maxPositiveAmount, abs(maxNegativeAmount))
-    val numberOfSteps = if (maxAmount % step == 0.0) (maxAmount / step).toInt() else (maxAmount / step).toInt() + 1
-
-    val barColors = if (isDarkTheme) {
-        listOf(Color.Cyan, Color.Magenta)
-    } else {
-        listOf(Color(0xFFB3CB54), Color(0xFFE57373))
-    }
-
-    val sortedData = data.toList().sortedBy { it.first }
-
-    Canvas(modifier = modifier) {
-        val paddingBottom = 40.dp.toPx() // Reducido para acomodar etiquetas
-        val paddingTop = 20.dp.toPx()
-        val paddingStart = 40.dp.toPx()
-        val paddingEnd = 20.dp.toPx()
-
-        val availableHeight = size.height - paddingTop - paddingBottom
-        val availableWidth = size.width - paddingStart - paddingEnd
-
-        val centerY = paddingTop + (availableHeight / 2)
-
-        val barWidth = availableWidth / (sortedData.size * 2)
-        var xPosition = paddingStart + barWidth / 2
-
-        // Dibujar líneas de referencia horizontales
-        for (i in 1..numberOfSteps) {
-            val y = centerY - (i * step / maxAmount * availableHeight)
-            drawLine(
-                color = Color.LightGray,
-                start = Offset(paddingStart, y.toFloat()),
-                end = Offset(size.width - paddingEnd, y.toFloat()),
-                strokeWidth = 1f
-            )
-        }
-
-        // Dibujar eje X
-        drawLine(
-            color = Color.Black,
-            start = Offset(paddingStart, centerY),
-            end = Offset(size.width - paddingEnd, centerY),
-            strokeWidth = 2f
-        )
-
-
-        // Dibujar barras
-        sortedData.forEach { (accountName, amount) ->
-            val barHeightRatio = if (maxAmount != 0.0) abs(amount) / maxAmount else 0.0
-            val barHeight = barHeightRatio.toFloat() * availableHeight
-
-            val isPositive = amount >= 0.0
-            val topLeftY = if (isPositive) centerY - barHeight else centerY
-
-            drawRoundRect(
-                color = if (isPositive) barColors[0] else barColors[1],
-                topLeft = Offset(xPosition, topLeftY),
-                size = Size(barWidth, barHeight),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx())
-            )
-
-            // Dibujar etiquetas de las cuentas justo debajo del eje X dentro del Canvas
-            drawIntoCanvas { canvas ->
-                val paint = AndroidPaint().apply {
-                    color = android.graphics.Color.BLACK
-                    textAlign = AndroidPaint.Align.CENTER
-                    textSize = 12.sp.toPx()
-                    isAntiAlias = true
+    // Preparar los datos para la gráfica
+    val barsData = remember(data) {
+        listOf(
+            Bars(
+                label = "Balances",
+                values = data.map { (accountName, amount) ->
+                    Bars.Data(
+                        label = accountName,
+                        value = amount,
+                        color = if (accountName ==  "Nequi") SolidColor(Color(0xFF890F9F)) else if (accountName == "Bancolombia") SolidColor(Color(0xFFFFE61F)) else SolidColor(Color(0xFF673AB7)
+                        )
+                    )
                 }
-                canvas.nativeCanvas.drawText(
-                    accountName,
-                    xPosition + barWidth / 2,
-                    centerY + 25.dp.toPx(), // Aumentado para mayor separación del eje X
-                    paint
-                )
-            }
-
-            // Dibujar línea delgada gris debajo del eje X hasta el final del gráfico
-            drawLine(
-                color = Color.LightGray,
-                start = Offset(xPosition, centerY + 2.dp.toPx()), // Un poco debajo del eje X
-                end = Offset(xPosition + barWidth, centerY + 2.dp.toPx()),
-                strokeWidth = 1f
             )
-
-            xPosition += barWidth * 2
-        }
-
-        // **Agregar una línea delgada gris al final del eje X**
-        drawLine(
-            color = Color.LightGray,
-            start = Offset(paddingStart, size.height - paddingBottom),
-            end = Offset(size.width - paddingEnd, size.height - paddingBottom),
-            strokeWidth = 1f
         )
     }
+
+    // Configuración de propiedades de la gráfica
+    val barProperties = BarProperties(
+        cornerRadius = Bars.Data.Radius.Rectangle(topRight = 6.dp, topLeft = 6.dp),
+        spacing = 20.dp,
+        thickness = 40.dp
+    )
+
+    // Configuración de etiquetas
+    val labelProperties = LabelProperties(
+        enabled = true,
+        textStyle = MaterialTheme.typography.labelSmall,
+        padding = 16.dp,
+        labels = data.keys.toList() // Usar los nombres de las cuentas como etiquetas
+    )
+
+    // Renderizar la gráfica
+    ColumnChart(
+        modifier = modifier,
+        data = barsData,
+        barProperties = barProperties,
+        labelProperties = labelProperties,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        )
+    )
 }
 
 @Composable

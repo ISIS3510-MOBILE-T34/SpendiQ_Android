@@ -44,8 +44,8 @@ import com.google.android.gms.location.LocationServices
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
-import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.viewmodel.ProfileViewModel
+import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -70,11 +70,13 @@ fun ProfileScreen(
 
     var locationText by remember { mutableStateOf("Location not available") }
 
-
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { newUri ->
-            saveImageToInternalStorage(context, newUri)
-            profileViewModel.saveProfileImage(context, newUri)
+            saveImageToInternalStorage(context, newUri)?.let { savedUri ->
+                profileViewModel.saveProfileImage(context, savedUri)
+            } ?: run {
+                Toast.makeText(context, "Error al guardar la imagen", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -94,9 +96,7 @@ fun ProfileScreen(
             is AuthViewModel.UserDataState.Error -> {
                 Toast.makeText(
                     context,
-
                     "Error loading data: ${(userDataState as AuthViewModel.UserDataState.Error).message}",
-
                     Toast.LENGTH_LONG
                 ).show()
                 isLoading = false
@@ -111,10 +111,8 @@ fun ProfileScreen(
             TopAppBar(
                 title = { Text("Profile") },
                 navigationIcon = {
-
                     IconButton(onClick = { navController.navigate("main") { launchSingleTop = true } }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-
                     }
                 }
             )
@@ -138,7 +136,6 @@ fun ProfileScreen(
                     .padding(innerPadding)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
-
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
@@ -271,7 +268,7 @@ fun SectionWithButtons(navController: NavController) {
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
                 ActionButtonWithArrow(
-                    text = "Estatistics",
+                    text = "Statistics",
                     iconResId = R.drawable.round_equalizer_24,
                     navController = navController,
                     backgroundColor = Color(0xFFB3CB54),
@@ -319,7 +316,6 @@ fun SectionWithButtons(navController: NavController) {
         }
     }
 }
-
 
 @Composable
 fun ActionButtonWithArrow(
@@ -376,7 +372,6 @@ fun ActionButtonWithArrow(
         }
     }
 }
-
 
 @SuppressLint("ResourceAsColor")
 @Composable
@@ -448,17 +443,6 @@ fun ProfileImageWithMultiColorBorder(profileImageUri: Uri?) {
     }
 }
 
-@Composable
-fun ActionButton(text: String) {
-    Button(onClick = { /* Acciones de botón */ }) {
-        Text(text)
-    }
-}
-
-
-
-
-@OptIn(UiToolingDataApi::class)
 @SuppressLint("MissingPermission") // Asegúrate de manejar permisos en el nivel de actividad
 suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit) {
     val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
@@ -470,8 +454,8 @@ suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit
                 val addresses = geocoder.getFromLocation(it.latitude, it.longitude, 1)
                 if (addresses != null) {
                     if (addresses.isNotEmpty()) {
-                        val city = addresses[0].locality ?: "Ciudad desconocida"
-                        val country = addresses[0].countryName ?: "País desconocido"
+                        val city = addresses[0].locality ?: "Unknown city"
+                        val country = addresses[0].countryName ?: "Unknown country"
                         onLocationUpdated("$city, $country")
                     }
                 }
@@ -480,41 +464,19 @@ suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit
     }
 }
 
-
-fun saveBitmapToInternalStorage(context: Context, bitmap: Bitmap): Uri? {
+// Función para guardar la imagen en el almacenamiento interno y devolver la URI
+fun saveImageToInternalStorage(context: Context, uri: Uri): Uri? {
     val filename = "profile_image.png"
     val file = File(context.filesDir, filename)
     return try {
-        val outputStream = FileOutputStream(file)
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-        outputStream.flush()
-        outputStream.close()
+        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            FileOutputStream(file).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+        }
         Uri.fromFile(file)
     } catch (e: IOException) {
         e.printStackTrace()
         null
     }
-}
-
-// Función para guardar la imagen en el almacenamiento interno
-fun saveImageToInternalStorage(context: Context, uri: Uri) {
-    val file = File(context.filesDir, "profile_image.png")
-    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-        FileOutputStream(file).use { outputStream ->
-            inputStream.copyTo(outputStream)
-        }
-    }
-}
-
-// Función para guardar la URI de la imagen de perfil de manera persistente
-fun saveProfileImageUri(context: Context, uri: Uri) {
-    val sharedPreferences = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
-    sharedPreferences.edit().putString("profile_image_uri", uri.toString()).apply()
-}
-
-// Función para obtener la URI de la imagen de perfil almacenada de manera persistente
-fun getProfileImageUri(context: Context): Uri? {
-    val sharedPreferences = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
-    val uriString = sharedPreferences.getString("profile_image_uri", null)
-    return uriString?.let { Uri.parse(it) }
 }
