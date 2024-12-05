@@ -1,5 +1,6 @@
 package com.isis3510.spendiq.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -10,10 +11,10 @@ import com.isis3510.spendiq.model.local.database.LimitsEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class LimitsViewModel : ViewModel() {
+class LimitsViewModel(private val context: Context) : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    private val limitsDao = DatabaseProvider.getDatabase().limitsDao()
+    private val limitsDao = DatabaseProvider.getDatabase(context).limitsDao()
 
     fun saveLimitsLocally(limits: LimitsEntity) {
         viewModelScope.launch(Dispatchers.IO) {

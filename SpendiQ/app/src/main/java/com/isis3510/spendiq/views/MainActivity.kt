@@ -44,6 +44,9 @@ import com.isis3510.spendiq.views.splash.SplashScreen
 import com.isis3510.spendiq.views.theme.SpendiQTheme
 import com.isis3510.spendiq.viewmodel.*
 import com.isis3510.spendiq.views.map.MapScreen
+import androidx.compose.ui.platform.LocalContext
+import com.isis3510.spendiq.viewmodel.LimitsViewModelFactory
+
 
 class MainActivity : FragmentActivity() {
     companion object {
@@ -259,6 +262,11 @@ class MainActivity : FragmentActivity() {
                     val userViewModel: UserViewModel = viewModel()
                     val connectivityViewModel: ConnectivityViewModel = viewModel()
                     val userData by userViewModel.userData.collectAsState()
+                    val context = LocalContext.current
+                    val limitsViewModel: LimitsViewModel = viewModel(
+                        factory = LimitsViewModelFactory(context)
+                    )
+
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {

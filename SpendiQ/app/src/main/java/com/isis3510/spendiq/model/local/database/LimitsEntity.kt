@@ -15,7 +15,3 @@ data class LimitsEntity(
     val totalAmount: String
 )
 
-data class ExpenseEntity(
-    val name: String,
-    val amount: String
-)

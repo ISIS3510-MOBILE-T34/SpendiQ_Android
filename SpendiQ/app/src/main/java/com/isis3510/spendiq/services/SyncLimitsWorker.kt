@@ -18,7 +18,8 @@ class SyncLimitsWorker(
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    private val limitsDao = DatabaseProvider.getDatabase().limitsDao()
+    private val limitsDao = DatabaseProvider.getDatabase(applicationContext).limitsDao()
+
 
     override suspend fun doWork(): Result {
         val userId = auth.currentUser?.uid ?: return Result.failure()

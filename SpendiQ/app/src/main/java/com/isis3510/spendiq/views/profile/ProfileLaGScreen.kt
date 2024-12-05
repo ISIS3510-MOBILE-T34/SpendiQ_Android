@@ -11,7 +11,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,6 +39,14 @@ import com.isis3510.spendiq.views.common.BottomNavigation
 import java.text.NumberFormat
 import java.util.Locale
 import kotlinx.coroutines.launch
+import com.isis3510.spendiq.model.local.database.LimitsEntity
+import com.isis3510.spendiq.utils.isConnected
+import com.isis3510.spendiq.utils.scheduleSyncWork
+import com.isis3510.spendiq.model.local.database.ExpenseEntity
+import com.isis3510.spendiq.viewmodel.LimitsViewModelFactory
+import androidx.lifecycle.viewmodel.compose.viewModel
+
+
 
 class Expense(
     name: String = "",
@@ -75,9 +82,12 @@ class NumberFormatTransformation : VisualTransformation {
 fun ProfileLaGScreen(
     navController: NavController,
     transactionViewModel: TransactionViewModel,
-    accountViewModel: AccountViewModel,
-    limitsViewModel: LimitsViewModel = remember { LimitsViewModel() }
+    accountViewModel: AccountViewModel
 ) {
+    val context = LocalContext.current
+    val limitsViewModel: LimitsViewModel = viewModel(
+        factory = LimitsViewModelFactory(context)
+    )
     val MAX_EXPENSES = 10
     val MAX_NAME_LENGTH = 50
     val MAX_AMOUNT_LENGTH = 8
@@ -105,8 +115,6 @@ fun ProfileLaGScreen(
     // Estado de cambios para el botón "Guardar"
     var hasChanges by remember { mutableStateOf(false) }
 
-    // Obtener el contexto
-    val context = LocalContext.current
 
     // Obtener el CoroutineScope
     val coroutineScope = rememberCoroutineScope()
