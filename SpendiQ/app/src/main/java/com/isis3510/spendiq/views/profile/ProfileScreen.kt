@@ -268,7 +268,7 @@ fun SectionWithButtons(navController: NavController) {
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
                 ActionButtonWithArrow(
-                    text = "Estatistics",
+                    text = "Statistics",
                     iconResId = R.drawable.round_equalizer_24,
                     navController = navController,
                     backgroundColor = Color(0xFFB3CB54),
