@@ -12,12 +12,10 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
@@ -240,7 +238,9 @@ fun SpecialSalesDetail(
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Redeem")
+                    Text(
+                        text="Redeem",
+                        color = Color.White)
                 }
             }
         }

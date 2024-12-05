@@ -2,6 +2,7 @@ package com.isis3510.spendiq.views.main
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.EaseInOutCubic
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -38,6 +41,7 @@ import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
+import com.isis3510.spendiq.viewmodel.OnboardingViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import ir.ehsannarmani.compose_charts.LineChart
 import ir.ehsannarmani.compose_charts.models.AnimationMode
@@ -69,7 +73,8 @@ fun MainContent(
     accountViewModel: AccountViewModel,
     promoViewModel: OffersViewModel,
     transactionViewModel: TransactionViewModel,
-    connectivityViewModel: ConnectivityViewModel
+    connectivityViewModel: ConnectivityViewModel,
+    onboardingViewModel: OnboardingViewModel
 ) {
     val accounts by accountViewModel.accounts.collectAsState()
     val promos by promoViewModel.offers.collectAsState()
@@ -86,6 +91,7 @@ fun MainContent(
     val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
     val totalIncomeAndExpenses = transactionViewModel.totalIncomeAndExpenses.collectAsState(initial = 0L to 0L).value
     val (totalIncome, totalExpenses) = totalIncomeAndExpenses
+    val isOnboardingShown = onboardingViewModel.isOnboardingShown.value
 
     LaunchedEffect(isMoneyVisible) {
         saveIsMoneyVisible(context, isMoneyVisible)
@@ -134,6 +140,23 @@ fun MainContent(
                 transactionViewModel,
                 accountViewModel
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    Log.d("FECK", "$isOnboardingShown")
+                    if (!isOnboardingShown) {
+                        navController.navigate("onboarding")
+                        onboardingViewModel.setOnboardingShown(true)
+                    } else {
+                        navController.navigate("chatbot")
+                        onboardingViewModel.setOnboardingShown(false)
+                    }
+
+                          },
+            ) {
+                Icon(Icons.Filled.Face, "ChatBot Icon.")
+            }
         }
     ) { innerPadding ->
         LazyColumn(
@@ -179,7 +202,7 @@ fun MainContent(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     IconButton(
-                        onClick = { isMoneyVisible = !isMoneyVisible } // Cambiar visibilidad y guardar automáticamente
+                        onClick = { isMoneyVisible = !isMoneyVisible }
                     ) {
                         Icon(
                             painter = painterResource(id = if (isMoneyVisible) R.drawable.round_visibility_24 else R.drawable.baseline_visibility_off_24),
@@ -188,13 +211,13 @@ fun MainContent(
                     }
                 }
 
-                // Calcular el porcentaje de cambio
+
                 val percentageChange = if (previousMonthExpenses > 0) {
                     ((currentMonthExpenses - previousMonthExpenses).toDouble() / previousMonthExpenses) * 100
                 } else {
                     0.0
                 }
-                // Determinar el color basado en el gasto
+
                 val colorME = if (currentMonthExpenses > previousMonthExpenses) Color(0xffc33ba5) else Color(0xFF94B719)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

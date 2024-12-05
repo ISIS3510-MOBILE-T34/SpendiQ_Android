@@ -223,6 +223,7 @@ fun LoginScreen(
                             )
                         }
                         IconButton(
+                            enabled = isLogInButtonEnable,
                             onClick = {
                                 viewModel.setupBiometricPrompt(
                                     context as FragmentActivity,
@@ -392,8 +393,10 @@ fun LoginScreen(
             ) {
                 Text(
                     text = "Enable Biometrics",
-                    color = Color(0xffc33ba5),
-                    modifier = Modifier.clickable {
+                    color = if (isLogInButtonEnable) Color(0xffc33ba5) else Color.Gray,
+                    modifier = Modifier.clickable(
+                        enabled = isLogInButtonEnable
+                    ) {
                         showBiometricDialog = true
                     },
                     style = TextStyle(fontSize = 16.sp)
@@ -426,6 +429,12 @@ fun LoginScreen(
                         onClick = {
                             viewModel.enableBiometricLogin(email, password)
                             showBiometricDialog = false
+                            if (authState is AuthState.Error){
+                                Toast.makeText(context, "An error has occured! Try Again", Toast.LENGTH_LONG).show()
+                            }
+                            else{
+                                Toast.makeText(context, "Biometrics Enabled!", Toast.LENGTH_LONG).show()
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xff65558f))
                     ) {
@@ -442,9 +451,9 @@ fun LoginScreen(
 
         if (isLogInButtonEnable != previousConnectionState) {
             if (isLogInButtonEnable) {
-                Toast.makeText(context, "Back Online!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Back Online!", Toast.LENGTH_LONG).show()
             } else {
-                Toast.makeText(context, "It looks like you're offline. Please check your network connection", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "It looks like you're offline. Please check your network connection", Toast.LENGTH_LONG).show()
             }
             previousConnectionState = isLogInButtonEnable
         }
