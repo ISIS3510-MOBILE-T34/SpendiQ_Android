@@ -42,6 +42,8 @@ import com.isis3510.spendiq.viewmodel.LimitsViewModelFactory
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
+import java.util.Locale
 
 class Expense(
     name: String = "",
@@ -52,13 +54,24 @@ class Expense(
 }
 
 class NumberFormatTransformation : VisualTransformation {
+    private val formatter: NumberFormat = NumberFormat.getNumberInstance(Locale.US).apply {
+        isGroupingUsed = true
+        maximumFractionDigits = 2
+        minimumFractionDigits = 0
+    }
+
     override fun filter(text: AnnotatedString): TransformedText {
         val originalText = text.text.replace("[^\\d.]".toRegex(), "")
+        val number = originalText.toDoubleOrNull()
+        val formatted = if (number != null) formatter.format(number) else originalText
+
+        // Mapeo simple: asume que el cursor se mueve al final
         val offsetMapping = object : OffsetMapping {
-            override fun originalToTransformed(offset: Int): Int = originalText.length
+            override fun originalToTransformed(offset: Int): Int = formatted.length
             override fun transformedToOriginal(offset: Int): Int = originalText.length
         }
-        return TransformedText(AnnotatedString(originalText), offsetMapping)
+
+        return TransformedText(AnnotatedString(formatted), offsetMapping)
     }
 }
 
@@ -514,7 +527,7 @@ fun ProfileLaGScreen(
                         if (isConnected(context)) {
                             limitsViewModel.saveLimitsToFirebase(
                                 onSuccess = {
-                                    Toast.makeText(context, "Limits saved correctlye", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Limits saved correctly", Toast.LENGTH_SHORT).show()
                                 },
                                 onFailure = {
                                     Toast.makeText(context, "Error when saving the limits", Toast.LENGTH_SHORT).show()
