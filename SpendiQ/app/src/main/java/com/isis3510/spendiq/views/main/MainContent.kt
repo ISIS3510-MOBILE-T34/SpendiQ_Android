@@ -202,7 +202,7 @@ fun MainContent(
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     IconButton(
-                        onClick = { isMoneyVisible = !isMoneyVisible } // Cambiar visibilidad y guardar automáticamente
+                        onClick = { isMoneyVisible = !isMoneyVisible }
                     ) {
                         Icon(
                             painter = painterResource(id = if (isMoneyVisible) R.drawable.round_visibility_24 else R.drawable.baseline_visibility_off_24),
@@ -211,13 +211,13 @@ fun MainContent(
                     }
                 }
 
-                // Calcular el porcentaje de cambio
+
                 val percentageChange = if (previousMonthExpenses > 0) {
                     ((currentMonthExpenses - previousMonthExpenses).toDouble() / previousMonthExpenses) * 100
                 } else {
                     0.0
                 }
-                // Determinar el color basado en el gasto
+
                 val colorME = if (currentMonthExpenses > previousMonthExpenses) Color(0xffc33ba5) else Color(0xFF94B719)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
