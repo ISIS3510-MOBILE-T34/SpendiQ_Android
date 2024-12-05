@@ -18,6 +18,7 @@ import com.isis3510.spendiq.model.local.database.DatabaseProvider
 import kotlinx.coroutines.tasks.await
 import kotlin.math.*
 
+// Worker to handle location-based notifications
 class LocationNotificationWorker(
     private val context: Context,
     workerParams: WorkerParameters
@@ -33,18 +34,18 @@ class LocationNotificationWorker(
         try {
             createNotificationChannel()
 
-            // Get current location
+            // Get the user's current location
             val location = getCurrentLocation()
             if (location == null) {
                 Log.w(TAG, "Could not get current location")
-                return Result.success()
+                return Result.success() // Exit gracefully if location is unavailable
             }
 
-            // Get all offers from local database
+            // Retrieve offers from the local database
             val offers = database.offerDao().getAllOffers()
             Log.d(TAG, "Retrieved ${offers.size} offers from database")
 
-            // Find closest offer within range
+            // Find the closest offer within the maximum notification distance
             val closestOffer = offers
                 .map { offer ->
                     val distance = calculateDistance(
@@ -53,10 +54,10 @@ class LocationNotificationWorker(
                     )
                     Pair(offer, distance)
                 }
-                .filter { (_, distance) -> distance <= MAX_NOTIFICATION_DISTANCE }
-                .minByOrNull { (_, distance) -> distance }
+                .filter { (_, distance) -> distance <= MAX_NOTIFICATION_DISTANCE } // Filter by range
+                .minByOrNull { (_, distance) -> distance } // Find the nearest offer
 
-            // Send notification for closest offer if found
+            // Send a notification if a close offer is found
             closestOffer?.let { (offer, distance) ->
                 Log.d(TAG, "Found nearby offer: ${offer.placeName} at ${distance.toInt()}m")
                 val notification = NotificationCompat.Builder(context, channelId)
@@ -65,9 +66,9 @@ class LocationNotificationWorker(
                     .setStyle(NotificationCompat.BigTextStyle()
                         .bigText("${offer.placeName} (${formatDistance(distance)})\n${offer.offerDescription}")
                     )
-                    .setSmallIcon(R.drawable.notification)
+                    .setSmallIcon(R.drawable.notification) // Notification icon
                     .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setAutoCancel(true)
+                    .setAutoCancel(true) // Dismiss when clicked
                     .build()
 
                 notificationManager.notify(offer.id.hashCode(), notification)
@@ -81,6 +82,7 @@ class LocationNotificationWorker(
         }
     }
 
+    // Gets the current location using the Fused Location Provider
     private suspend fun getCurrentLocation(): Location? {
         if (ActivityCompat.checkSelfPermission(
                 context,
@@ -99,6 +101,7 @@ class LocationNotificationWorker(
         }
     }
 
+    // Calculates distance using the Haversine formula
     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6371e3 // Earth's radius in meters
         val φ1 = lat1 * Math.PI / 180
@@ -114,6 +117,7 @@ class LocationNotificationWorker(
         return r * c
     }
 
+    // Formats distance for user-friendly display
     private fun formatDistance(distance: Double): String {
         return when {
             distance < 100 -> "less than 100 meters"
@@ -122,6 +126,7 @@ class LocationNotificationWorker(
         }
     }
 
+    // Creates a notification channel for Android O and higher
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Nearby Offers"

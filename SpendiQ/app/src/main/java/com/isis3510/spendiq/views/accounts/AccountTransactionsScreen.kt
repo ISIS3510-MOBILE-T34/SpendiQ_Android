@@ -30,12 +30,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.isis3510.spendiq.model.data.Transaction
-import com.isis3510.spendiq.model.singleton.LruCacheManager
 import com.isis3510.spendiq.model.singleton.SearchBarCacheManager
+import com.isis3510.spendiq.viewmodel.NetworkViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -45,36 +49,43 @@ import java.util.*
 fun AccountTransactionsScreen(
     navController: NavController,
     accountName: String,
-    viewModel: TransactionViewModel = viewModel()
+    viewModel: TransactionViewModel = viewModel(),
+    networkViewModel: NetworkViewModel = viewModel()
 ) {
-    var searchQuery by remember { mutableStateOf(SearchBarCacheManager.getQuery() ) }
+    // Caching - J0FR
+    var searchQuery by remember { mutableStateOf(SearchBarCacheManager.getQuery()) }
     val transactions by viewModel.transactions.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     var isNavigating by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val isNetworkConnected by networkViewModel.isConnected.collectAsState(initial = true)
+    var isRefreshing by remember { mutableStateOf(false) }
 
-    // Voice recognition launcher
+    // Voice recognition launcher - J0FR
     val speechRecognizerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val recognizedText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            val recognizedText =
+                result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!recognizedText.isNullOrBlank()) {
                 searchQuery = recognizedText
             }
         }
     }
 
-    // Create a speech-to-text intent
     val speechToTextIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-        putExtra(RecognizerIntent.EXTRA_PROMPT, "Di algo para buscar")
+        putExtra(RecognizerIntent.EXTRA_PROMPT, "Say something to search")
     }
 
-    LaunchedEffect(accountName) {
-        viewModel.fetchTransactions(accountName)
+    // Fetch transactions on launch
+    LaunchedEffect(accountName, isNetworkConnected) {
+        if (isNetworkConnected) {
+            viewModel.fetchTransactions(accountName) // Fetch transactions if online
+        }
     }
 
     Scaffold(
@@ -98,84 +109,114 @@ fun AccountTransactionsScreen(
             )
         }
     ) { innerPadding ->
-        when (uiState) {
-            is TransactionViewModel.UiState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+        if (!isNetworkConnected) {
+            // Show message when offline
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "You need an active internet connection to view transactions.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(16.dp)
+                )
             }
-            is TransactionViewModel.UiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Error: ${(uiState as TransactionViewModel.UiState.Error).message}",
-                        color = MaterialTheme.colorScheme.error
-                    )
+        } else {
+            when (uiState) {
+                is TransactionViewModel.UiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-            }
-            else -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            SearchBarCacheManager.saveQuery(searchQuery)
-                                        },
-
-                        label = { Text("Buscar") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                speechRecognizerLauncher.launch(speechToTextIntent)
-                            }) {
-                                Icon(Icons.Default.Face, contentDescription = "Voice Search")
+                is TransactionViewModel.UiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Error: You need internet connection in order to use this feature",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+                else -> {
+                    SwipeRefresh(
+                        state = rememberSwipeRefreshState(isRefreshing),
+                        onRefresh = {
+                            // Coreroutine Main Dispatcher - J0FR
+                            coroutineScope.launch(Dispatchers.Main) {
+                                isRefreshing = true
+                                viewModel.fetchTransactions(accountName)
+                                delay(1000)
+                                isRefreshing = false
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
-
-                    if (transactions.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No hay transacciones aún", style = MaterialTheme.typography.bodyLarge)
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
                         ) {
-                            val filteredTransactions = transactions.filter {
-                                it.transactionName.contains(searchQuery, ignoreCase = true)
-                            }
-                            val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.dateTime.toDate()) }
-                            val sortedDates = groupedTransactions.keys.sortedDescending()
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = {
+                                    searchQuery = it
+                                    SearchBarCacheManager.saveQuery(searchQuery) // Cache the search query
+                                },
+                                label = { Text("Search") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Search, contentDescription = "Search")
+                                },
+                                trailingIcon = {
+                                    IconButton(onClick = {
+                                        speechRecognizerLauncher.launch(speechToTextIntent)
+                                    }) {
+                                        Icon(Icons.Default.Face, contentDescription = "Voice Search")
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            )
 
-                            sortedDates.forEach { date ->
-                                val transactionsForDate = groupedTransactions[date] ?: return@forEach
-
-                                item {
-                                    Text(
-                                        text = formatDate(date),
-                                        modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = Color.Gray
-                                    )
+                            if (transactions.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("No transactions yet", style = MaterialTheme.typography.bodyLarge)
                                 }
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    val filteredTransactions = transactions.filter {
+                                        it.transactionName.contains(searchQuery, ignoreCase = true)
+                                    }
+                                    val groupedTransactions = filteredTransactions.groupBy { normalizeDate(it.dateTime.toDate()) }
+                                    val sortedDates = groupedTransactions.keys.sortedDescending()
 
-                                items(transactionsForDate.sortedByDescending { it.dateTime }) { transaction ->
-                                    TransactionItem(transaction, navController, accountName)
+                                    sortedDates.forEach { date ->
+                                        val transactionsForDate =
+                                            groupedTransactions[date] ?: return@forEach
+
+                                        item {
+                                            Text(
+                                                text = formatDate(date),
+                                                modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = Color.Gray
+                                            )
+                                        }
+
+                                        items(transactionsForDate.sortedByDescending { it.dateTime }) { transaction ->
+                                            TransactionItem(transaction, navController, accountName)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -202,9 +243,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
             .clickable {
                 navController.navigate("transactionDetails/${transaction.accountId}/${transaction.id}")
             },
-        colors = CardDefaults.cardColors(
-            containerColor = backgroundColor
-        )
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
     ) {
         Column(
             modifier = Modifier
@@ -225,7 +264,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                 Column(modifier = Modifier.weight(1f)) {
                     Text(transaction.transactionName, fontWeight = FontWeight.Bold)
                     Text(
-                        if (transaction.transactionType.equals("Income", ignoreCase = true)) "De" else "Para",
+                        if (transaction.transactionType.equals("Income", ignoreCase = true)) "From" else "To",
                         color = Color.Gray,
                         fontSize = 14.sp
                     )
@@ -243,14 +282,8 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                     .padding(top = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                AnomalyIndicator(
-                    label = "Ubicación",
-                    isAnomaly = transaction.locationAnomaly
-                )
-                AnomalyIndicator(
-                    label = "Monto",
-                    isAnomaly = transaction.amountAnomaly
-                )
+                AnomalyIndicator(label = "Location", isAnomaly = transaction.locationAnomaly)
+                AnomalyIndicator(label = "Amount", isAnomaly = transaction.amountAnomaly)
             }
 
             if (transaction.location != null) {
@@ -272,7 +305,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        "Ver ubicación",
+                        "View location",
                         color = Color.Gray,
                         fontSize = 12.sp
                     )
@@ -283,10 +316,7 @@ fun TransactionItem(transaction: Transaction, navController: NavController, acco
 }
 
 @Composable
-private fun AnomalyIndicator(
-    label: String,
-    isAnomaly: Boolean
-) {
+private fun AnomalyIndicator(label: String, isAnomaly: Boolean) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start
@@ -300,11 +330,7 @@ private fun AnomalyIndicator(
                 )
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            color = Color.Gray
-        )
+        Text(text = label, fontSize = 12.sp, color = Color.Gray)
     }
 }
 
@@ -319,33 +345,11 @@ private fun normalizeDate(date: Date): Date {
 }
 
 private fun formatDate(date: Date): String {
-    val calendar = Calendar.getInstance()
-    calendar.time = date
-
-    val today = Calendar.getInstance()
-    today.set(Calendar.HOUR_OF_DAY, 0)
-    today.set(Calendar.MINUTE, 0)
-    today.set(Calendar.SECOND, 0)
-    today.set(Calendar.MILLISECOND, 0)
-
-    val yesterday = Calendar.getInstance()
-    yesterday.add(Calendar.DAY_OF_YEAR, -1)
-    yesterday.set(Calendar.HOUR_OF_DAY, 0)
-    yesterday.set(Calendar.MINUTE, 0)
-    yesterday.set(Calendar.SECOND, 0)
-    yesterday.set(Calendar.MILLISECOND, 0)
-
-    return when {
-        calendar.time == today.time -> "Hoy"
-        calendar.time == yesterday.time -> "Ayer"
-        else -> {
-            val formatter = SimpleDateFormat("d 'de' MMMM 'de' yyyy", Locale("es", "ES"))
-            formatter.format(date)
-        }
-    }
+    val formatter = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+    return formatter.format(date)
 }
 
 private fun formatCurrency(amount: Double): String {
-    val format = NumberFormat.getCurrencyInstance(Locale("es", "CO"))
+    val format = NumberFormat.getCurrencyInstance(Locale.getDefault())
     return format.format(amount)
 }

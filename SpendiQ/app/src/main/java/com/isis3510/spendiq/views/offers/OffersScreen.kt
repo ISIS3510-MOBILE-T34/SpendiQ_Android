@@ -193,22 +193,26 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
-            offer.shopImage?.let { imageUrl ->
+
+            // Caching - J0FR
+            offer.shopImage?.let { imageUrl -> // Check if the shopImage URL is not null
                 AndroidView(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    factory = { context ->
+                        .fillMaxWidth()   // Set the ImageView to take the full width of the parent
+                        .height(200.dp),  // Set the height of the ImageView to 200dp
+                    factory = { context -> // Create a new ImageView inside the AndroidView
                         ImageView(context).apply {
+                            // Use Picasso to load the image from the URL
                             Picasso.get()
-                                .load(imageUrl)
-                                .placeholder(R.drawable.placeholder_background)
-                                .error(R.drawable.error_background)
-                                .into(this)
+                                .load(imageUrl)                      // Load the image from the given URL
+                                .placeholder(R.drawable.placeholder_background) // Show this placeholder while the image is loading
+                                .error(R.drawable.error_background)  // Show this error image if the loading fails
+                                .into(this)                          // Set the loaded image into this ImageView
                         }
                     }
                 )
             }
+
 
             Column(
                 modifier = Modifier.padding(16.dp)

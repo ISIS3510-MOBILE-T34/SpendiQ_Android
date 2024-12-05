@@ -36,8 +36,8 @@ fun AddTransactionModal(
     onDismiss: () -> Unit,
     onTransactionAdded: () -> Unit
 ) {
-    // Initialize LruCache for caching form data
-    val cache = LruCacheManager.cache
+    // Caching - J0FR
+    val cache = LruCacheManager.cache  // Initialize LruCache for caching form data
 
     // Load values from cache or set defaults
     var amount by remember { mutableStateOf(cache.get("amount") as? String ?: "") }
@@ -62,6 +62,7 @@ fun AddTransactionModal(
 
     // Initialize DataStore state
     LaunchedEffect(Unit) {
+        // DataStore - J0FR
         DataStoreUtils.getIncludeLocation(context).collectLatest { savedState ->
             isLocationEnabled = savedState // Retrieve saved "Include Location" state
         }
@@ -262,7 +263,7 @@ fun AddTransactionModal(
                         onCheckedChange = { enabled ->
                             isLocationEnabled = enabled
                             scope.launch {
-                                // Save the new state to DataStore
+                                // DataStore - j0fr
                                 DataStoreUtils.setIncludeLocation(context, enabled)
                                 if (enabled) {
                                     location = locationService.getCurrentLocation()

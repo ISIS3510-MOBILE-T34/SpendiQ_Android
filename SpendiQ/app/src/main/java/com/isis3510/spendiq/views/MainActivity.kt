@@ -263,6 +263,7 @@ class MainActivity : FragmentActivity() {
                     val userData by userViewModel.userData.collectAsState()
                     val chatbotViewModel: ChatbotViewModel = viewModel()
                     val onboardingViewModel: OnboardingViewModel = viewModel()
+                    val networkViewModel: NetworkViewModel = viewModel()
 
                     NavHost(navController = navController, startDestination = "splash") {
                         composable("splash") {
