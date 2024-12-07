@@ -239,7 +239,7 @@ fun EditAccountModal(
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     // Filter available account types
-    val availableAccountTypes = listOf("Nu", "Bancolombia", "Nequi")
+    val availableAccountTypes = listOf("Bancolombia", "Banco de Bogotá", "Davivienda", "Lulo", "Nequi", "Nu","Scotiabank")
         .filter { accountType -> existingAccounts.none { it.name == accountType } }
 
     // Define actions based on available account types
