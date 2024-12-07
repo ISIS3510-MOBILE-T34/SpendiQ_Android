@@ -2,7 +2,6 @@ package com.isis3510.spendiq.views.transaction
 
 import android.app.DatePickerDialog
 import android.util.Log
-import android.util.LruCache
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -15,18 +14,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.isis3510.spendiq.model.data.Transaction
 import com.isis3510.spendiq.model.data.Location
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.launch
-import java.util.*
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.model.singleton.LruCacheManager
 import com.isis3510.spendiq.services.LocationService
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.utils.DataStoreUtils
 import kotlinx.coroutines.flow.collectLatest
+import java.text.NumberFormat
+import java.util.Locale
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +46,7 @@ fun AddTransactionModal(
     val cache = LruCacheManager.cache  // Initialize LruCache for caching form data
 
     // Load values from cache or set defaults
-    var amount by remember { mutableStateOf(cache.get("amount") as? String ?: "") }
+    var amount by remember { mutableStateOf(cache.get("amount") as? String ?: "") } // Digits-only string
     var transactionName by remember { mutableStateOf(cache.get("transactionName") as? String ?: "") }
     var selectedDate by remember { mutableStateOf(cache.get("selectedDate") as? Timestamp ?: Timestamp.now()) }
     var selectedTransactionType by remember { mutableStateOf(cache.get("transactionType") as? String ?: "Expense") }
@@ -114,43 +120,64 @@ fun AddTransactionModal(
             Text("Add Transaction", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Amount input field with digit-only filter
+            // Amount input field with digit-only filter and formatting
             OutlinedTextField(
                 value = amount,
-                onValueChange = {
-                    amount = it.filter { char -> char.isDigit() }
-                    cache.put("amount", amount)
+                onValueChange = { input ->
+                    // Remove all non-digit characters
+                    val digits = input.filter { it.isDigit() }
+                        .take(10) // Limit to 10 digits
+                    if (digits.length <= 10) {
+                        amount = digits
+                        cache.put("amount", amount)
+                    }
                 },
                 label = { Text("Amount") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number
+                ),
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                leadingIcon = { Text("$", fontSize = 14.sp) },
+                visualTransformation = NumberFormatTransformation()
+            )
+            Text(
+                "${amount.length}/10",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+                modifier = Modifier.align(Alignment.End)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Transaction name input field
+            // Transaction name input field with character limit and counter
             OutlinedTextField(
                 value = transactionName,
                 onValueChange = {
-                    transactionName = it
-
-                    // Log the updated transactionName
-                    Log.d("TransactionName", "Updated transactionName: $transactionName")
-
-                    // Put the updated value into the cache and log it
-                    cache.put("transactionName", transactionName)
-                    Log.d("Cache", "Saved to cache: ${cache.get("transactionName")}")
+                    if (it.length <= 50) {
+                        transactionName = it
+                        cache.put("transactionName", transactionName)
+                    }
                 },
                 label = { Text("Transaction Name") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
+            Text(
+                text = "${transactionName.length}/50",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+                modifier = Modifier
+                    .align(Alignment.End)
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             // Date picker button
-            Button(onClick = { datePickerDialog.show() }) {
+            Button(
+                onClick = { datePickerDialog.show() },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Select Date: ${selectedDate.toDate().toString().substring(0, 10)}", color = Color.White)
             }
 
@@ -281,7 +308,6 @@ fun AddTransactionModal(
                     )
                 }
 
-
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Submit button for adding transaction
@@ -326,5 +352,43 @@ fun AddTransactionModal(
                 )
             }
         }
+    }
+}
+
+/**
+ * VisualTransformation para formatear números con separadores de miles.
+ */
+class NumberFormatTransformation : VisualTransformation {
+    private val formatter: NumberFormat = NumberFormat.getNumberInstance(Locale.US).apply {
+        isGroupingUsed = true
+        maximumFractionDigits = 0 // Solo enteros
+        minimumFractionDigits = 0
+    }
+
+    override fun filter(text: AnnotatedString): TransformedText {
+        val originalText = text.text.filter { it.isDigit() }
+
+        val formatted = if (originalText.isNotEmpty()) {
+            try {
+                formatter.format(originalText.toLong())
+            } catch (e: NumberFormatException) {
+                originalText
+            }
+        } else {
+            ""
+        }
+
+        // Calcula el desplazamiento del cursor
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                return formatted.length
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                return originalText.length
+            }
+        }
+
+        return TransformedText(AnnotatedString(formatted), offsetMapping)
     }
 }

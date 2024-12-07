@@ -197,7 +197,7 @@ fun MainContent(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
                     Text(
-                        text = if (isMoneyVisible) currencyFormatter.format(currentMoney) else "******",
+                        text = if (isMoneyVisible) currencyFormatter.format(currentMoney) else "**********",
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
@@ -261,7 +261,7 @@ fun MainContent(
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("User Balance Over Last 30 Days", style = MaterialTheme.typography.headlineMedium)
+                Text("Your Balance Over Last 30 Days", style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (uiState is TransactionViewModel.UiState.Loading) {

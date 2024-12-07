@@ -231,13 +231,13 @@ class AccountRepository private constructor(private val context: Context) {
      */
     private fun getColorForAccount(accountName: String): Color {
         return when (accountName) {
-            "Nu" -> Color(0xFF9747FF)
-            "Bancolombia" -> Color(0xFFFFCC00)
-            "Nequi" -> Color(0xFF8B2F87)
-            "Lulo" -> Color(0xFFE8FF00)
+            "Nu" -> Color(0xFF820ad1)
+            "Bancolombia" -> Color(0xFFFDDA24)
+            "Nequi" -> Color(0xFFda0081)
+            "Lulo" -> Color(0xFFe8ff00)
             "Davivienda" -> Color(0xFFed1c27)
-            "Banco de Bogotá" -> Color(0xFF072146)
-            "Scotiabank" -> Color(0xFF008080)
+            "Banco de Bogotá" -> Color(0xFF00317e)
+            "Scotiabank" -> Color(0xFFED0722)
             else -> Color.Gray
         }
     }

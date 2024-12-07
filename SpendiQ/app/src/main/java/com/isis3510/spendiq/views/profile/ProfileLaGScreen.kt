@@ -89,7 +89,7 @@ fun ProfileLaGScreen(
     limits?.let { currentLimits ->
         val MAX_EXPENSES = 10
         val MAX_NAME_LENGTH = 50
-        val MAX_AMOUNT_LENGTH = 8
+        val MAX_AMOUNT_LENGTH = 10
 
         val selectedFrequency = currentLimits.frequency
         val isByExpenseChecked = currentLimits.isByExpenseChecked

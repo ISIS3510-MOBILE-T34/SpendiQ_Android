@@ -260,8 +260,13 @@ fun BarChart(
                     Bars.Data(
                         label = accountName,
                         value = amount,
-                        color = if (accountName ==  "Nequi") SolidColor(Color(0xFF890F9F)) else if (accountName == "Bancolombia") SolidColor(Color(0xFFFFE61F)) else SolidColor(Color(0xFF673AB7)
-                        )
+                        color = if (accountName ==  "Nequi") SolidColor(Color(0xFFda0081)) else if
+                                (accountName == "Bancolombia") SolidColor(Color(0xFFFDDA24)) else if
+                                (accountName ==  "Nu") SolidColor(Color(0xFF820ad1)) else if
+                                (accountName == "Lulo") SolidColor(Color(0xFFe8ff00)) else if
+                                (accountName == "Davivienda") SolidColor(Color(0xFFed1c27)) else if
+                                (accountName == "Banco de Bogotá") SolidColor(Color(0xFF00317e)) else
+                                SolidColor(Color(0xFFED0722))
                     )
                 }
             )
