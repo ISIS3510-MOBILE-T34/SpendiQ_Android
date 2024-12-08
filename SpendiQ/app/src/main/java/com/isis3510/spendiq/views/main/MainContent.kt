@@ -329,7 +329,7 @@ fun MainContent(
                     }
                 } else {
                         Text(
-                            text = "No tienes ninguna transacción.",
+                            text = "You don't have any transactions.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.Gray
                         )
@@ -338,7 +338,7 @@ fun MainContent(
             }
 
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(60.dp))
             }
         }
 

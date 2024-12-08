@@ -66,7 +66,7 @@ class LocationNotificationWorker(
                     .setStyle(NotificationCompat.BigTextStyle()
                         .bigText("${offer.placeName} (${formatDistance(distance)})\n${offer.offerDescription}")
                     )
-                    .setSmallIcon(R.drawable.notification) // Notification icon
+                    .setSmallIcon(R.drawable.spendiq_logo)
                     .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                     .setAutoCancel(true) // Dismiss when clicked
                     .build()
