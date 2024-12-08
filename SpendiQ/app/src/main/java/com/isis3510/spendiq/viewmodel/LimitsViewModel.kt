@@ -16,7 +16,7 @@ class LimitsViewModel(private val context: Context) : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val limitsDao = DatabaseProvider.getDatabase(context).limitsDao()
 
-    // MutableLiveData privada para encapsular los datos
+    // MutableLiveData privada para encapsular  datos
     private val _limits = MutableLiveData<LimitsEntity>()
 
     // LiveData pública para exponer los datos de forma inmutable
@@ -44,11 +44,9 @@ class LimitsViewModel(private val context: Context) : ViewModel() {
                 }
             }
         } else {
-            // Manejar el caso en que el usuario no está autenticado
         }
     }
 
-    // Funciones para actualizar cada campo y guardar en la base de datos local
     fun updateFrequency(frequency: String) {
         val updatedLimits = _limits.value?.copy(frequency = frequency)
         updatedLimits?.let {

@@ -208,16 +208,16 @@ fun SectionWithButtons(navController: NavController) {
                     .background(Color(0xFFEEEEEE))
                     .padding(16.dp)
             ) {
-                // Botón Notifications - Deshabilitado
+                // Botón Notifications
                 ActionButtonWithArrow(
                     text = "Notifications",
                     iconResId = R.drawable.baseline_notifications_24,
                     navController = navController,
                     backgroundColor = Color(0xFFC33BA5),
                     textColor = Color.Black,
-                    enabled = false // Deshabilitado
+                    enabled = true
                 ) {
-                    // Acción deshabilitada, no se ejecutará
+                    navController.navigate("profileNotificationsScreen") { launchSingleTop = true }
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
 
@@ -413,10 +413,9 @@ fun ProfileImageWithMultiColorBorder(profileImageUri: Uri?) {
             )
         }
 
-        // Imagen de perfil (si existe)
         Box(
             modifier = Modifier
-                .size(100.dp) // Tamaño más pequeño para la imagen de perfil, respetando los bordes
+                .size(100.dp)
                 .clip(CircleShape)
                 .align(Alignment.Center)
                 .background(Color.Gray), // Fondo gris por defecto
@@ -443,7 +442,7 @@ fun ProfileImageWithMultiColorBorder(profileImageUri: Uri?) {
     }
 }
 
-@SuppressLint("MissingPermission") // Asegúrate de manejar permisos en el nivel de actividad
+@SuppressLint("MissingPermission")
 suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit) {
     val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
 
@@ -464,7 +463,7 @@ suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit
     }
 }
 
-// Función para guardar la imagen en el almacenamiento interno y devolver la URI
+
 fun saveImageToInternalStorage(context: Context, uri: Uri): Uri? {
     val filename = "profile_image.png"
     val file = File(context.filesDir, filename)

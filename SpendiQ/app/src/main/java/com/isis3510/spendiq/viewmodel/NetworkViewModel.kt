@@ -6,19 +6,19 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import android.util.Log
 
 class NetworkViewModel(application: Application) : AndroidViewModel(application) {
 
-    // MutableStateFlow for network status
     private val _isConnected = MutableStateFlow(true)
     val isConnected: StateFlow<Boolean> = _isConnected
 
     private val connectivityManager =
         application.getSystemService(ConnectivityManager::class.java)
+
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     init {
         monitorNetworkConnectivity()
@@ -29,29 +29,44 @@ class NetworkViewModel(application: Application) : AndroidViewModel(application)
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
 
-        connectivityManager.registerNetworkCallback(
-            networkRequest,
-            object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    // Network is available
-                    _isConnected.value = true
-                }
-
-                override fun onLost(network: Network) {
-                    // Network is lost
-                    _isConnected.value = false
-                }
-
-                override fun onUnavailable() {
-                    // Network is unavailable
-                    _isConnected.value = false
-                }
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                // Red disponible
+                _isConnected.value = true
+                Log.d("NetworkViewModel", "Network Available")
             }
-        )
+
+            override fun onLost(network: Network) {
+                // Red perdida
+                _isConnected.value = false
+                Log.d("NetworkViewModel", "Network Lost")
+            }
+
+            override fun onUnavailable() {
+                // Red no disponible
+                _isConnected.value = false
+                Log.d("NetworkViewModel", "Network Unavailable")
+            }
+        }
+
+        try {
+            connectivityManager.registerNetworkCallback(networkRequest, networkCallback!!)
+            Log.d("NetworkViewModel", "NetworkCallback registrado correctamente")
+        } catch (e: Exception) {
+            Log.e("NetworkViewModel", "Error al registrar NetworkCallback: ${e.message}")
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
-        connectivityManager.unregisterNetworkCallback(ConnectivityManager.NetworkCallback())
+        networkCallback?.let { callback ->
+            try {
+                connectivityManager.unregisterNetworkCallback(callback)
+                Log.d("NetworkViewModel", "NetworkCallback desregistrado correctamente")
+            } catch (e: IllegalArgumentException) {
+                Log.w("NetworkViewModel", "Intento de desregistrar un NetworkCallback no registrado: ${e.message}")
+            }
+            networkCallback = null
+        }
     }
 }

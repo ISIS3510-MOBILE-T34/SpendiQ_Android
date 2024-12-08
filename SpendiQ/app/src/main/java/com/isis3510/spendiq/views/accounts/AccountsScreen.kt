@@ -65,7 +65,7 @@ fun AccountsScreen(
 
     // Fetch accounts when the screen is loaded
     LaunchedEffect(Unit) {
-        accountViewModel.fetchAccounts()
+        accountViewModel.observeAccounts()
     }
 
     // Scaffold layout with bottom navigation
@@ -162,7 +162,7 @@ fun AccountsScreen(
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false
-                accountViewModel.fetchAccounts()
+                accountViewModel.observeAccounts()
             }
         )
     }
@@ -239,7 +239,7 @@ fun EditAccountModal(
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     // Filter available account types
-    val availableAccountTypes = listOf("Nu", "Bancolombia", "Nequi")
+    val availableAccountTypes = listOf("Bancolombia", "Banco de Bogotá", "Davivienda", "Lulo", "Nequi", "Nu","Scotiabank")
         .filter { accountType -> existingAccounts.none { it.name == accountType } }
 
     // Define actions based on available account types

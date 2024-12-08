@@ -3,12 +3,20 @@ package com.isis3510.spendiq.model.repository
 import android.content.Context
 import android.util.Log
 import androidx.compose.ui.graphics.Color
+import com.google.firebase.firestore.Query
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.model.singleton.FirebaseManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.File
 
@@ -106,6 +114,119 @@ class AccountRepository private constructor(private val context: Context) {
         }
     }
 
+
+
+    fun getAccountsRealTime(): Flow<Result<List<Account>>> = callbackFlow {
+        try {
+            val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+
+            val listenerRegistration = firestore.collection("accounts")
+                .whereEqualTo("user_id", userId)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e("AccountRepository", "Error listening to accounts", error)
+                        trySend(Result.failure(error)).isSuccess
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null) {
+                        val accounts = snapshot.documents.mapNotNull { doc ->
+                            Account(
+                                id = doc.id,
+                                name = doc.getString("name") ?: return@mapNotNull null,
+                                type = doc.getString("type") ?: "Debit", // Asignar un valor por defecto
+                                amount = doc.getLong("amount") ?: 0L,
+                                color = getColorForAccount(doc.getString("name") ?: "")
+                            )
+                        }
+                        saveAccountsToLocal(accounts) // Opcional: guardar localmente
+                        Log.d("AccountRepository", "Fetched accounts: $accounts")
+                        trySend(Result.success(accounts)).isSuccess
+                    }
+                }
+
+            awaitClose { listenerRegistration.remove() }
+        } catch (e: Exception) {
+            Log.e("AccountRepository", "Exception in getAccountsRealTime", e)
+            trySend(Result.failure(e)).isSuccess
+            close(e)
+        }
+    }
+
+    /**
+     * Obtiene las 3 cuentas con transacciones más recientes como un Flow que emite actualizaciones en tiempo real.
+     */
+    fun getTop3RecentAccountsRealTime(): Flow<Result<List<Account>>> = callbackFlow {
+        try {
+            val userId = auth.currentUser?.uid ?: throw Exception("User not authenticated")
+
+            // Listener para las cuentas
+            val accountsListener = firestore.collection("accounts")
+                .whereEqualTo("user_id", userId)
+                .addSnapshotListener { accountsSnapshot, accountsError ->
+                    if (accountsError != null) {
+                        Log.e("AccountRepository", "Error listening to accounts for top3", accountsError)
+                        trySend(Result.failure(accountsError)).isSuccess
+                        return@addSnapshotListener
+                    }
+
+                    if (accountsSnapshot != null) {
+                        val accounts = accountsSnapshot.documents.mapNotNull { doc ->
+                            Account(
+                                id = doc.id,
+                                name = doc.getString("name") ?: return@mapNotNull null,
+                                type = doc.getString("type") ?: "Debit",
+                                amount = doc.getLong("amount") ?: 0L,
+                                color = getColorForAccount(doc.getString("name") ?: "")
+                            )
+                        }
+
+                        // Lanzar una corrutina dentro del callbackFlow
+                        // Usa 'launch' en 'this' que es el CoroutineScope de callbackFlow
+                        this.launch {
+                            try {
+                                val deferredAccountsWithLatestTransaction = accounts.map { account ->
+                                    async(Dispatchers.IO) {
+                                        val transactionsSnapshot = firestore.collection("accounts")
+                                            .document(account.id)
+                                            .collection("transactions")
+                                            .orderBy("dateTime", Query.Direction.DESCENDING)
+                                            .limit(1)
+                                            .get()
+                                            .await()
+
+                                        val latestTransactionTime = transactionsSnapshot.documents.firstOrNull()
+                                            ?.getTimestamp("dateTime")
+
+                                        Pair(account, latestTransactionTime)
+                                    }
+                                }
+
+                                val accountsWithLatestTransaction = deferredAccountsWithLatestTransaction.awaitAll()
+
+                                val filteredAccounts = accountsWithLatestTransaction.filter { it.second != null }
+
+                                val sortedAccounts = filteredAccounts.sortedByDescending { it.second }
+
+                                val top3Accounts = sortedAccounts.take(3).map { it.first }
+
+                                Log.d("AccountRepository", "Top 3 Accounts: $top3Accounts")
+                                trySend(Result.success(top3Accounts)).isSuccess
+                            } catch (e: Exception) {
+                                Log.e("AccountRepository", "Error processing top 3 accounts", e)
+                                trySend(Result.failure(e)).isSuccess
+                            }
+                        }
+                    }
+                }
+
+            awaitClose { accountsListener.remove() }
+        } catch (e: Exception) {
+            Log.e("AccountRepository", "Exception in getTop3RecentAccountsRealTime", e)
+            trySend(Result.failure(e)).isSuccess
+            close(e)
+        }
+    }
 
     /**
      * Creates a new account for the currently authenticated user.
@@ -231,12 +352,13 @@ class AccountRepository private constructor(private val context: Context) {
      */
     private fun getColorForAccount(accountName: String): Color {
         return when (accountName) {
-            "Nu" -> Color(0xFF9747FF)
-            "Bancolombia" -> Color(0xFFFFCC00)
-            "Nequi" -> Color(0xFF8B2F87)
-            "Lulo" -> Color(0xFFE8FF00)
+            "Nu" -> Color(0xFF820ad1)
+            "Bancolombia" -> Color(0xFFFDDA24)
+            "Nequi" -> Color(0xFFda0081)
+            "Lulo" -> Color(0xFFe8ff00)
             "Davivienda" -> Color(0xFFed1c27)
-            "BBVA" -> Color(0xFF072146)
+            "Banco de Bogotá" -> Color(0xFF00317e)
+            "Scotiabank" -> Color(0xFFED0722)
             else -> Color.Gray
         }
     }
