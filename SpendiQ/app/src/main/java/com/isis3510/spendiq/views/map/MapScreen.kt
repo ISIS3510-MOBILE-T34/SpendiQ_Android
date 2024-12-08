@@ -62,7 +62,7 @@ fun MapScreen(
 
     // Fetch all accounts and their transactions when the screen is loaded
     LaunchedEffect(Unit) {
-        accountViewModel.fetchAccounts() // Fetch accounts first
+        accountViewModel.observeAccounts() // Fetch accounts first
         accounts.forEach { account ->
             // Log account ID before fetching transactions
             Log.d("MapScreen", "Fetching transactions for account: ${account.id}")

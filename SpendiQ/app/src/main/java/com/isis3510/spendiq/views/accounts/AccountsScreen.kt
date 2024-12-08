@@ -65,7 +65,7 @@ fun AccountsScreen(
 
     // Fetch accounts when the screen is loaded
     LaunchedEffect(Unit) {
-        accountViewModel.fetchAccounts()
+        accountViewModel.observeAccounts()
     }
 
     // Scaffold layout with bottom navigation
@@ -162,7 +162,7 @@ fun AccountsScreen(
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false
-                accountViewModel.fetchAccounts()
+                accountViewModel.observeAccounts()
             }
         )
     }

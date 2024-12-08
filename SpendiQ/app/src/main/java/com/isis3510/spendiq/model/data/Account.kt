@@ -19,6 +19,5 @@ data class Account(
     val name: String, // Name of the account
     val type: String, // Type of the account
     val amount: Long, // Current balance of the account
-    val color: Color, // Color representation for the account in the UI
-    val lastUsed: Long
+    val color: Color
 )

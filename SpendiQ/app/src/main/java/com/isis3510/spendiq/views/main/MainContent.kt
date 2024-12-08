@@ -77,6 +77,7 @@ fun MainContent(
     onboardingViewModel: OnboardingViewModel
 ) {
     val accounts by accountViewModel.accounts.collectAsState()
+    val top3Accounts by accountViewModel.top3Accounts.collectAsState() // Obtener las 3 cuentas más recientes
     val promos by promoViewModel.offers.collectAsState()
     val currentMoney by accountViewModel.currentMoney.collectAsState()
     var showAddTransactionModal by remember { mutableStateOf(false) }
@@ -98,7 +99,6 @@ fun MainContent(
     }
 
     LaunchedEffect(Unit) {
-        accountViewModel.fetchAccounts()
         transactionViewModel.fetchAllTransactions()
         transactionViewModel.uiState.collect { state ->
             if (state is TransactionViewModel.UiState.Success) {
@@ -248,13 +248,13 @@ fun MainContent(
 
             item {
                 Text(
-                    text = "Accounts",
+                    text = "Recently used accounts",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Medium)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            items(accounts) { account ->
+            items(top3Accounts) { account ->
                 AccountItem(account, navController)
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -274,6 +274,7 @@ fun MainContent(
                             val moveLabels = dailyTransactions.map { it.day }
 
                             // Crear el gráfico de líneas
+                            if (movements.size == moveLabels.size) {
                             LineChart(
                                 modifier = Modifier
                                     .height(300.dp)
@@ -326,6 +327,13 @@ fun MainContent(
                         )
                         // Tal vez poner una imagen aqui
                     }
+                } else {
+                        Text(
+                            text = "No tienes ninguna transacción.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
 
@@ -342,7 +350,6 @@ fun MainContent(
                 onDismiss = { showAddTransactionModal = false },
                 onTransactionAdded = {
                     showAddTransactionModal = false
-                    accountViewModel.fetchAccounts()
                 }
             )
         }
@@ -358,21 +365,29 @@ fun AccountItem(account: Account, navController: NavController) {
         colors = CardDefaults.cardColors(containerColor = account.color)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = account.name,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = account.name,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "$ ${account.amount}",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = account.type,
-                color = Color.White.copy(alpha = 0.7f)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "$ ${account.amount}",
-                color = Color.White,
-                fontWeight = FontWeight.Bold
+                color = Color.White.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }
