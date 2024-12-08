@@ -21,6 +21,8 @@ import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
+import java.text.NumberFormat
+import java.util.Locale
 
 /**
  * AccountsScreen composable function
@@ -179,11 +181,18 @@ fun AccountsScreen(
  */
 @Composable
 fun AccountItem(account: Account, navController: NavController) {
+
+    val textColor = when (account.name) {
+        "Lulo", "Bancolombia" -> Color.Black
+        else -> Color.White
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .clickable { navController.navigate("accountTransactions/${account.name}") }
+            .clickable { navController.navigate("accountTransactions/${account.name}") },
+        colors = CardDefaults.cardColors(containerColor = account.color)
     ) {
         Box(
             modifier = Modifier
@@ -192,27 +201,38 @@ fun AccountItem(account: Account, navController: NavController) {
                 .background(account.color)
                 .padding(16.dp)
         ) {
+            // Mostrar solo el nombre y el tipo
             Column {
                 Text(
                     text = account.name,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    color = textColor,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Text(
                     text = account.type,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = textColor.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Normal,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
+            // Mostrar el monto al final
             Text(
-                text = "$ ${account.amount}",
-                color = Color.White,
+                text = formatAmount(account.amount),
+                color = textColor, // Color definido
                 fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
     }
 }
 
+fun formatAmount(amount: Long): String {
+    val locale = Locale("es", "CO")
+    val formatter = NumberFormat.getCurrencyInstance(locale)
+    return formatter.format(amount)
+}
 /**
  * EditAccountModal composable function
  *
