@@ -355,7 +355,7 @@ class AccountRepository private constructor(private val context: Context) {
             "Nu" -> Color(0xFF820ad1)
             "Bancolombia" -> Color(0xFFFDDA24)
             "Nequi" -> Color(0xFFda0081)
-            "Lulo" -> Color(0xFFe8ff00)
+            "LuloBank" -> Color(0xFFe8ff00)
             "Davivienda" -> Color(0xFFed1c27)
             "Banco de Bogotá" -> Color(0xFF00317e)
             "Scotiabank" -> Color(0xFFED0722)

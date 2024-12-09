@@ -55,6 +55,13 @@ import java.util.*
 import java.text.NumberFormat
 import kotlin.math.abs
 
+
+fun formatAmount(amount: Long): String {
+    val locale = Locale("es", "CO")
+    val formatter = NumberFormat.getCurrencyInstance(locale)
+    return formatter.format(amount)
+}
+
 fun saveIsMoneyVisible(context: Context, isVisible: Boolean) {
     val sharedPreferences = context.getSharedPreferences("AppPreferences", Context.MODE_PRIVATE)
     sharedPreferences.edit().putBoolean("isMoneyVisible", isVisible).apply()
@@ -93,6 +100,7 @@ fun MainContent(
     val totalIncomeAndExpenses = transactionViewModel.totalIncomeAndExpenses.collectAsState(initial = 0L to 0L).value
     val (totalIncome, totalExpenses) = totalIncomeAndExpenses
     val isOnboardingShown = onboardingViewModel.isOnboardingShown.value
+
 
     LaunchedEffect(isMoneyVisible) {
         saveIsMoneyVisible(context, isMoneyVisible)
@@ -358,36 +366,47 @@ fun MainContent(
 
 @Composable
 fun AccountItem(account: Account, navController: NavController) {
+
+    val textColor = when (account.name) {
+        "LuloBank", "Bancolombia" -> Color.Black
+        else -> Color.White
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(vertical = 8.dp)
             .clickable { navController.navigate("accountTransactions/${account.name}") },
         colors = CardDefaults.cardColors(containerColor = account.color)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .background(account.color)
+                .padding(16.dp)
+        ) {
+            // Mostrar solo el nombre y el tipo
+            Column {
                 Text(
                     text = account.name,
-                    color = Color.White,
+                    color = textColor,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
-                    text = "$ ${account.amount}",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
+                    text = account.type,
+                    color = textColor.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            // Mostrar el monto al final
             Text(
-                text = account.type,
-                color = Color.White.copy(alpha = 0.7f),
-                style = MaterialTheme.typography.bodySmall
+                text = formatAmount(account.amount),
+                color = textColor, // Color definido
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.align(Alignment.CenterEnd)
             )
         }
     }
