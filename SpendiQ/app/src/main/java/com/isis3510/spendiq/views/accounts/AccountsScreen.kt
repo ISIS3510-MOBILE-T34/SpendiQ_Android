@@ -77,7 +77,7 @@ fun AccountsScreen(
 
     // Fetch accounts on load
     LaunchedEffect(Unit) {
-        accountViewModel.fetchAccounts()
+        accountViewModel.observeAccounts()
     }
 
     Scaffold(
@@ -188,7 +188,7 @@ fun AccountsScreen(
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false
-                accountViewModel.fetchAccounts()
+                accountViewModel.observeAccounts()
             }
         )
     }
