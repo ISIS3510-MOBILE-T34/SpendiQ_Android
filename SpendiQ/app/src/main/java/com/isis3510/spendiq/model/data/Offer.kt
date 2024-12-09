@@ -23,5 +23,6 @@ data class Offer(
     val recommendationReason: String? = null, // Reason for recommending this offer, default is null
     val latitude: Double? = null, // Latitude of the offer's location, default is null
     val longitude: Double? = null, // Longitude of the offer's location, default is null
-    val distance: Int? = null // Distance to the offer's location from the user, default is null
+    val distance: Int? = null, // Distance to the offer's location from the user, default is null
+    val featured: Boolean = false // Indicates if the offer is featured, default is false
 )

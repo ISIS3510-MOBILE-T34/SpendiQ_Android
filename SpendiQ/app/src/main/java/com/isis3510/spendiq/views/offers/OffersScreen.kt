@@ -1,3 +1,4 @@
+// OffersScreen.kt
 package com.isis3510.spendiq.views.offers
 
 import android.Manifest
@@ -6,6 +7,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -188,31 +191,39 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            // Aplica un borde dorado si la oferta es "featured"
+            .border(
+                width = if (offer.featured) 2.dp else 0.dp,
+                color = if (offer.featured) Color(0xFFFFD700) else Color.Transparent, // Dorado
+                shape = RoundedCornerShape(12.dp)
+            ),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        // Cambia el color de fondo si es "featured"
+        colors = CardDefaults.cardColors(
+            containerColor = if (offer.featured) Color(0xFFFFF8DC) else MaterialTheme.colorScheme.surface
+        )
     ) {
         Column {
 
-            // Caching - J0FR
-            offer.shopImage?.let { imageUrl -> // Check if the shopImage URL is not null
+            // Imagen de la oferta
+            offer.shopImage?.let { imageUrl ->
                 AndroidView(
                     modifier = Modifier
-                        .fillMaxWidth()   // Set the ImageView to take the full width of the parent
-                        .height(200.dp),  // Set the height of the ImageView to 200dp
-                    factory = { context -> // Create a new ImageView inside the AndroidView
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    factory = { context ->
                         ImageView(context).apply {
-                            // Use Picasso to load the image from the URL
                             Picasso.get()
-                                .load(imageUrl)                      // Load the image from the given URL
-                                .placeholder(R.drawable.placeholder_background) // Show this placeholder while the image is loading
-                                .error(R.drawable.error_background)  // Show this error image if the loading fails
-                                .into(this)                          // Set the loaded image into this ImageView
+                                .load(imageUrl)
+                                .placeholder(R.drawable.placeholder_background)
+                                .error(R.drawable.error_background)
+                                .into(this)
                         }
                     }
                 )
             }
-
 
             Column(
                 modifier = Modifier.padding(16.dp)
@@ -222,6 +233,7 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Nombre del lugar
                     offer.placeName?.let {
                         Text(
                             text = it,
@@ -230,6 +242,7 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
                         )
                     }
 
+                    // Distancia
                     distance?.let {
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
@@ -246,6 +259,7 @@ fun OfferCard(offer: Offer, distance: Float?, onClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Descripción de la oferta
                 offer.offerDescription?.let {
                     Text(
                         text = it,
@@ -293,7 +307,11 @@ private fun sortOffersByDistance(
         } else {
             null
         }
-    }.sortedBy { it.second }
+    }.sortedWith(
+        // Primero ordena por 'featured' (true primero), luego por distancia (ascendente)
+        compareByDescending<Pair<Offer, Float?>> { it.first.featured }
+            .thenBy { it.second }
+    )
 }
 
 private fun formatDistance(meters: Float): String {
