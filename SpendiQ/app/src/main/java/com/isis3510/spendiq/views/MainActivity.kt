@@ -401,7 +401,8 @@ class MainActivity : FragmentActivity() {
                                 navController = navController,
                                 chatbotViewModel = chatbotViewModel,
                                 connectivityViewModel = connectivityViewModel,
-                                firebaseAnalytics = firebaseAnalytics
+                                firebaseAnalytics = firebaseAnalytics,
+                                accountViewModel = accountViewModel
                             )
                         }
                         composable("onboarding") {
