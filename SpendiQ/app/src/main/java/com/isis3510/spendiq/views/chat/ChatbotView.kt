@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.text.style.TextAlign
 import com.google.firebase.analytics.FirebaseAnalytics
+import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 
 @Composable
@@ -31,11 +32,13 @@ fun ChatbotView(
     navController: NavController,
     chatbotViewModel: ChatbotViewModel,
     connectivityViewModel: ConnectivityViewModel,
-    firebaseAnalytics: FirebaseAnalytics
+    firebaseAnalytics: FirebaseAnalytics,
+    accountViewModel: AccountViewModel,
 ) {
     var userInput by remember { mutableStateOf("") }
     val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
     val isBotActive = chatbotViewModel.isBotActive.value
+    val currentMoney by accountViewModel.currentMoney.collectAsState()
 
     // Verificar el estado del bot al iniciar la vista
     LaunchedEffect(Unit) {
@@ -58,7 +61,7 @@ fun ChatbotView(
                 onValueChange = { userInput = it },
                 onClickSend = {
                     if (userInput.isNotEmpty()) {
-                        chatbotViewModel.sendMessage(userInput, firebaseAnalytics)
+                        chatbotViewModel.sendMessage(userInput, firebaseAnalytics, currentMoney)
                         userInput = ""
                     }
                 },
@@ -72,6 +75,7 @@ fun ChatbotView(
             modifier = Modifier
                 .padding(paddingValues = paddingValues)
                 .fillMaxSize()
+                .imePadding()
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -94,6 +98,7 @@ fun ChatbotView(
         }
     }
 }
+
 @Composable
 fun ToolbarMessage(
     modifier: Modifier = Modifier,
