@@ -55,20 +55,29 @@ fun AccountsScreen(
     accountViewModel: AccountViewModel,
     transactionViewModel: TransactionViewModel
 ) {
-    // Collects accounts and UI state from the AccountViewModel
+    // Collect accounts and transactions
     val accounts by accountViewModel.accounts.collectAsState()
+    val transactions by transactionViewModel.transactions.collectAsState()
     val uiState by accountViewModel.uiState.collectAsState()
 
-    // State variables to manage modal visibility
+    // State variables for modals
     var showEditModal by remember { mutableStateOf(false) }
     var showAddTransactionModal by remember { mutableStateOf(false) }
 
-    // Fetch accounts when the screen is loaded
-    LaunchedEffect(Unit) {
-        accountViewModel.observeAccounts()
+    // Calculate the account with the most transactions
+    val accountWithMostTransactions = remember(transactions, accounts) {
+        transactions.groupBy { it.accountId }
+            .mapValues { (_, txns) -> txns.size }
+            .maxByOrNull { it.value }?.key?.let { accountId ->
+                accounts.find { it.name == accountId || it.id == accountId }
+            }
     }
 
-    // Scaffold layout with bottom navigation
+    // Fetch accounts on load
+    LaunchedEffect(Unit) {
+        accountViewModel.fetchAccounts()
+    }
+
     Scaffold(
         bottomBar = {
             BottomNavigation(
@@ -79,16 +88,13 @@ fun AccountsScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate("mapScreen") }, // Navigate to the Map view
-                modifier = Modifier
-                    .padding(16.dp)
-//                    .align(Alignment.BottomEnd)
+                onClick = { navController.navigate("mapScreen") },
+                modifier = Modifier.padding(16.dp)
             ) {
                 Icon(imageVector = Icons.Filled.LocationOn, contentDescription = "Go to Map")
             }
         }
     ) { innerPadding ->
-        // Column layout for the main content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -107,7 +113,25 @@ fun AccountsScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Display loading indicator or accounts based on the UI state
+            // Show account with the most transactions
+            if (accountWithMostTransactions != null) {
+                Text(
+                    text = "Account with the most transactions: ${accountWithMostTransactions.name}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.Blue,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            } else if (accounts.isNotEmpty()) {
+                Text(
+                    text = "No transactions available to determine the busiest account.",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            // Show accounts
             when (uiState) {
                 is AccountViewModel.UiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -127,7 +151,7 @@ fun AccountsScreen(
                         color = Color.Red
                     )
                 }
-                else -> {} // Idle state, do nothing
+                else -> {}
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -140,7 +164,7 @@ fun AccountsScreen(
         }
     }
 
-    // Show Edit Account Modal when requested
+    // Show Edit Account Modal
     if (showEditModal) {
         EditAccountModal(
             existingAccounts = accounts,
@@ -154,7 +178,7 @@ fun AccountsScreen(
         )
     }
 
-    // Show Add Transaction Modal when requested
+    // Show Add Transaction Modal
     if (showAddTransactionModal) {
         AddTransactionModal(
             accountViewModel = accountViewModel,
@@ -162,11 +186,14 @@ fun AccountsScreen(
             onDismiss = { showAddTransactionModal = false },
             onTransactionAdded = {
                 showAddTransactionModal = false
-                accountViewModel.observeAccounts()
+                accountViewModel.fetchAccounts()
             }
         )
     }
 }
+
+
+
 
 /**
  * AccountItem composable function
@@ -239,7 +266,7 @@ fun EditAccountModal(
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     // Filter available account types
-    val availableAccountTypes = listOf("Bancolombia", "Banco de Bogotá", "Davivienda", "Lulo", "Nequi", "Nu","Scotiabank")
+    val availableAccountTypes = listOf("Nu", "Bancolombia", "Nequi")
         .filter { accountType -> existingAccounts.none { it.name == accountType } }
 
     // Define actions based on available account types
