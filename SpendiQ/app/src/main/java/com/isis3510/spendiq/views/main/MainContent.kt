@@ -368,7 +368,7 @@ fun MainContent(
 fun AccountItem(account: Account, navController: NavController) {
 
     val textColor = when (account.name) {
-        "Lulo", "Bancolombia" -> Color.Black
+        "LuloBank", "Bancolombia" -> Color.Black
         else -> Color.White
     }
 

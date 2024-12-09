@@ -229,7 +229,7 @@ fun AccountsScreen(
 fun AccountItem(account: Account, navController: NavController) {
 
     val textColor = when (account.name) {
-        "Lulo", "Bancolombia" -> Color.Black
+        "LuloBank", "Bancolombia" -> Color.Black
         else -> Color.White
     }
 
@@ -306,7 +306,7 @@ fun EditAccountModal(
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     // Filtrar tipos de cuenta disponibles
-    val availableAccountTypes = listOf("Nu", "Bancolombia", "Nequi")
+    val availableAccountTypes = listOf("Bancolombia", "Banco de Bogotá", "Davivienda", "LuloBank", "Nequi", "Nu", "Scotiabank")
         .filter { accountType -> existingAccounts.none { it.name == accountType } }
 
     // Definir acciones basadas en los tipos de cuenta disponibles

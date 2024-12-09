@@ -239,9 +239,9 @@ fun SectionWithButtons(navController: NavController) {
                     navController = navController,
                     backgroundColor = Color(0xFFC33BA5),
                     textColor = Color.Black,
-                    enabled = true
+                    enabled = false
                 ) {
-                    navController.navigate("profileNotificationsScreen") { launchSingleTop = true }
+                    navController.navigate("profileNotificationsScreen") { launchSingleTop = false }
                 }
                 Divider(color = Color(0xFFC5C5C5), thickness = 1.dp)
 
