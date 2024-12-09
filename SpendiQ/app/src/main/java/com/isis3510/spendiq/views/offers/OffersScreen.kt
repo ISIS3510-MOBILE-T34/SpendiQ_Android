@@ -7,6 +7,10 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +36,7 @@ import com.google.android.gms.location.LocationServices
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.model.data.Offer
 import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 import com.isis3510.spendiq.viewmodel.OffersViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
@@ -45,7 +51,8 @@ fun OffersScreen(
     navController: NavController,
     viewModel: OffersViewModel,
     transactionViewModel: TransactionViewModel,
-    accountViewModel: AccountViewModel
+    accountViewModel: AccountViewModel,
+    connectivityViewModel: ConnectivityViewModel // Agregar ViewModel de conectividad
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -76,6 +83,9 @@ fun OffersScreen(
         }
     }
 
+    // Observar el estado de conectividad
+    val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
+
     LaunchedEffect(Unit) {
         viewModel.fetchOffers()
         if (hasLocationPermission) {
@@ -94,9 +104,13 @@ fun OffersScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Special offers in your area") }
-            )
+            Column {
+                ConnectivityBanner(isConnected = isNetworkAvailable)
+                TopAppBar(
+                    title = { Text("Special offers in your area",
+                        fontWeight = FontWeight.Bold) }
+                )
+            }
         },
         bottomBar = {
             BottomNavigation(
@@ -317,4 +331,31 @@ private fun sortOffersByDistance(
 private fun formatDistance(meters: Float): String {
     val df = DecimalFormat("#.#")
     return if (meters < 1000) "${df.format(meters)}m" else "${df.format(meters / 1000)}km"
+}
+
+@Composable
+fun ConnectivityBanner(isConnected: Boolean) {
+    AnimatedVisibility(
+        visible = !isConnected,
+        enter = slideInVertically(
+            initialOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(durationMillis = 300)
+        ),
+        exit = slideOutVertically(
+            targetOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(durationMillis = 300)
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color.Red
+        ) {
+            Text(
+                text = "You have no Internet connection! You will not see updates until the connection is restored",
+                modifier = Modifier.padding(16.dp),
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
 }

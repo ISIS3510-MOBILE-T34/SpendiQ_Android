@@ -290,13 +290,13 @@ class MainActivity : FragmentActivity() {
                             MainContent(navController, authViewModel, accountViewModel, offersViewModel, transactionViewModel, connectivityViewModel, onboardingViewModel)
                         }
                         composable("promos") {
-                            OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel)
+                            OffersScreen(navController, offersViewModel, transactionViewModel, accountViewModel, connectivityViewModel)
                         }
                         composable("profile") {
-                            ProfileScreen(navController, authViewModel, transactionViewModel, accountViewModel, profileViewModel)
+                            ProfileScreen(navController, authViewModel, transactionViewModel, accountViewModel, profileViewModel, connectivityViewModel)
                         }
                         composable("accounts") {
-                            AccountsScreen(navController, accountViewModel, transactionViewModel)
+                            AccountsScreen(navController, accountViewModel, transactionViewModel, connectivityViewModel)
                         }
                         composable("profileNotificationsScreen") {
                             ProfileNotificationsScreen(navController, transactionViewModel, accountViewModel)
@@ -308,7 +308,7 @@ class MainActivity : FragmentActivity() {
                             ProfileAccountScreen(navController, userData, transactionViewModel, accountViewModel)
                         }
                         composable("profileLaGScreen") {
-                            ProfileLaGScreen(navController, transactionViewModel, accountViewModel)
+                            ProfileLaGScreen(navController, transactionViewModel, accountViewModel, connectivityViewModel)
                         }
                         composable("profileStatisticsScreen") {
                             ProfileStatisticsScreen(navController, transactionViewModel, accountViewModel)

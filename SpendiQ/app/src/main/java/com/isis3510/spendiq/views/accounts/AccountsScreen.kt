@@ -1,5 +1,10 @@
+// AccountsScreen.kt
 package com.isis3510.spendiq.views.accounts
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +26,7 @@ import com.isis3510.spendiq.model.data.Account
 import com.isis3510.spendiq.views.common.BottomNavigation
 import com.isis3510.spendiq.views.transaction.AddTransactionModal
 import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import java.text.NumberFormat
 import java.util.Locale
@@ -40,7 +47,7 @@ import java.util.Locale
  * UI Structure:
  * - Scaffold with a BottomNavigation for navigation between sections of the app.
  * - LazyColumn for displaying a list of accounts.
- * - Buttons for editing accounts and adding transactions.
+ * - Buttons for editing accounts y adding transactions.
  * - Modal dialog for editing accounts with options for creation and deletion.
  *
  * Supporting Components:
@@ -50,23 +57,26 @@ import java.util.Locale
  * @param navController [NavController] to navigate between screens.
  * @param accountViewModel [AccountViewModel] for managing account-related data.
  * @param transactionViewModel [TransactionViewModel] for managing transactions.
+ * @param connectivityViewModel [ConnectivityViewModel] para gestionar la conectividad.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountsScreen(
     navController: NavController,
     accountViewModel: AccountViewModel,
-    transactionViewModel: TransactionViewModel
+    transactionViewModel: TransactionViewModel,
+    connectivityViewModel: ConnectivityViewModel // Agregar ViewModel de conectividad
 ) {
     // Collect accounts and transactions
     val accounts by accountViewModel.accounts.collectAsState()
     val transactions by transactionViewModel.transactions.collectAsState()
     val uiState by accountViewModel.uiState.collectAsState()
 
-    // State variables for modals
+    // State variables para modales
     var showEditModal by remember { mutableStateOf(false) }
     var showAddTransactionModal by remember { mutableStateOf(false) }
 
-    // Calculate the account with the most transactions
+    // Calcular la cuenta con más transacciones
     val accountWithMostTransactions = remember(transactions, accounts) {
         transactions.groupBy { it.accountId }
             .mapValues { (_, txns) -> txns.size }
@@ -80,7 +90,24 @@ fun AccountsScreen(
         accountViewModel.observeAccounts()
     }
 
+    // Observar el estado de conectividad
+    val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
+
     Scaffold(
+        topBar = {
+            Column {
+                ConnectivityBanner(isConnected = isNetworkAvailable)
+                TopAppBar(
+                    title = {
+                        Text(
+                            "Accounts",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                )
+            }
+        },
         bottomBar = {
             BottomNavigation(
                 navController = navController,
@@ -104,18 +131,13 @@ fun AccountsScreen(
                 .padding(16.dp)
         ) {
             Text(
-                "Accounts",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
                 "These are your current accounts",
                 fontSize = 14.sp,
                 color = Color.Gray
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Show account with the most transactions
+            // Mostrar cuenta con más transacciones
             if (accountWithMostTransactions != null) {
                 Text(
                     text = "Account with the most transactions: ${accountWithMostTransactions.name}",
@@ -133,7 +155,7 @@ fun AccountsScreen(
                 )
             }
 
-            // Show accounts
+            // Mostrar cuentas
             when (uiState) {
                 is AccountViewModel.UiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
@@ -166,7 +188,7 @@ fun AccountsScreen(
         }
     }
 
-    // Show Edit Account Modal
+    // Mostrar Modal de Editar Cuenta
     if (showEditModal) {
         EditAccountModal(
             existingAccounts = accounts,
@@ -180,7 +202,7 @@ fun AccountsScreen(
         )
     }
 
-    // Show Add Transaction Modal
+    // Mostrar Modal de Agregar Transacción
     if (showAddTransactionModal) {
         AddTransactionModal(
             accountViewModel = accountViewModel,
@@ -193,9 +215,6 @@ fun AccountsScreen(
         )
     }
 }
-
-
-
 
 /**
  * AccountItem composable function
@@ -260,6 +279,7 @@ fun formatAmount(amount: Long): String {
     val formatter = NumberFormat.getCurrencyInstance(locale)
     return formatter.format(amount)
 }
+
 /**
  * EditAccountModal composable function
  *
@@ -285,11 +305,11 @@ fun EditAccountModal(
     var expandedAction by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
-    // Filter available account types
+    // Filtrar tipos de cuenta disponibles
     val availableAccountTypes = listOf("Nu", "Bancolombia", "Nequi")
         .filter { accountType -> existingAccounts.none { it.name == accountType } }
 
-    // Define actions based on available account types
+    // Definir acciones basadas en los tipos de cuenta disponibles
     val actions = if (availableAccountTypes.isEmpty()) listOf("Delete") else listOf("Create", "Delete")
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -301,7 +321,7 @@ fun EditAccountModal(
             Text("Edit Accounts", style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Dropdown for selecting action (Create/Delete)
+            // Dropdown para seleccionar acción (Crear/Eliminar)
             ExposedDropdownMenuBox(
                 expanded = expandedAction,
                 onExpandedChange = { expandedAction = !expandedAction }
@@ -333,7 +353,7 @@ fun EditAccountModal(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Dropdown for selecting account type based on the selected action
+            // Dropdown para seleccionar tipo de cuenta basado en la acción seleccionada
             if (selectedAction.isNotEmpty()) {
                 val applicableAccountTypes = if (selectedAction == "Create") availableAccountTypes else existingAccounts.map { it.name }
 
@@ -368,7 +388,7 @@ fun EditAccountModal(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Button to confirm the selected action
+            // Botón para confirmar la acción seleccionada
             Button(
                 onClick = {
                     if (selectedAction == "Delete") {
@@ -386,7 +406,7 @@ fun EditAccountModal(
         }
     }
 
-    // Confirmation dialog for account deletion
+    // Diálogo de confirmación para eliminación de cuenta
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
@@ -411,5 +431,32 @@ fun EditAccountModal(
                 }
             }
         )
+    }
+}
+
+@Composable
+fun ConnectivityBanner(isConnected: Boolean) {
+    AnimatedVisibility(
+        visible = !isConnected,
+        enter = slideInVertically(
+            initialOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(durationMillis = 300)
+        ),
+        exit = slideOutVertically(
+            targetOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(durationMillis = 300)
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color.Red
+        ) {
+            Text(
+                text = "You have no Internet connection! You will not see updates until the connection is restored",
+                modifier = Modifier.padding(16.dp),
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
     }
 }

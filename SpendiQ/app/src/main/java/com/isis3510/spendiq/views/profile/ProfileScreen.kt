@@ -9,6 +9,10 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -23,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -35,6 +40,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.data.UiToolingDataApi
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -44,6 +50,7 @@ import com.google.android.gms.location.LocationServices
 import com.isis3510.spendiq.R
 import com.isis3510.spendiq.viewmodel.AccountViewModel
 import com.isis3510.spendiq.viewmodel.AuthViewModel
+import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 import com.isis3510.spendiq.viewmodel.ProfileViewModel
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
 import com.isis3510.spendiq.views.common.BottomNavigation
@@ -61,12 +68,14 @@ fun ProfileScreen(
     viewModel: AuthViewModel,
     transactionViewModel: TransactionViewModel,
     accountViewModel: AccountViewModel,
-    profileViewModel: ProfileViewModel
+    profileViewModel: ProfileViewModel,
+    connectivityViewModel: ConnectivityViewModel
 ) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     val profileImageUri by profileViewModel.profileImageUri.collectAsState()
     var isLoading by remember { mutableStateOf(true) }
     val context = LocalContext.current
+    val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
 
     var locationText by remember { mutableStateOf("Location not available") }
 
@@ -108,14 +117,29 @@ fun ProfileScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Profile") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigate("main") { launchSingleTop = true } }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            Column {
+                ConnectivityBanner(isConnected = isNetworkAvailable)
+                TopAppBar(
+                    title = {
+                        Box(Modifier.fillMaxWidth()) {
+                            Text(
+                                "Profile",
+                                textAlign = TextAlign.Start,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.round_arrow_back_ios_24),
+                                contentDescription = "Back"
+                            )
+                        }
+                    },
+                    actions = { Spacer(modifier = Modifier.width(48.dp)) }
+                )
+            }
         },
         bottomBar = {
             BottomNavigation(
@@ -442,6 +466,7 @@ fun ProfileImageWithMultiColorBorder(profileImageUri: Uri?) {
     }
 }
 
+
 @SuppressLint("MissingPermission")
 suspend fun updateLocation(context: Context, onLocationUpdated: (String) -> Unit) {
     val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
@@ -479,3 +504,5 @@ fun saveImageToInternalStorage(context: Context, uri: Uri): Uri? {
         null
     }
 }
+
+

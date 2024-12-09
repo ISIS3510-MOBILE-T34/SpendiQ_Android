@@ -1,6 +1,10 @@
 package com.isis3510.spendiq.views.profile
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +41,7 @@ import com.isis3510.spendiq.model.local.database.ExpenseEntity
 import com.isis3510.spendiq.utils.isConnected
 import com.isis3510.spendiq.utils.scheduleSyncWork
 import com.isis3510.spendiq.viewmodel.AccountViewModel
+import com.isis3510.spendiq.viewmodel.ConnectivityViewModel
 import com.isis3510.spendiq.viewmodel.LimitsViewModel
 import com.isis3510.spendiq.viewmodel.LimitsViewModelFactory
 import com.isis3510.spendiq.viewmodel.TransactionViewModel
@@ -80,7 +85,8 @@ class NumberFormatTransformation : VisualTransformation {
 fun ProfileLaGScreen(
     navController: NavController,
     transactionViewModel: TransactionViewModel,
-    accountViewModel: AccountViewModel
+    accountViewModel: AccountViewModel,
+    connectivityViewModel: ConnectivityViewModel
 ) {
     val context = LocalContext.current
     val limitsViewModel: LimitsViewModel = viewModel(factory = LimitsViewModelFactory(context))
@@ -108,6 +114,7 @@ fun ProfileLaGScreen(
         val disabledButtonColor = Color(0xFFB3CB54).copy(alpha = 0.5f) // Color gris para deshabilitado
         val cornerRadius = 30.dp // Bordes más redondeados
         var selectedExpenseIndex by remember { mutableStateOf(-1) }
+        val isNetworkAvailable by connectivityViewModel.isConnected.observeAsState(true)
 
         // Estado de desplazamiento para el contenido principal
         val mainScrollState = rememberScrollState()
@@ -125,26 +132,29 @@ fun ProfileLaGScreen(
 
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Box(Modifier.fillMaxWidth()) {
-                            Text(
-                                "Limits and Goals",
-                                modifier = Modifier.align(Alignment.Center),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.round_arrow_back_ios_24),
-                                contentDescription = "Back"
-                            )
-                        }
-                    },
-                    actions = { Spacer(modifier = Modifier.width(48.dp)) }
-                )
+                Column {
+                    ConnectivityBanner(isConnected = isNetworkAvailable)
+                    TopAppBar(
+                        title = {
+                            Box(Modifier.fillMaxWidth()) {
+                                Text(
+                                    "Limits and Goals",
+                                    modifier = Modifier.align(Alignment.Center),
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.round_arrow_back_ios_24),
+                                    contentDescription = "Back"
+                                )
+                            }
+                        },
+                        actions = { Spacer(modifier = Modifier.width(48.dp)) }
+                    )
+                }
             },
             bottomBar = {
                 BottomNavigation(
@@ -521,7 +531,6 @@ fun ProfileLaGScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botón "Guardar"
                 Button(
                     onClick = {
                         if (isConnected(context)) {
@@ -552,14 +561,34 @@ fun ProfileLaGScreen(
                     Text("Guardar")
                 }
             }
-        } ?: run {
-            // Mostrar indicador de carga mientras se obtienen los datos
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+        }
+    }
+}
+
+
+@Composable
+fun ConnectivityBanner(isConnected: Boolean) {
+    AnimatedVisibility(
+        visible = !isConnected,
+        enter = slideInVertically(
+            initialOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(durationMillis = 300)
+        ),
+        exit = slideOutVertically(
+            targetOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(durationMillis = 300)
+        )
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = Color.Red
+        ) {
+            Text(
+                text = "You have no Internet connection! You will not see updates until the connection is restored",
+                modifier = Modifier.padding(16.dp),
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }
