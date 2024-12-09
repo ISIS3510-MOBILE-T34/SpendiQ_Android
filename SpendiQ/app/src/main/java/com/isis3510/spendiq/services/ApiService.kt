@@ -13,7 +13,7 @@ interface ApiService {
     suspend fun sendChatMessage(@Body message: Map<String, String>): ResponseData
 
     companion object {
-        private const val BASE_URL = "http://192.168.2.27:5000"
+        private const val BASE_URL = "http://192.168.2.35:5000"
 
         // Crea una instancia de ApiService
         fun create(): ApiService {

@@ -20,8 +20,15 @@ class ChatbotViewModel : ViewModel() {
     // Estado del bot
     var isBotActive = mutableStateOf(true)
 
+    // Mensaje de restricción
+    private val restrictionMessage = "You are a financial assistant. You must only respond to: " +
+            "1. Financial inquiries (e.g., budgeting, expenses, savings, or investments). " +
+            "2. Greetings if the user greets you." +
+            "3. Questions about your identity (e.g., 'Who are you?')." +
+            "If the message contains anything else, respond with: 'Sorry, but I only answer financial inquiries.'"
+
     // Función para enviar un mensaje al backend
-    fun sendMessage(message: String, firebaseAnalytics: FirebaseAnalytics) {
+    fun sendMessage(message: String, firebaseAnalytics: FirebaseAnalytics, balance:Long) {
         // Agregar el mensaje del usuario a la lista
         Log.d("ChatbotViewModel", "message: $message")
         _messages.add(ChatMessage(content = message, fromUser = true))
@@ -35,7 +42,7 @@ class ChatbotViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 // Realiza la solicitud al backend
-                val response = ApiService.create().sendChatMessage(mapOf("message" to message))
+                val response = ApiService.create().sendChatMessage(mapOf("message" to "$restrictionMessage $message with balance: $balance"))
                 Log.d("ChatbotViewModel", "Response: $response")
                 // Agregar la respuesta del bot a la lista
                 _messages.add(ChatMessage(content = response.response, fromUser = false))
